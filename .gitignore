@@ -1,0 +1,14 @@
+.DS_Store
+/.dapper
+/.cache
+/bin
+/dist
+/build
+*.swp
+.idea
+./scc-operator
+scc-operator
+/tests/hull/output
+*~
+kubeconfig*.yaml
+.vscode

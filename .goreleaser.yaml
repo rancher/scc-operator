@@ -1,0 +1,44 @@
+# Make sure to check the documentation at https://goreleaser.com
+version: 2 # the goreleaser config version
+before:
+  hooks:
+    - go mod tidy
+builds:
+    - id: scc-operator
+      main: ./cmd/operator/main.go
+      goos:
+        - linux
+        - darwin
+      goarch:
+        - amd64
+        - arm64
+      binary: scc-operator
+      ldflags:
+        - -extldflags
+        - -static
+        - -s -w -X github.com/rancher-sandbox/scc-operator/cmd/operator/version.Version={{.Version}}
+        - -s -w -X github.com/rancher-sandbox/scc-operator/cmd/operator/version.Commit={{.Commit}}
+        - -s -w -X github.com/rancher-sandbox/scc-operator/cmd/operator/version.Date={{.Date}}
+      flags:
+        - -trimpath
+      env:
+        - CGO_ENABLED=0
+archives:
+    - id: scc-operator
+      builds:
+        - scc-operator
+      name_template: '{{ .Binary }}-{{ .Os }}-{{ .Arch }}'
+release:
+  prerelease: auto
+  extra_files:
+    - glob : ./build/artifacts/*.tgz
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
