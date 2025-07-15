@@ -77,9 +77,9 @@ func SetLogFormat(format Format) {
 	case FormatSimple:
 		rootLogger.Warnf("Invalid log format '%s' provided. Defaulting to '%s'.", format, DefaultFormat)
 		rootLogger.SetFormatter(&simplelog.StandardFormatter{})
-		currentLogFormat = DefaultFormat
 	case FormatText:
 	default:
+		currentLogFormat = DefaultFormat
 		rootLogger.SetFormatter(&logrus.TextFormatter{
 			FullTimestamp: true,
 		})
