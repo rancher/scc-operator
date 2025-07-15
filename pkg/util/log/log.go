@@ -11,3 +11,9 @@ func NewLog() log.StructuredLogger {
 
 	return baseLogger
 }
+
+func NewControllerLogger(controllerName string) log.StructuredLogger {
+	builder := NewSccLogBuilder(log.WithController(controllerName))
+
+	return builder.ToLogger()
+}

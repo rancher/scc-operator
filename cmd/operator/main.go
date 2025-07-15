@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"github.com/rancher-sandbox/scc-operator/pkg/log"
 	"os"
 
 	"github.com/sirupsen/logrus"
@@ -15,6 +14,7 @@ import (
 	"github.com/rancher-sandbox/scc-operator/internal/types"
 	"github.com/rancher-sandbox/scc-operator/internal/util"
 	"github.com/rancher-sandbox/scc-operator/pkg/operator"
+	"github.com/rancher-sandbox/scc-operator/pkg/util/log"
 )
 
 var (
@@ -59,6 +59,7 @@ func main() {
 	dm := os.Getenv("CATTLE_DEV_MODE")
 	util.SetDevMode(dm != "")
 	runOptions := types.RunOptions{
+		Logger:       logger,
 		SccNamespace: SCCNamespace,
 	}
 
