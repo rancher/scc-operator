@@ -22,7 +22,7 @@ import (
 	fmt "fmt"
 	http "net/http"
 
-	sccv1 "github.com/rancher/rancher/pkg/generated/clientset/versioned/typed/scc.cattle.io/v1"
+	sccv1 "github.com/rancher-sandbox/scc-operator/pkg/generated/clientset/versioned/typed/scc.cattle.io/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

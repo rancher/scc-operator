@@ -22,7 +22,7 @@ import (
 	http "net/http"
 
 	scccattleiov1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
-	scheme "github.com/rancher/rancher/pkg/generated/clientset/versioned/scheme"
+	scheme "github.com/rancher-sandbox/scc-operator/pkg/generated/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

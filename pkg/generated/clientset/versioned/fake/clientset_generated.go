@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/rancher/rancher/pkg/generated/clientset/versioned"
-	sccv1 "github.com/rancher/rancher/pkg/generated/clientset/versioned/typed/scc.cattle.io/v1"
-	fakesccv1 "github.com/rancher/rancher/pkg/generated/clientset/versioned/typed/scc.cattle.io/v1/fake"
+	clientset "github.com/rancher-sandbox/scc-operator/pkg/generated/clientset/versioned"
+	sccv1 "github.com/rancher-sandbox/scc-operator/pkg/generated/clientset/versioned/typed/scc.cattle.io/v1"
+	fakesccv1 "github.com/rancher-sandbox/scc-operator/pkg/generated/clientset/versioned/typed/scc.cattle.io/v1/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
