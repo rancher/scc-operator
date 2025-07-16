@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	os.Unsetenv("GOPATH")
+	_ = os.Unsetenv("GOPATH")
 
 	controllergen.Run(args.Options{
 		OutputPackage: "github.com/rancher-sandbox/scc-operator/pkg/generated",

@@ -3,22 +3,22 @@ package systeminfo
 import (
 	"encoding/json"
 	"github.com/google/uuid"
-	"k8s.io/client-go/util/retry"
+	//"k8s.io/client-go/util/retry"
 
 	"github.com/SUSE/connect-ng/pkg/registration"
-	"github.com/rancher/rancher/pkg/telemetry"
+	//"github.com/rancher/rancher/pkg/telemetry"
 
 	rootLog "github.com/rancher-sandbox/scc-operator/internal/log"
-	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo/secret"
+	//"github.com/rancher-sandbox/scc-operator/pkg/systeminfo/secret"
 	"github.com/rancher-sandbox/scc-operator/pkg/util"
 )
 
 type InfoExporter struct {
-	infoProvider         *InfoProvider
-	tel                  telemetry.TelemetryGatherer
-	isLocalReady         bool
-	logger               rootLog.StructuredLogger
-	metricsSecretManager *secret.MetricsSecretManager
+	infoProvider *InfoProvider
+	//tel                  telemetry.TelemetryGatherer
+	isLocalReady bool
+	logger       rootLog.StructuredLogger
+	//metricsSecretManager *secret.MetricsSecretManager
 }
 
 type RancherSCCInfo struct {
@@ -49,16 +49,16 @@ type RancherOfflineRequestEncoded []byte
 
 func NewInfoExporter(
 	infoProvider *InfoProvider,
-	rancherTelemetry telemetry.TelemetryGatherer,
+	//rancherTelemetry telemetry.TelemetryGatherer,
 	logger rootLog.StructuredLogger,
-	metricsSecretManager *secret.MetricsSecretManager,
+	// metricsSecretManager *secret.MetricsSecretManager,
 ) *InfoExporter {
 	return &InfoExporter{
-		infoProvider:         infoProvider,
-		tel:                  rancherTelemetry,
-		isLocalReady:         false,
-		logger:               logger,
-		metricsSecretManager: metricsSecretManager,
+		infoProvider: infoProvider,
+		//tel:                  rancherTelemetry,
+		isLocalReady: false,
+		logger:       logger,
+		//metricsSecretManager: metricsSecretManager,
 	}
 }
 
@@ -80,59 +80,61 @@ func (e *InfoExporter) ClusterUuid() uuid.UUID {
 }
 
 func (e *InfoExporter) preparedForSCC() RancherSCCInfo {
-	var exporter telemetry.RancherManagerTelemetry
-	// TODO(dan): this logic might need some tweaking
-	if err := retry.OnError(retry.DefaultRetry, func(_ error) bool {
-		return true
-	}, func() error {
-		exp, err := e.tel.GetClusterTelemetry()
-		if err != nil {
-			return err
+	/*
+		var exporter telemetry.RancherManagerTelemetry
+		// TODO(dan): this logic might need some tweaking
+		if err := retry.OnError(retry.DefaultRetry, func(_ error) bool {
+			return true
+		}, func() error {
+			exp, err := e.tel.GetClusterTelemetry()
+			if err != nil {
+				return err
+			}
+			exporter = exp
+			return nil
+		}); err != nil {
+			// TODO(dan) : should probably surface an error here and handle it
+			return RancherSCCInfo{}
 		}
-		exporter = exp
-		return nil
-	}); err != nil {
-		// TODO(dan) : should probably surface an error here and handle it
-		return RancherSCCInfo{}
-	}
 
-	nodeCount := 0
-	totalCpuCores := int(0)
-	// note: this will only correctly report up to ~9 exabytes of memory,
-	// which should be fine
-	totalMemBytes := int(0)
-	clusterCount := exporter.ManagedClusterCount()
+		nodeCount := 0
+		totalCpuCores := int(0)
+		// note: this will only correctly report up to ~9 exabytes of memory,
+		// which should be fine
+		totalMemBytes := int(0)
+		clusterCount := exporter.ManagedClusterCount()
 
-	// local cluster metrics
-	localClT := exporter.LocalClusterTelemetry()
-	localCores, _ := localClT.CpuCores()
-	localMem, _ := localClT.MemoryCapacityBytes()
-	totalCpuCores += localCores
-	totalMemBytes += localMem
-	for _, _ = range localClT.PerNodeTelemetry() {
-		nodeCount++
-	}
-
-	// managed cluster metrics
-	for _, clT := range exporter.PerManagedClusterTelemetry() {
-		cores, _ := clT.CpuCores()
-		totalCpuCores += cores
-		memBytes, _ := clT.MemoryCapacityBytes()
-		totalMemBytes += memBytes
-		for _, _ = range clT.PerNodeTelemetry() {
+		// local cluster metrics
+		localClT := exporter.LocalClusterTelemetry()
+		localCores, _ := localClT.CpuCores()
+		localMem, _ := localClT.MemoryCapacityBytes()
+		totalCpuCores += localCores
+		totalMemBytes += localMem
+		for _, _ = range localClT.PerNodeTelemetry() {
 			nodeCount++
 		}
-	}
+
+		// managed cluster metrics
+		for _, clT := range exporter.PerManagedClusterTelemetry() {
+			cores, _ := clT.CpuCores()
+			totalCpuCores += cores
+			memBytes, _ := clT.MemoryCapacityBytes()
+			totalMemBytes += memBytes
+			for _, _ = range clT.PerNodeTelemetry() {
+				nodeCount++
+			}
+		}
+	*/
 
 	return RancherSCCInfo{
 		UUID:             e.infoProvider.rancherUuid,
 		RancherUrl:       ServerUrl(),
-		Version:          exporter.RancherVersion(),
-		Nodes:            nodeCount,
+		Version:          "unknown",
+		Nodes:            1,
 		Sockets:          0,
-		Clusters:         clusterCount,
-		CpuCores:         totalCpuCores,
-		MemoryBytesTotal: util.BytesToMiBRounded(totalMemBytes),
+		Clusters:         1,
+		CpuCores:         1,
+		MemoryBytesTotal: util.BytesToMiBRounded(20_000),
 	}
 }
 
@@ -143,10 +145,12 @@ func (e *InfoExporter) PreparedForSCC() (registration.SystemInformation, error) 
 		return nil, jsonErr
 	}
 
-	metricsUpdateErr := e.metricsSecretManager.UpdateMetricsDebugSecret(sccJson)
-	if metricsUpdateErr != nil {
-		e.logger.Errorf("error updating metrics secret: %s", metricsUpdateErr.Error())
-	}
+	/*
+		metricsUpdateErr := e.metricsSecretManager.UpdateMetricsDebugSecret(sccJson)
+		if metricsUpdateErr != nil {
+			e.logger.Errorf("error updating metrics secret: %s", metricsUpdateErr.Error())
+		}
+	*/
 
 	systemInfoMap := make(registration.SystemInformation)
 	err := json.Unmarshal(sccJson, &systemInfoMap)

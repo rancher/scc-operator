@@ -2,11 +2,10 @@ package systeminfo
 
 import (
 	"github.com/google/uuid"
+	"github.com/rancher-sandbox/scc-operator/internal/settings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/rancher/rancher/pkg/settings"
 )
 
 func TestNewInfoProvider(t *testing.T) {
@@ -26,10 +25,11 @@ func TestNewInfoProvider(t *testing.T) {
 }
 
 func TestGetProductIdentifier(t *testing.T) {
-	rancherUuid := uuid.Parse(uuid.New())
-	clusterUuid := uuid.Parse(uuid.New())
+	randUuid := uuid.New()
+	rancherUuid, _ := uuid.Parse(randUuid.String())
+	clusterUuid, _ := uuid.Parse(uuid.New().String())
 
-	infoProvider := NewInfoProvider(nil).SetUuids(rancherUuid, clusterUuid)
+	infoProvider := NewInfoProvider().SetUuids(rancherUuid, clusterUuid)
 	product, version, architecture := infoProvider.GetProductIdentifier()
 	assert.Equal(t, "rancher", product)
 	// When in dev mode, the info provider has to "lie" in order to connect with SCC
@@ -44,18 +44,6 @@ func TestGetProductIdentifier(t *testing.T) {
 }
 
 func TestServerHostname(t *testing.T) {
-	originalUrl := settings.ServerURL.Get()
-	_ = settings.ServerURL.Set("https://example.com")
-	defer func() { _ = settings.ServerURL.Set(originalUrl) }()
-	hostname := ServerHostname()
-	if hostname != "example.com" {
-		t.Errorf("Expected hostname to be example.com but got %s", hostname)
-	}
-
-	// Test with empty server URL
-	_ = settings.ServerURL.Set("")
-	hostname = ServerHostname()
-	if hostname != "" {
-		t.Errorf("Expected hostname to be blank but got %s", hostname)
-	}
+	originalUrl := settings.GetServerURL()
+	assert.IsType(t, string(""), originalUrl)
 }

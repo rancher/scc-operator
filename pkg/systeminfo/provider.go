@@ -2,11 +2,10 @@ package systeminfo
 
 import (
 	"github.com/google/uuid"
-	"k8s.io/apimachinery/pkg/labels"
+	//"k8s.io/apimachinery/pkg/labels"
 	"net/url"
-
-	v3 "github.com/rancher/rancher/pkg/generated/controllers/management.cattle.io/v3"
-	"github.com/rancher/rancher/pkg/settings"
+	//v3 "github.com/rancher/rancher/pkg/generated/controllers/management.cattle.io/v3"
+	//"github.com/rancher/rancher/pkg/settings"
 )
 
 const (
@@ -17,12 +16,14 @@ const (
 type InfoProvider struct {
 	rancherUuid uuid.UUID
 	clusterUuid uuid.UUID
-	nodeCache   v3.NodeCache
+	//nodeCache   v3.NodeCache
 }
 
-func NewInfoProvider(nodeCache v3.NodeCache) *InfoProvider {
+func NewInfoProvider(
+// nodeCache v3.NodeCache,
+) *InfoProvider {
 	return &InfoProvider{
-		nodeCache: nodeCache,
+		//nodeCache: nodeCache,
 	}
 }
 
@@ -42,9 +43,10 @@ func (i *InfoProvider) GetProductIdentifier() (string, string, string) {
 }
 
 func (i *InfoProvider) IsLocalReady() bool {
-	localNodes, nodesErr := i.nodeCache.List("local", labels.Everything())
+	//localNodes, nodesErr := i.nodeCache.List("local", labels.Everything())
 	// TODO: should this also check status of nodes and only count ready/healthy nodes?
-	if nodesErr == nil && len(localNodes) > 0 {
+	//if nodesErr == nil && len(localNodes) > 0 {
+	if true {
 		return true
 	}
 
@@ -59,12 +61,14 @@ func (i *InfoProvider) CanStartSccOperator() bool {
 
 // ServerUrl returns the Rancher server URL
 func ServerUrl() string {
-	return settings.ServerURL.Get()
+	// Find setting from outside rancher
+	//	return settings.ServerURL.Get()
+	return "localhost:8080"
 }
 
 // ServerHostname returns the hostname of the Rancher server URL
 func ServerHostname() string {
-	serverUrl := settings.ServerURL.Get()
+	serverUrl := ServerUrl()
 	if serverUrl == "" {
 		return ""
 	}

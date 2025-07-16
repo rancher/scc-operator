@@ -13,6 +13,9 @@ type sccStarter struct {
 	systemRegistrationReady chan struct{}
 }
 
+// TODO: in a standalone container we need to consider leadership/lease tracking
+// Only one container of this type should hold the leadership role and actually start fully.
+// Any non-leaders should be ready to start fully if they are promoted.
 func (s *sccStarter) waitForSystemReady(onSystemReady func()) {
 	// Currently we only wait for ServerUrl not being empty, this is a good start as without the URL we cannot start.
 	// However, we should also consider other state that we "need" to register with SCC like metrics about nodes/clusters.

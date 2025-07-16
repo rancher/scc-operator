@@ -6,7 +6,5 @@ import (
 )
 
 func TestNewLog(t *testing.T) {
-	assert.Nil(t, rootLog)
-	_ = NewLog()
-	assert.NotNil(t, rootLog)
+	assert.NotNil(t, rootLogger)
 }

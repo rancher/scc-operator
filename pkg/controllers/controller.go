@@ -20,7 +20,7 @@ import (
 	"github.com/rancher-sandbox/scc-operator/pkg/controllers/repos"
 	registrationControllers "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo"
-	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo/secret"
+	//metricsSecret "github.com/rancher-sandbox/scc-operator/pkg/systeminfo/secret"
 
 	v1core "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/rancher/wrangler/v3/pkg/generic"
@@ -77,16 +77,16 @@ type SCCHandler interface {
 }
 
 type handler struct {
-	ctx                  context.Context
-	log                  *logrus.Entry
-	registrations        registrationControllers.RegistrationController
-	registrationCache    registrationControllers.RegistrationCache
-	secretRepo           repos.SecretRepo
-	secrets              v1core.SecretController
-	secretCache          v1core.SecretCache
-	systemInfoExporter   *systeminfo.InfoExporter
-	metricsSecretManager *secret.MetricsSecretManager
-	systemNamespace      string
+	ctx                context.Context
+	log                *logrus.Entry
+	registrations      registrationControllers.RegistrationController
+	registrationCache  registrationControllers.RegistrationCache
+	secretRepo         repos.SecretRepo
+	secrets            v1core.SecretController
+	secretCache        v1core.SecretCache
+	systemInfoExporter *systeminfo.InfoExporter
+	//metricsSecretManager *metricsSecret.MetricsSecretManager
+	systemNamespace string
 }
 
 func Register(
@@ -94,7 +94,7 @@ func Register(
 	systemNamespace string,
 	registrations registrationControllers.RegistrationController,
 	secrets v1core.SecretController,
-	rancherTelemetry telemetry.TelemetryGatherer,
+	//rancherTelemetry telemetry.TelemetryGatherer,
 	systemInfoProvider *systeminfo.InfoProvider,
 ) {
 	secretsRepo := repos.SecretRepo{
@@ -104,9 +104,9 @@ func Register(
 
 	systemInfoExporter := systeminfo.NewInfoExporter(
 		systemInfoProvider,
-		rancherTelemetry,
+		//rancherTelemetry,
 		log.NewLog().WithField("subcomponent", "systeminfo-exporter"),
-		secret.New(systemNamespace, &secretsRepo),
+		//metricsSecret.New(systemNamespace, &secretsRepo),
 	)
 
 	controller := &handler{

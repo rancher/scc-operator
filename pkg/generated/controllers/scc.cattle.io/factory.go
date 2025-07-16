@@ -19,13 +19,19 @@ limitations under the License.
 package scc
 
 import (
-	"github.com/rancher/lasso/pkg/controller"
+	"github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
+"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/wrangler/v3/pkg/generic"
 	"k8s.io/client-go/rest"
 )
 
 type Factory struct {
 	*generic.Factory
+}
+
+func (c *Factory) Registration() v1.RegistrationController {
+	//TODO implement me
+	panic("implement me")
 }
 
 func NewFactoryFromConfigOrDie(config *rest.Config) *Factory {
