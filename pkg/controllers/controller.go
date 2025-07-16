@@ -477,7 +477,7 @@ func (h *handler) OnRegistrationChange(name string, registrationObj *v1.Registra
 		return nil, nil
 	}
 
-	if !systeminfo.IsServerUrlReady() {
+	if !h.systemInfoExporter.Provider().IsServerUrlReady() {
 		h.log.Info("Server URL not set")
 		return registrationObj, errors.New("no server url found in the system info")
 	}

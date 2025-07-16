@@ -26,7 +26,7 @@ func (s *sccStarter) waitForSystemReady(onSystemReady func()) {
 	}
 	s.log.Info("Waiting for server-url and/or local cluster to be ready")
 	wait.Until(func() {
-		if s.systemInfoProvider != nil && s.systemInfoProvider.CanStartSccOperator() {
+E		if s.systemInfoProvider != nil && s.systemInfoProvider.CanStartSccOperator() {
 			s.log.Info("can now start controllers; server URL and local cluster are now ready.")
 			close(s.systemRegistrationReady)
 		} else {

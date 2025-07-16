@@ -2,9 +2,9 @@ package systeminfo
 
 import (
 	"github.com/google/uuid"
-	//"k8s.io/apimachinery/pkg/labels"
-	"net/url"
-	//v3 "github.com/rancher/rancher/pkg/generated/controllers/management.cattle.io/v3"
+	"github.com/rancher-sandbox/scc-operator/internal/settings"
+	v3 "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
+	"k8s.io/apimachinery/pkg/labels"
 	//"github.com/rancher/rancher/pkg/settings"
 )
 
@@ -16,14 +16,17 @@ const (
 type InfoProvider struct {
 	rancherUuid uuid.UUID
 	clusterUuid uuid.UUID
-	//nodeCache   v3.NodeCache
+	settings    *settings.SettingRepo
+	nodeCache   v3.NodeCache
 }
 
 func NewInfoProvider(
-// nodeCache v3.NodeCache,
+	settings *settings.SettingRepo,
+	nodeCache v3.NodeCache,
 ) *InfoProvider {
 	return &InfoProvider{
-		//nodeCache: nodeCache,
+		settings:  settings,
+		nodeCache: nodeCache,
 	}
 }
 
@@ -43,10 +46,9 @@ func (i *InfoProvider) GetProductIdentifier() (string, string, string) {
 }
 
 func (i *InfoProvider) IsLocalReady() bool {
-	//localNodes, nodesErr := i.nodeCache.List("local", labels.Everything())
+	localNodes, nodesErr := i.nodeCache.List("local", labels.Everything())
 	// TODO: should this also check status of nodes and only count ready/healthy nodes?
-	//if nodesErr == nil && len(localNodes) > 0 {
-	if true {
+	if nodesErr == nil && len(localNodes) > 0 {
 		return true
 	}
 
@@ -56,26 +58,21 @@ func (i *InfoProvider) IsLocalReady() bool {
 // CanStartSccOperator determines when the SCC operator should fully start
 // Currently this waits for a valid Server URL to be configured and the local cluster to appear ready
 func (i *InfoProvider) CanStartSccOperator() bool {
-	return IsServerUrlReady() && i.IsLocalReady()
+	return i.IsServerUrlReady() && i.IsLocalReady()
 }
 
 // ServerUrl returns the Rancher server URL
-func ServerUrl() string {
+func (i *InfoProvider) serverUrl() string {
 	// Find setting from outside rancher
-	//	return settings.ServerURL.Get()
-	return "localhost:8080"
+	return settings.GetServerURL(i.settings)
 }
 
-// ServerHostname returns the hostname of the Rancher server URL
-func ServerHostname() string {
-	serverUrl := ServerUrl()
-	if serverUrl == "" {
-		return ""
-	}
-	parsed, _ := url.Parse(serverUrl)
-	return parsed.Host
+func (i *InfoProvider) IsServerUrlReady() bool {
+	serverUrl := i.serverUrl()
+	return serverUrl != ""
 }
 
-func IsServerUrlReady() bool {
-	return ServerHostname() != ""
+func (i *InfoProvider) ServerHostname() string {
+	serverHostname := settings.ServerHostname(i.settings)
+	return serverHostname
 }

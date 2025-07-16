@@ -3,7 +3,7 @@ package suseconnect
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	
+
 	rootLog "github.com/rancher-sandbox/scc-operator/internal/log"
 	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo"
@@ -18,10 +18,11 @@ func sccContextLogger() rootLog.StructuredLogger {
 }
 
 type SccWrapper struct {
-	credentials connection.Credentials
-	conn        *connection.ApiConnection
-	registered  *bool // only used by online mode
-	systemInfo  *systeminfo.InfoExporter
+	rancherHostname string
+	credentials     connection.Credentials
+	conn            *connection.ApiConnection
+	registered      *bool // only used by online mode
+	systemInfo      *systeminfo.InfoExporter
 }
 
 func DefaultConnectionOptions() connection.Options {
@@ -47,16 +48,18 @@ func OnlineRancherConnection(credentials connection.Credentials, systemInfo *sys
 	}
 
 	return SccWrapper{
-		credentials: credentials,
-		conn:        connection.New(options, credentials),
-		registered:  &registered,
-		systemInfo:  systemInfo,
+		rancherHostname: systemInfo.Provider().ServerHostname(),
+		credentials:     credentials,
+		conn:            connection.New(options, credentials),
+		registered:      &registered,
+		systemInfo:      systemInfo,
 	}
 }
 
 func OfflineRancherRegistration(systemInfo *systeminfo.InfoExporter) SccWrapper {
 	return SccWrapper{
-		systemInfo: systemInfo,
+		rancherHostname: systemInfo.Provider().ServerHostname(),
+		systemInfo:      systemInfo,
 	}
 }
 
@@ -87,7 +90,7 @@ func (sw *SccWrapper) SystemRegistration(regCode string) (RegistrationSystemId, 
 		return EmptyRegistrationSystemId, err
 	}
 
-	id, regErr := registration.Register(sw.conn, regCode, systeminfo.ServerHostname(), preparedSystemInfo, registration.NoExtraData)
+	id, regErr := registration.Register(sw.conn, regCode, sw.rancherHostname, preparedSystemInfo, registration.NoExtraData)
 	if regErr != nil {
 		return ErrorRegistrationSystemId, errors.Wrap(regErr, "Cannot register system to SCC")
 	}
@@ -116,7 +119,7 @@ func (sw *SccWrapper) KeepAlive() error {
 		return err
 	}
 	// 2 call Status
-	status, statusErr := registration.Status(sw.conn, systeminfo.ServerHostname(), preparedSystemInfo, registration.NoExtraData)
+	status, statusErr := registration.Status(sw.conn, sw.rancherHostname, preparedSystemInfo, registration.NoExtraData)
 	if status != registration.Registered {
 		return fmt.Errorf("trying to send keepalive on a system that is not yet registered. register this system first: %v", statusErr)
 	}

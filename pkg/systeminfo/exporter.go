@@ -128,7 +128,7 @@ func (e *InfoExporter) preparedForSCC() RancherSCCInfo {
 
 	return RancherSCCInfo{
 		UUID:             e.infoProvider.rancherUuid,
-		RancherUrl:       ServerUrl(),
+		RancherUrl:       e.infoProvider.serverUrl(),
 		Version:          "unknown",
 		Nodes:            1,
 		Sockets:          0,

@@ -5,6 +5,7 @@ import (
 	"github.com/rancher-sandbox/scc-operator/internal/types"
 	"github.com/rancher-sandbox/scc-operator/internal/util"
 	"github.com/rancher-sandbox/scc-operator/internal/wrangler"
+	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo"
 	"github.com/rancher/wrangler/v3/pkg/ratelimit"
 	"github.com/rancher/wrangler/v3/pkg/start"
 	rest "k8s.io/client-go/rest"
@@ -29,20 +30,17 @@ func Run(
 		return err
 	}
 
-	// TODO: init info provider
-	// infoProvider := systeminfo.NewInfoProvider(
-	// 	wContext.Mgmt.Node().Cache(),
-	// )
+	infoProvider := systeminfo.NewInfoProvider(wContext.Settings, wContext.Mgmt.Node().Cache())
 
 	starter := sccStarter{
 		log:                     operatorLogger.WithField("component", "scc-starter"),
-		systemInfoProvider:      nil,
+		systemInfoProvider:      infoProvider,
 		systemRegistrationReady: make(chan struct{}),
 	}
 
 	go starter.waitForSystemReady(func() {
 		operatorLogger.Debug("Setting up SCC Operator")
-		initOperator, err := setup(&wContext, operatorLogger, nil)
+		initOperator, err := setup(&wContext, operatorLogger, infoProvider)
 		if err != nil {
 			starter.log.Errorf("error setting up scc operator: %s", err.Error())
 		}
@@ -70,5 +68,6 @@ func Run(
 		operatorLogger.Info("SCC operator initialized; controllers waiting to start until system is ready")
 	}
 
+	<-ctx.Done()
 	return nil
 }

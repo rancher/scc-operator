@@ -29,7 +29,7 @@ func TestGetProductIdentifier(t *testing.T) {
 	rancherUuid, _ := uuid.Parse(randUuid.String())
 	clusterUuid, _ := uuid.Parse(uuid.New().String())
 
-	infoProvider := NewInfoProvider().SetUuids(rancherUuid, clusterUuid)
+	infoProvider := NewInfoProvider(nil, nil).SetUuids(rancherUuid, clusterUuid)
 	product, version, architecture := infoProvider.GetProductIdentifier()
 	assert.Equal(t, "rancher", product)
 	// When in dev mode, the info provider has to "lie" in order to connect with SCC
@@ -44,6 +44,6 @@ func TestGetProductIdentifier(t *testing.T) {
 }
 
 func TestServerHostname(t *testing.T) {
-	originalUrl := settings.GetServerURL()
+	originalUrl := settings.GetServerURL(nil)
 	assert.IsType(t, string(""), originalUrl)
 }

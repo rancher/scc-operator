@@ -2,6 +2,7 @@ package wrangler
 
 import (
 	"fmt"
+	"github.com/rancher-sandbox/scc-operator/internal/settings"
 	lasso "github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/lasso/pkg/mapper"
@@ -35,6 +36,7 @@ type MiniContext struct {
 	Core          corev1.Interface
 	SCC           sccv1.Interface
 	Mgmt          mgmtv3.Interface
+	Settings      *settings.SettingRepo
 }
 
 func enableProtobuf(cfg *rest.Config) *rest.Config {
@@ -93,6 +95,10 @@ func NewWranglerMiniContext(kubeConfig *rest.Config) (MiniContext, error) {
 		return MiniContext{}, err
 	}
 
+	mgmtInterface := mgmtFactory.Management().V3()
+
+	settingRepo := settings.NewSettingRepository(mgmtInterface.Setting(), mgmtInterface.Setting().Cache())
+
 	return MiniContext{
 		RESTConfig:    kubeConfig,
 		Mapper:        restmapper,
@@ -102,6 +108,7 @@ func NewWranglerMiniContext(kubeConfig *rest.Config) (MiniContext, error) {
 		SharedFactory: sharedClientFactory,
 		Core:          coreF.Core().V1(),
 		SCC:           sccFactory.Scc().V1(),
-		Mgmt:          mgmtFactory.Management().V3(),
+		Mgmt:          mgmtInterface,
+		Settings:      settingRepo,
 	}, nil
 }
