@@ -15,6 +15,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	"github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/management.cattle.io"
+	mgmtv3 "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
 	"github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/scc.cattle.io"
 	sccv1 "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 )
@@ -32,6 +34,7 @@ type MiniContext struct {
 	SharedFactory lasso.SharedClientFactory
 	Core          corev1.Interface
 	SCC           sccv1.Interface
+	Mgmt          mgmtv3.Interface
 }
 
 func enableProtobuf(cfg *rest.Config) *rest.Config {
@@ -85,6 +88,11 @@ func NewWranglerMiniContext(kubeConfig *rest.Config) (MiniContext, error) {
 		return MiniContext{}, err
 	}
 
+	mgmtFactory, err := management.NewFactoryFromConfigWithOptions(kubeConfig, opts)
+	if err != nil {
+		return MiniContext{}, err
+	}
+
 	return MiniContext{
 		RESTConfig:    kubeConfig,
 		Mapper:        restmapper,
@@ -94,5 +102,6 @@ func NewWranglerMiniContext(kubeConfig *rest.Config) (MiniContext, error) {
 		SharedFactory: sharedClientFactory,
 		Core:          coreF.Core().V1(),
 		SCC:           sccFactory.Scc().V1(),
+		Mgmt:          mgmtFactory.Management().V3(),
 	}, nil
 }
