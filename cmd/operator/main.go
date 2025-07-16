@@ -28,7 +28,9 @@ var (
 
 func init() {
 	flag.StringVar(&LogFormat, "log-format", string(rootLog.DefaultFormat), "Set the log format")
-	flag.StringVar(&KubeConfig, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
+
+	kubeConfigEnv := os.Getenv("KUBECONFIG")
+	flag.StringVar(&KubeConfig, "kubeconfig", kubeConfigEnv, "Path to a kubeconfig. Only required if out-of-cluster.")
 
 	flag.BoolVar(&Debug, "debug", false, "Enable debug logging.")
 	flag.BoolVar(&Trace, "trace", false, "Enable trace logging.")
@@ -51,6 +53,9 @@ func init() {
 func main() {
 	logger.Infof("Starting scc-operator version %s (%s) [built at %s]", version.Version, version.GitCommit, version.Date)
 	ctx := signals.SetupSignalContext()
+	if KubeConfig == "" {
+		logger.Fatal("--kubeconfig or --kubeconfig is required")
+	}
 	restKubeConfig, err := kubeconfig.GetNonInteractiveClientConfig(KubeConfig).ClientConfig()
 	if err != nil {
 		logger.Fatalf("failed to find kubeconfig: %v", err)
