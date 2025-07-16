@@ -21,6 +21,8 @@ func main() {
 				Types: []interface{}{
 					// All structs with an embedded ObjectMeta field will be picked up
 					mgmtv3.Setting{},
+					mgmtv3.Cluster{},
+					mgmtv3.Node{},
 				},
 			},
 			"scc.cattle.io": {

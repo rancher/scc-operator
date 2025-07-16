@@ -31,6 +31,8 @@ func init() {
 }
 
 type Interface interface {
+	Cluster() ClusterController
+	Node() NodeController
 	Setting() SettingController
 }
 
@@ -42,6 +44,14 @@ func New(controllerFactory controller.SharedControllerFactory) Interface {
 
 type version struct {
 	controllerFactory controller.SharedControllerFactory
+}
+
+func (v *version) Cluster() ClusterController {
+	return generic.NewNonNamespacedController[*v3.Cluster, *v3.ClusterList](schema.GroupVersionKind{Group: "management.cattle.io", Version: "v3", Kind: "Cluster"}, "clusters", v.controllerFactory)
+}
+
+func (v *version) Node() NodeController {
+	return generic.NewController[*v3.Node, *v3.NodeList](schema.GroupVersionKind{Group: "management.cattle.io", Version: "v3", Kind: "Node"}, "nodes", true, v.controllerFactory)
 }
 
 func (v *version) Setting() SettingController {
