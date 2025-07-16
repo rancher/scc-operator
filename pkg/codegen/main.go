@@ -4,6 +4,7 @@ package main
 import (
 	"os"
 
+	mgmtv3 "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
 	controllergen "github.com/rancher/wrangler/v3/pkg/controller-gen"
 	"github.com/rancher/wrangler/v3/pkg/controller-gen/args"
 )
@@ -15,6 +16,13 @@ func main() {
 		OutputPackage: "github.com/rancher-sandbox/scc-operator/pkg/generated",
 		Boilerplate:   "scripts/boilerplate.go.txt",
 		Groups: map[string]args.Group{
+			"management.cattle.io": {
+				PackageName: "management.cattle.io",
+				Types: []interface{}{
+					// All structs with an embedded ObjectMeta field will be picked up
+					mgmtv3.Setting{},
+				},
+			},
 			"scc.cattle.io": {
 				PackageName: "scc.cattle.io",
 				Types: []interface{}{
