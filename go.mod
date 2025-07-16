@@ -4,7 +4,32 @@ go 1.24.0
 
 toolchain go1.24.3
 
-replace k8s.io/client-go => k8s.io/client-go v0.33.1
+replace (
+	k8s.io/api => k8s.io/api v0.33.1
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.33.1
+	k8s.io/apimachinery => k8s.io/apimachinery v0.33.1
+	k8s.io/apiserver => k8s.io/apiserver v0.33.1
+	k8s.io/cli-runtime => k8s.io/cli-runtime v0.33.1
+	k8s.io/client-go => k8s.io/client-go v0.33.1
+	k8s.io/cloud-provider => k8s.io/cloud-provider v0.33.1
+	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.33.1
+	k8s.io/component-helpers => k8s.io/component-helpers v0.33.1
+	k8s.io/controller-manager => k8s.io/controller-manager v0.33.1
+	k8s.io/cri-api => k8s.io/cri-api v0.33.1
+	k8s.io/cri-client => k8s.io/cri-client v0.33.1
+	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.33.1
+	k8s.io/dynamic-resource-allocation => k8s.io/dynamic-resource-allocation v0.33.1
+	k8s.io/endpointslice => k8s.io/endpointslice v0.33.1
+	k8s.io/externaljwt => k8s.io/externaljwt v0.33.1
+	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.33.1
+	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff
+	k8s.io/kube-proxy => k8s.io/kube-proxy v0.33.1
+	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.33.1
+	k8s.io/kubelet => k8s.io/kubelet v0.33.1
+	k8s.io/metrics => k8s.io/metrics v0.33.1
+	k8s.io/mount-utils => k8s.io/mount-utils v0.33.1
+	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.33.1
+)
 
 require (
 	github.com/SUSE/connect-ng v1.14.0
@@ -13,15 +38,15 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/rancher/lasso v0.2.3
-	github.com/rancher/rancher/pkg/apis v0.0.0-20250716114904-c21d17df9d34
+	github.com/rancher/rancher/pkg/apis v0.0.0-20250716132053-c7e8977b9e48
 	github.com/rancher/wrangler/v3 v3.2.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/mock v0.5.2
 	golang.org/x/sync v0.15.0
-	k8s.io/api v0.33.2
+	k8s.io/api v0.33.1
 	k8s.io/apiextensions-apiserver v0.33.1
-	k8s.io/apimachinery v0.33.2
+	k8s.io/apimachinery v0.33.1
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff
 	sigs.k8s.io/controller-runtime v0.21.0
