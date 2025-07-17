@@ -17,18 +17,9 @@ import (
 	"github.com/rancher-sandbox/scc-operator/internal/wrangler"
 	"github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/scc.cattle.io"
 	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo"
-	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 )
 
-type sccOperator struct {
-	devMode            bool
-	log                log.StructuredLogger
-	sccResourceFactory *scc.Factory
-	secrets            corev1.SecretController
-	rancherTelemetry   telemetry.TelemetryGatherer
-}
-
-func setup(wContext *wrangler.MiniContext, logger log.StructuredLogger, infoProvider *systeminfo.InfoProvider) (*sccOperator, error) {
+func setup(wContext *wrangler.MiniContext, logger log.StructuredLogger, infoProvider *systeminfo.InfoProvider) (*SccOperator, error) {
 	namespaces := wContext.Core.Namespace()
 	var kubeSystemNS *k8sv1.Namespace
 
@@ -75,7 +66,7 @@ func setup(wContext *wrangler.MiniContext, logger log.StructuredLogger, infoProv
 
 	rancherTelemetry := telemetry.NewTelemetryGatherer(wContext.Mgmt.Cluster().Cache(), wContext.Mgmt.Node().Cache())
 
-	return &sccOperator{
+	return &SccOperator{
 		devMode:            util.DevMode(),
 		log:                logger,
 		sccResourceFactory: sccResources,

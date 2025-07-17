@@ -2,72 +2,52 @@ package operator
 
 import (
 	"context"
+	"github.com/rancher-sandbox/scc-operator/internal/log"
+	"github.com/rancher-sandbox/scc-operator/internal/telemetry"
 	"github.com/rancher-sandbox/scc-operator/internal/types"
 	"github.com/rancher-sandbox/scc-operator/internal/util"
 	"github.com/rancher-sandbox/scc-operator/internal/wrangler"
+	"github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/scc.cattle.io"
 	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo"
+	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/rancher/wrangler/v3/pkg/ratelimit"
-	"github.com/rancher/wrangler/v3/pkg/start"
 	rest "k8s.io/client-go/rest"
 )
 
-func Run(
+type SccOperator struct {
+	devMode            bool
+	log                log.StructuredLogger
+	sccResourceFactory *scc.Factory
+	secrets            corev1.SecretController
+	rancherTelemetry   telemetry.TelemetryGatherer
+}
+
+func New(
 	ctx context.Context,
 	kubeconfig *rest.Config,
 	options types.RunOptions,
-) error {
+) (*SccStarter, error) {
 	operatorLogger := options.Logger
 	operatorLogger.Debug("Preparing to setup SCC operator")
 
 	util.SetSystemNamespace(options.SccNamespace)
 	if err := options.Validate(); err != nil {
-		return err
+		return nil, err
 	}
 
 	kubeconfig.RateLimiter = ratelimit.None
-	wContext, err := wrangler.NewWranglerMiniContext(kubeconfig)
+	wContext, err := wrangler.NewWranglerMiniContext(ctx, kubeconfig)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	infoProvider := systeminfo.NewInfoProvider(wContext.Settings, wContext.Mgmt.Node().Cache())
 
-	starter := sccStarter{
+	return &SccStarter{
+		context:                 ctx,
+		wrangler:                wContext,
 		log:                     operatorLogger.WithField("component", "scc-starter"),
 		systemInfoProvider:      infoProvider,
 		systemRegistrationReady: make(chan struct{}),
-	}
-
-	go starter.waitForSystemReady(func() {
-		operatorLogger.Debug("Setting up SCC Operator")
-		initOperator, err := setup(&wContext, operatorLogger, infoProvider)
-		if err != nil {
-			starter.log.Errorf("error setting up scc operator: %s", err.Error())
-		}
-
-		operatorLogger.Info("THIS IS WHERE I REGISTER CONTROLLERS")
-		/*
-			TODO: add operator code
-			controllers.Register(
-				ctx,
-				consts.DefaultSCCNamespace,
-				initOperator.sccResourceFactory.Scc().V1().Registration(),
-				initOperator.secrets,
-				initOperator.rancherTelemetry,
-				infoProvider,
-			)
-		*/
-
-		if err := start.All(ctx, 2, initOperator.sccResourceFactory); err != nil {
-			operatorLogger.Errorf("error starting operator: %s", err.Error())
-		}
-		<-ctx.Done()
-	})
-
-	if starter.systemRegistrationReady != nil {
-		operatorLogger.Info("SCC operator initialized; controllers waiting to start until system is ready")
-	}
-
-	<-ctx.Done()
-	return nil
+	}, nil
 }

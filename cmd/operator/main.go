@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"github.com/rancher-sandbox/scc-operator/internal/consts"
+	"k8s.io/client-go/rest"
 	"os"
 
 	"github.com/sirupsen/logrus"
@@ -68,7 +71,26 @@ func main() {
 		SccNamespace: SCCNamespace,
 	}
 
-	if err := operator.Run(ctx, restKubeConfig, runOptions); err != nil {
-		logger.Fatalf("Error running operator: %s", err.Error())
+	if err := run(ctx, restKubeConfig, runOptions); err != nil {
+		logger.Fatal(err)
 	}
+}
+
+func run(ctx context.Context, restKubeConfig *rest.Config, runOptions types.RunOptions) error {
+	logger.Infof("Starting %s version %s (%s)", consts.AppName, version.Version, version.GitCommit)
+	logger.Debugf("Setting up client for %s...", SCCNamespace)
+	logger.Debugf("Run options: %v", runOptions)
+
+	sccOperatorStarter, err := operator.New(ctx, restKubeConfig, runOptions)
+	if err != nil {
+		logger.Errorf("Error creating operator: %v", err)
+		return err
+	}
+
+	if runErr := sccOperatorStarter.Run(); runErr != nil {
+		logger.Errorf("Error running operator: %v", runErr)
+		return runErr
+	}
+	<-ctx.Done()
+	return nil
 }
