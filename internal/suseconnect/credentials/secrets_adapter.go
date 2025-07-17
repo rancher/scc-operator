@@ -2,12 +2,12 @@ package credentials
 
 import (
 	"fmt"
+	"github.com/rancher-sandbox/scc-operator/internal/repos/secretrepo"
 	"github.com/rancher-sandbox/scc-operator/pkg/controllers/common"
 
 	"github.com/SUSE/connect-ng/pkg/connection"
 	"github.com/rancher-sandbox/scc-operator/internal/consts"
 	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
-	v1core "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,18 +24,15 @@ type CredentialSecretsAdapter struct {
 	secretNamespace string
 	secretName      string
 	ownerRef        *metav1.OwnerReference
-	// TODO (dan) : let's make sure the lookups are handled via a secret cache
-	secrets     v1core.SecretController
-	secretCache v1core.SecretCache
-	credentials SccCredentials
-	labels      map[string]string
+	secretRepo      *secretrepo.SecretRepository
+	credentials     SccCredentials
+	labels          map[string]string
 }
 
 func New(
 	namespace, name string,
 	ownerRef *metav1.OwnerReference,
-	secrets v1core.SecretController,
-	secretCache v1core.SecretCache,
+	secretRepo *secretrepo.SecretRepository,
 	labels map[string]string,
 ) *CredentialSecretsAdapter {
 	labels[consts.LabelSccSecretRole] = string(consts.SCCCredentialsRole)
@@ -43,8 +40,7 @@ func New(
 		secretNamespace: namespace,
 		secretName:      name,
 		ownerRef:        ownerRef,
-		secrets:         secrets,
-		secretCache:     secretCache,
+		secretRepo:      secretRepo,
 		labels:          labels,
 	}
 }
@@ -59,7 +55,7 @@ func (c *CredentialSecretsAdapter) Refresh() error {
 
 func (c *CredentialSecretsAdapter) loadCredentials() error {
 	// TODO gather errors
-	sccCreds, err := c.secretCache.Get(c.secretNamespace, c.secretName)
+	sccCreds, err := c.secretRepo.Cache.Get(c.secretNamespace, c.secretName)
 	if err == nil && sccCreds != nil {
 		if len(sccCreds.Data) == 0 {
 			return fmt.Errorf("secret %s/%s has no data fields; but should always have them", c.secretNamespace, c.secretName)
@@ -77,7 +73,7 @@ func (c *CredentialSecretsAdapter) loadCredentials() error {
 func (c *CredentialSecretsAdapter) saveCredentials() error {
 	create := false
 	// TODO gather errors
-	sccCreds, err := c.secrets.Get(c.secretNamespace, c.secretName, metav1.GetOptions{})
+	sccCreds, err := c.secretRepo.Controller.Get(c.secretNamespace, c.secretName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -108,7 +104,7 @@ func (c *CredentialSecretsAdapter) saveCredentials() error {
 		sccCreds.Data[TokenKey] = []byte(token)
 	}
 
-	sccCreds, _ = common.SecretAddCredentialsFinalizer(sccCreds)
+	sccCreds = common.SecretAddCredentialsFinalizer(sccCreds)
 
 	if sccCreds.Labels == nil {
 		sccCreds.Labels = c.labels
@@ -122,16 +118,16 @@ func (c *CredentialSecretsAdapter) saveCredentials() error {
 
 	var createOrUpdateErr error
 	if create {
-		_, createOrUpdateErr = c.secrets.Create(sccCreds)
+		_, createOrUpdateErr = c.secretRepo.Controller.Create(sccCreds)
 	} else {
-		_, createOrUpdateErr = c.secrets.Update(sccCreds)
+		_, createOrUpdateErr = c.secretRepo.Controller.Update(sccCreds)
 	}
 
 	return createOrUpdateErr
 }
 
 func (c *CredentialSecretsAdapter) Remove() error {
-	currentSecret, err := c.secretCache.Get(c.secretNamespace, c.secretName)
+	currentSecret, err := c.secretRepo.Cache.Get(c.secretNamespace, c.secretName)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -141,8 +137,8 @@ func (c *CredentialSecretsAdapter) Remove() error {
 
 	if common.SecretHasCredentialsFinalizer(currentSecret) {
 		updatedSecret := currentSecret.DeepCopy()
-		updatedSecret, _ = common.SecretRemoveCredentialsFinalizer(updatedSecret)
-		if _, updateErr := c.secrets.Update(updatedSecret); updateErr != nil {
+		updatedSecret = common.SecretRemoveCredentialsFinalizer(updatedSecret)
+		if _, updateErr := c.secretRepo.Controller.Update(updatedSecret); updateErr != nil {
 			if apierrors.IsNotFound(updateErr) {
 				return nil
 			}
@@ -151,7 +147,7 @@ func (c *CredentialSecretsAdapter) Remove() error {
 		}
 	}
 
-	return c.secrets.Delete(c.secretNamespace, c.secretName, &metav1.DeleteOptions{})
+	return c.secretRepo.Controller.Delete(c.secretNamespace, c.secretName, &metav1.DeleteOptions{})
 }
 
 func (c *CredentialSecretsAdapter) HasAuthentication() bool {

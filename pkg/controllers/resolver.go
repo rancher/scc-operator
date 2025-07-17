@@ -14,7 +14,7 @@ func (h *handler) initResolvers(ctx context.Context) {
 		"watch-scc-secret-entrypoint",
 		h.resolveEntrypointSecret,
 		h.registrations,
-		h.secrets,
+		h.secretRepo.Controller,
 	)
 }
 

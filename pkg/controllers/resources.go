@@ -4,15 +4,13 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"github.com/rancher-sandbox/scc-operator/internal/consts"
+	coreUtil "github.com/rancher-sandbox/scc-operator/internal/util"
+	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher-sandbox/scc-operator/pkg/controllers/common"
 	"github.com/rancher-sandbox/scc-operator/pkg/util"
 	"github.com/rancher-sandbox/scc-operator/pkg/util/salt"
 	"maps"
-	"slices"
-
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
-	coreUtil "github.com/rancher-sandbox/scc-operator/internal/util"
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -204,12 +202,10 @@ func (h *handler) registrationFromSecretEntrypoint(
 	maps.Copy(reg.Labels, params.Labels())
 
 	reg.Spec = paramsToRegSpec(params)
-	if !slices.Contains(reg.Finalizers, consts.FinalizerSccRegistration) {
-		if reg.Finalizers == nil {
-			reg.Finalizers = []string{}
-		}
-		reg.Finalizers = append(reg.Finalizers, consts.FinalizerSccRegistration)
+	if !common.RegistrationHasManagedFinalizer(reg) {
+		reg = common.RegistrationAddManagedFinalizer(reg)
 	}
+
 	return reg, nil
 }
 
@@ -237,7 +233,7 @@ func paramsToRegSpec(params RegistrationParams) v1.RegistrationSpec {
 func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
 	secretName := params.regCodeSecretRef.Name
 
-	regcodeSecret, err := h.secretCache.Get(h.systemNamespace, secretName)
+	regcodeSecret, err := h.secretRepo.Cache.Get(h.systemNamespace, secretName)
 	if err != nil && apierrors.IsNotFound(err) {
 		regcodeSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -258,7 +254,7 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 	maps.Copy(regcodeSecret.Labels, defaultLabels)
 
 	if !common.SecretHasRegCodeFinalizer(regcodeSecret) {
-		regcodeSecret, _ = common.SecretAddRegCodeFinalizer(regcodeSecret)
+		regcodeSecret = common.SecretAddRegCodeFinalizer(regcodeSecret)
 	}
 
 	return regcodeSecret, nil
@@ -267,7 +263,7 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 func (h *handler) offlineCertFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
 	secretName := consts.OfflineCertificateSecretName(params.nameId)
 
-	offlineCertSecret, err := h.secretCache.Get(h.systemNamespace, secretName)
+	offlineCertSecret, err := h.secretRepo.Cache.Get(h.systemNamespace, secretName)
 	if err != nil && apierrors.IsNotFound(err) {
 		offlineCertSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -287,11 +283,8 @@ func (h *handler) offlineCertFromSecretEntrypoint(params RegistrationParams) (*c
 	defaultLabels[consts.LabelSccSecretRole] = string(consts.OfflineCertificate)
 	maps.Copy(offlineCertSecret.Labels, defaultLabels)
 
-	if !slices.Contains(offlineCertSecret.Finalizers, consts.FinalizerSccRegistration) {
-		if offlineCertSecret.Finalizers == nil {
-			offlineCertSecret.Finalizers = []string{}
-		}
-		offlineCertSecret.Finalizers = append(offlineCertSecret.Finalizers, consts.FinalizerSccRegistration)
+	if !common.SecretHasOfflineFinalizer(offlineCertSecret) {
+		offlineCertSecret = common.SecretAddOfflineFinalizer(offlineCertSecret)
 	}
 
 	return offlineCertSecret, nil

@@ -2,8 +2,10 @@ package operator
 
 import (
 	"context"
+	"github.com/rancher-sandbox/scc-operator/internal/consts"
 	rootLog "github.com/rancher-sandbox/scc-operator/internal/log"
 	"github.com/rancher-sandbox/scc-operator/internal/wrangler"
+	"github.com/rancher-sandbox/scc-operator/pkg/controllers"
 	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo"
 	"github.com/rancher/wrangler/v3/pkg/start"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -48,18 +50,14 @@ func (s *SccStarter) SetupControllers() error {
 			s.log.Errorf("error setting up scc operator: %s", err.Error())
 		}
 
-		s.log.Info("THIS IS WHERE I REGISTER CONTROLLERS")
-		/*
-			TODO: add operator code
-			controllers.Register(
-				ctx,
-				consts.DefaultSCCNamespace,
-				initOperator.sccResourceFactory.Scc().V1().Registration(),
-				initOperator.secrets,
-				initOperator.rancherTelemetry,
-				infoProvider,
-			)
-		*/
+		controllers.Register(
+			s.context,
+			consts.DefaultSCCNamespace,
+			initOperator.sccResourceFactory.Scc().V1().Registration(),
+			s.wrangler.Secrets,
+			initOperator.rancherTelemetry,
+			s.systemInfoProvider,
+		)
 
 		if startErr := start.All(s.context, 2, initOperator.sccResourceFactory); startErr != nil {
 			s.log.Errorf("error starting operator: %v", startErr)

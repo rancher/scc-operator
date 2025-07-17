@@ -3,7 +3,8 @@ package wrangler
 import (
 	"context"
 	"fmt"
-	"github.com/rancher-sandbox/scc-operator/internal/settings"
+	"github.com/rancher-sandbox/scc-operator/internal/repos/secretrepo"
+	"github.com/rancher-sandbox/scc-operator/internal/repos/settingrepo"
 	lasso "github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/lasso/pkg/mapper"
@@ -56,10 +57,12 @@ type MiniContext struct {
 	Mapper            meta.RESTMapper
 	ClientSet         *clientset.Clientset
 
-	Settings *settings.SettingRepo
-	Mgmt     mgmtv3.Interface
-	Core     corev1.Interface
-	SCC      sccv1.Interface
+	Mgmt mgmtv3.Interface
+	Core corev1.Interface
+	SCC  sccv1.Interface
+
+	Secrets  *secretrepo.SecretRepository
+	Settings *settingrepo.SettingRepository
 
 	leadership     *leader.Manager
 	controllerLock *sync.Mutex
@@ -123,7 +126,9 @@ func NewWranglerMiniContext(ctx context.Context, restConfig *rest.Config) (MiniC
 
 	mgmtInterface := mgmtFactory.Management().V3()
 
-	settingRepo := settings.NewSettingRepository(mgmtInterface.Setting(), mgmtInterface.Setting().Cache())
+	coreInterface := coreF.Core().V1()
+	secretRepo := secretrepo.NewSecretRepository(coreInterface.Secret(), coreInterface.Secret().Cache())
+	settingRepo := settingrepo.NewSettingRepository(mgmtInterface.Setting(), mgmtInterface.Setting().Cache())
 
 	k8s, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
@@ -142,10 +147,12 @@ func NewWranglerMiniContext(ctx context.Context, restConfig *rest.Config) (MiniC
 		Mapper:            restmapper,
 		ClientSet:         clientSet,
 
+		Mgmt: mgmtInterface,
+		Core: coreInterface,
+		SCC:  sccFactory.Scc().V1(),
+
+		Secrets:  secretRepo,
 		Settings: settingRepo,
-		Mgmt:     mgmtInterface,
-		Core:     coreF.Core().V1(),
-		SCC:      sccFactory.Scc().V1(),
 
 		leadership:     leadership,
 		controllerLock: &sync.Mutex{},

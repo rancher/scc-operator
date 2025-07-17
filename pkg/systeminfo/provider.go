@@ -2,7 +2,7 @@ package systeminfo
 
 import (
 	"github.com/google/uuid"
-	"github.com/rancher-sandbox/scc-operator/internal/settings"
+	"github.com/rancher-sandbox/scc-operator/internal/repos/settingrepo"
 	v3 "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
 	"k8s.io/apimachinery/pkg/labels"
 	//"github.com/rancher/rancher/pkg/settings"
@@ -16,12 +16,12 @@ const (
 type InfoProvider struct {
 	rancherUuid uuid.UUID
 	clusterUuid uuid.UUID
-	settings    *settings.SettingRepo
+	settings    *settingrepo.SettingRepository
 	nodeCache   v3.NodeCache
 }
 
 func NewInfoProvider(
-	settings *settings.SettingRepo,
+	settings *settingrepo.SettingRepository,
 	nodeCache v3.NodeCache,
 ) *InfoProvider {
 	return &InfoProvider{
@@ -64,7 +64,7 @@ func (i *InfoProvider) CanStartSccOperator() bool {
 // ServerUrl returns the Rancher server URL
 func (i *InfoProvider) serverUrl() string {
 	// Find setting from outside rancher
-	return settings.GetServerURL(i.settings)
+	return settingrepo.GetServerURL(i.settings)
 }
 
 func (i *InfoProvider) IsServerUrlReady() bool {
@@ -73,6 +73,6 @@ func (i *InfoProvider) IsServerUrlReady() bool {
 }
 
 func (i *InfoProvider) ServerHostname() string {
-	serverHostname := settings.ServerHostname(i.settings)
+	serverHostname := settingrepo.ServerHostname(i.settings)
 	return serverHostname
 }

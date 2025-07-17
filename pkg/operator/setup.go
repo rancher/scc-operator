@@ -3,10 +3,9 @@ package operator
 import (
 	"errors"
 	"fmt"
-	"github.com/rancher-sandbox/scc-operator/internal/settings"
-	"github.com/rancher-sandbox/scc-operator/internal/telemetry"
-
 	"github.com/google/uuid"
+	"github.com/rancher-sandbox/scc-operator/internal/repos/settingrepo"
+	"github.com/rancher-sandbox/scc-operator/internal/telemetry"
 	k8sv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,7 +42,7 @@ func setup(wContext *wrangler.MiniContext, logger log.StructuredLogger, infoProv
 		return nil, fmt.Errorf("failed to get kube-system namespace: %v", kubeNsErr)
 	}
 
-	rancherUuid := settings.GetRancherInstallUUID(wContext.Settings)
+	rancherUuid := settingrepo.GetRancherInstallUUID(wContext.Settings)
 	if rancherUuid == "" {
 		err := errors.New("no rancher uuid found")
 		logger.Fatalf("Error getting rancher uuid: %v", err)
@@ -64,7 +63,7 @@ func setup(wContext *wrangler.MiniContext, logger log.StructuredLogger, infoProv
 	}
 	infoProvider = infoProvider.SetUuids(parsedRancherUUID, parsedkubeSystemNSUID)
 
-	rancherTelemetry := telemetry.NewTelemetryGatherer(wContext.Mgmt.Cluster().Cache(), wContext.Mgmt.Node().Cache())
+	rancherTelemetry := telemetry.NewTelemetryGatherer(wContext)
 
 	return &SccOperator{
 		devMode:            util.DevMode(),

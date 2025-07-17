@@ -10,7 +10,7 @@ import (
 	"github.com/rancher-sandbox/scc-operator/internal/suseconnect"
 	offlineSecrets "github.com/rancher-sandbox/scc-operator/internal/suseconnect/offline"
 	"github.com/rancher-sandbox/scc-operator/internal/types"
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher-sandbox/scc-operator/pkg/controllers/common"
 	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo"
 	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo/offline"
@@ -92,8 +92,6 @@ func (s sccOfflineMode) ReadyForActivation(registrationObj *v1.Registration) boo
 }
 
 func (s sccOfflineMode) Activate(registrationObj *v1.Registration) error {
-	// fetch secret contents (needs io.Reader)
-	// registration.OfflineCertificateFrom()
 	certReader, err := s.offlineSecrets.OfflineCertificateReader()
 	if err != nil {
 		return fmt.Errorf("activate failed, cannot get offline certificate reader: %w", err)
@@ -124,6 +122,8 @@ func (s sccOfflineMode) PrepareActivatedForKeepalive(registrationObj *v1.Registr
 		}
 	*/
 
+	registrationObj.RemoveCondition(v1.RegistrationConditionOfflineCertificateReady)
+	v1.RegistrationConditionOfflineCertificateReady.True(registrationObj)
 	v1.ActivationConditionOfflineDone.True(registrationObj)
 	return registrationObj, nil
 }

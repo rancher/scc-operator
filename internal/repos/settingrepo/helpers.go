@@ -1,4 +1,4 @@
-package settings
+package settingrepo
 
 import (
 	"github.com/rancher-sandbox/scc-operator/pkg/util/log"
@@ -10,7 +10,7 @@ const (
 	SettingNameInstallUUID = "install-uuid"
 )
 
-func GetServerURL(settings *SettingRepo) string {
+func GetServerURL(settings *SettingRepository) string {
 	if settings == nil || !settings.HasSetting(SettingNameServerUrl) {
 		return ""
 	}
@@ -24,7 +24,7 @@ func GetServerURL(settings *SettingRepo) string {
 }
 
 // ServerHostname returns the hostname of the Rancher server URL
-func ServerHostname(settings *SettingRepo) string {
+func ServerHostname(settings *SettingRepository) string {
 	serverUrl := GetServerURL(settings)
 	if serverUrl == "" {
 		return ""
@@ -33,7 +33,7 @@ func ServerHostname(settings *SettingRepo) string {
 	return parsed.Host
 }
 
-func GetRancherInstallUUID(settings *SettingRepo) string {
+func GetRancherInstallUUID(settings *SettingRepository) string {
 	if settings == nil || !settings.HasSetting(SettingNameInstallUUID) {
 		return ""
 	}

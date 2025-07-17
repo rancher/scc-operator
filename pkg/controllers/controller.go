@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rancher-sandbox/scc-operator/internal/repos/secretrepo"
 	"github.com/rancher-sandbox/scc-operator/internal/suseconnect/offline"
+	"github.com/rancher-sandbox/scc-operator/internal/telemetry"
 	"github.com/rancher-sandbox/scc-operator/pkg/util/log"
+	"strings"
 
 	"maps"
 	"slices"
@@ -14,15 +17,13 @@ import (
 	"github.com/rancher-sandbox/scc-operator/internal/consts"
 	"github.com/rancher-sandbox/scc-operator/internal/suseconnect"
 	"github.com/rancher-sandbox/scc-operator/internal/suseconnect/credentials"
+	metricsSecret "github.com/rancher-sandbox/scc-operator/internal/telemetry/secret"
 	"github.com/rancher-sandbox/scc-operator/internal/types"
 	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher-sandbox/scc-operator/pkg/controllers/common"
-	"github.com/rancher-sandbox/scc-operator/pkg/controllers/repos"
 	registrationControllers "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo"
-	//metricsSecret "github.com/rancher-sandbox/scc-operator/pkg/systeminfo/secret"
 
-	v1core "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/rancher/wrangler/v3/pkg/generic"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -77,55 +78,47 @@ type SCCHandler interface {
 }
 
 type handler struct {
-	ctx                context.Context
-	log                *logrus.Entry
-	registrations      registrationControllers.RegistrationController
-	registrationCache  registrationControllers.RegistrationCache
-	secretRepo         repos.SecretRepo
-	secrets            v1core.SecretController
-	secretCache        v1core.SecretCache
-	systemInfoExporter *systeminfo.InfoExporter
-	//metricsSecretManager *metricsSecret.MetricsSecretManager
-	systemNamespace string
+	ctx                  context.Context
+	log                  *logrus.Entry
+	registrations        registrationControllers.RegistrationController
+	registrationCache    registrationControllers.RegistrationCache
+	secretRepo           *secretrepo.SecretRepository
+	systemInfoExporter   *systeminfo.InfoExporter
+	systemNamespace      string
+	metricsSecretManager *metricsSecret.MetricsSecretManager
 }
 
 func Register(
 	ctx context.Context,
 	systemNamespace string,
 	registrations registrationControllers.RegistrationController,
-	secrets v1core.SecretController,
-	//rancherTelemetry telemetry.TelemetryGatherer,
+	secretsRepo *secretrepo.SecretRepository,
+	rancherTelemetry telemetry.TelemetryGatherer,
 	systemInfoProvider *systeminfo.InfoProvider,
 ) {
-	secretsRepo := repos.SecretRepo{
-		Secrets:      secrets,
-		SecretsCache: secrets.Cache(),
-	}
-
+	metricsSecretManager := metricsSecret.New(systemNamespace, secretsRepo)
 	systemInfoExporter := systeminfo.NewInfoExporter(
 		systemInfoProvider,
-		//rancherTelemetry,
+		rancherTelemetry,
 		log.NewLog().WithField("subcomponent", "systeminfo-exporter"),
-		//metricsSecret.New(systemNamespace, &secretsRepo),
+		metricsSecretManager,
 	)
 
 	controller := &handler{
-		log:                log.NewControllerLogger("registration-controller"),
-		ctx:                ctx,
-		registrations:      registrations,
-		registrationCache:  registrations.Cache(),
-		secretRepo:         secretsRepo,
-		secrets:            secrets,
-		secretCache:        secrets.Cache(),
-		systemInfoExporter: systemInfoExporter,
-		systemNamespace:    systemNamespace,
+		log:                  log.NewControllerLogger("registration-controller"),
+		ctx:                  ctx,
+		registrations:        registrations,
+		registrationCache:    registrations.Cache(),
+		secretRepo:           secretsRepo,
+		systemInfoExporter:   systemInfoExporter,
+		systemNamespace:      systemNamespace,
+		metricsSecretManager: metricsSecretManager,
 	}
 
 	controller.initIndexers()
 	controller.initResolvers(ctx)
-	// secrets.OnChange(ctx, controllerID+"-secrets", controller.OnSecretChange)
-	scopedOnChange(ctx, controllerID+"-secrets", systemNamespace, secrets, controller.OnSecretChange)
-	scopedOnRemove(ctx, controllerID+"-secrets-remove", systemNamespace, secrets, controller.OnSecretRemove)
+	scopedOnChange(ctx, controllerID+"-secrets", systemNamespace, secretsRepo.Controller, controller.OnSecretChange)
+	scopedOnRemove(ctx, controllerID+"-secrets-remove", systemNamespace, secretsRepo.Controller, controller.OnSecretRemove)
 
 	registrations.OnChange(ctx, controllerID, controller.OnRegistrationChange)
 	registrations.OnRemove(ctx, controllerID+"-remove", controller.OnRegistrationRemove)
@@ -156,8 +149,7 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration) SCCHandler {
 				offlineRequestSecretName,
 				offlineCertSecretName,
 				ref,
-				h.secrets,
-				h.secretCache,
+				h.secretRepo,
 				defaultLabels,
 			),
 			systemNamespace: h.systemNamespace,
@@ -172,13 +164,12 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration) SCCHandler {
 			h.systemNamespace,
 			credsSecretName,
 			ref,
-			h.secrets,
-			h.secretCache,
+			h.secretRepo,
 			defaultLabels,
 		),
 		systemInfoExporter: h.systemInfoExporter,
-		secrets:            h.secrets,
 		systemNamespace:    h.systemNamespace,
+		secretRepo:         h.secretRepo,
 	}
 }
 
@@ -339,7 +330,7 @@ func (h *handler) cleanupRegistrationByHash(cleanupRequest hashCleanupRequest) e
 }
 
 func (h *handler) cleanupRelatedSecretsByHash(contentHash string) error {
-	secrets, err := h.secretCache.GetByIndex(IndexSecretsBySccHash, contentHash)
+	secrets, err := h.secretRepo.GetBySccContentHash(contentHash)
 	h.log.Infof("found %d matching related secrets to clean up; content hash of %s", len(secrets), contentHash)
 	if err != nil {
 		return err
@@ -348,7 +339,7 @@ func (h *handler) cleanupRelatedSecretsByHash(contentHash string) error {
 	// It should never be in there, but just in case don't act on the entrypoint
 	secrets = slices.Collect(func(yield func(secret *corev1.Secret) bool) {
 		for _, secret := range secrets {
-			if secret.Name != consts.ResourceSCCEntrypointSecretName {
+			if secret.Name != consts.ResourceSCCEntrypointSecretName && !strings.HasPrefix(secret.Name, consts.OfflineRequestSecretNamePrefix) {
 				if !yield(secret) {
 					return
 				}
@@ -362,8 +353,8 @@ func (h *handler) cleanupRelatedSecretsByHash(contentHash string) error {
 
 			var updateErr error
 			secretUpdated := secret.DeepCopy()
-			secretUpdated, _ = common.SecretRemoveCredentialsFinalizer(secretUpdated)
-			secretUpdated, _ = common.SecretRemoveRegCodeFinalizer(secretUpdated)
+			secretUpdated = common.SecretRemoveCredentialsFinalizer(secretUpdated)
+			secretUpdated = common.SecretRemoveRegCodeFinalizer(secretUpdated)
 			secretUpdated, updateErr = h.secretRepo.RetryingPatchUpdate(secret, secretUpdated)
 			if updateErr != nil {
 				h.log.Errorf("failed to update secret %s/%s: %v", secret.Namespace, secret.Name, updateErr)
@@ -371,7 +362,7 @@ func (h *handler) cleanupRelatedSecretsByHash(contentHash string) error {
 			}
 		}
 
-		deleteErr := h.secrets.Delete(secret.Namespace, secret.Name, &metav1.DeleteOptions{})
+		deleteErr := h.secretRepo.Controller.Delete(secret.Namespace, secret.Name, &metav1.DeleteOptions{})
 		if apierrors.IsNotFound(deleteErr) {
 			h.log.Debugf("Related Secret %s/%s already deleted", secret.Namespace, secret.Name)
 			continue
@@ -452,10 +443,10 @@ func (h *handler) OnSecretRemove(name string, incomingObj *corev1.Secret) (*core
 		}
 		newSecret := incomingObj.DeepCopy()
 		if common.SecretHasCredentialsFinalizer(newSecret) {
-			newSecret, _ = common.SecretRemoveCredentialsFinalizer(newSecret)
+			newSecret = common.SecretRemoveCredentialsFinalizer(newSecret)
 		}
 		if common.SecretHasRegCodeFinalizer(newSecret) {
-			newSecret, _ = common.SecretRemoveRegCodeFinalizer(newSecret)
+			newSecret = common.SecretRemoveRegCodeFinalizer(newSecret)
 		}
 		logrus.Info("Removing finalizer from secret", newSecret.Name, "in namespace", newSecret.Namespace)
 		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -697,6 +688,11 @@ func (h *handler) OnRegistrationRemove(name string, registrationObj *v1.Registra
 	err := h.registrations.Delete(name, &metav1.DeleteOptions{})
 	if err != nil {
 		return registrationObj, err
+	}
+
+	cleanupErr := h.metricsSecretManager.Remove()
+	if cleanupErr != nil {
+		return registrationObj, cleanupErr
 	}
 
 	return nil, nil

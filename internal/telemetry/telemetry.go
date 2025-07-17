@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"errors"
+	"github.com/rancher-sandbox/scc-operator/internal/wrangler"
 	"iter"
 
 	v3ctrl "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
@@ -223,12 +224,11 @@ type TelemetryGatherer struct {
 }
 
 func NewTelemetryGatherer(
-	clusterCache v3ctrl.ClusterCache,
-	nodeCache v3ctrl.NodeCache,
+	wContext *wrangler.MiniContext,
 ) TelemetryGatherer {
 	return TelemetryGatherer{
-		clusterCache: clusterCache,
-		nodeCache:    nodeCache,
+		clusterCache: wContext.Mgmt.Cluster().Cache(),
+		nodeCache:    wContext.Mgmt.Node().Cache(),
 	}
 }
 

@@ -2,7 +2,7 @@ package common
 
 import (
 	"github.com/rancher-sandbox/scc-operator/internal/types"
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
 )
 
 // GetRegistrationReconcilers returns all shared reconcilers

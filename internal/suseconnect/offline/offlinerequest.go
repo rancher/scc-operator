@@ -3,13 +3,12 @@ package offline
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/rancher-sandbox/scc-operator/internal/consts"
+	"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher-sandbox/scc-operator/pkg/controllers/common"
 	"maps"
 
 	"github.com/SUSE/connect-ng/pkg/registration"
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher-sandbox/scc-operator/pkg/controllers/common"
-
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +23,7 @@ func (o *SecretManager) SetRegistrationOfflineRegistrationRequestSecretRef(regis
 }
 
 func (o *SecretManager) loadRequestSecret() error {
-	offlineRequest, err := o.secretCache.Get(o.secretNamespace, o.requestSecretName)
+	offlineRequest, err := o.secretRepo.Cache.Get(o.secretNamespace, o.requestSecretName)
 	if err == nil && offlineRequest != nil {
 		if len(offlineRequest.Data) == 0 {
 			return fmt.Errorf("secret %s/%s has no data fields; but should always have them", o.secretNamespace, o.requestSecretName)
@@ -47,7 +46,7 @@ func (o *SecretManager) InitRequestSecret() error {
 func (o *SecretManager) saveRequestSecret() error {
 	create := false
 	// TODO gather errors
-	offlineRequest, err := o.secrets.Get(o.secretNamespace, o.requestSecretName, metav1.GetOptions{})
+	offlineRequest, err := o.secretRepo.Controller.Get(o.secretNamespace, o.requestSecretName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -72,7 +71,7 @@ func (o *SecretManager) saveRequestSecret() error {
 		offlineRequest.Data[consts.SecretKeyOfflineRegRequest] = o.offlineRequest
 	}
 
-	offlineRequest, _ = common.SecretAddRegCodeFinalizer(offlineRequest)
+	offlineRequest = common.SecretAddOfflineFinalizer(offlineRequest)
 
 	labels := o.defaultLabels
 	labels[consts.LabelSccSecretRole] = string(consts.OfflineRequestRole)
@@ -88,10 +87,10 @@ func (o *SecretManager) saveRequestSecret() error {
 
 	var createOrUpdateErr error
 	if create {
-		_, createOrUpdateErr = o.secrets.Create(offlineRequest)
+		_, createOrUpdateErr = o.secretRepo.Controller.Create(offlineRequest)
 	} else {
 		// TODO(alex): this was a hack that makes it work...which makes me think secretCache is root of issue?
-		curOfflineRequest, err := o.secrets.Get(o.secretNamespace, o.requestSecretName, metav1.GetOptions{})
+		curOfflineRequest, err := o.secretRepo.Controller.Get(o.secretNamespace, o.requestSecretName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
@@ -102,7 +101,7 @@ func (o *SecretManager) saveRequestSecret() error {
 		prepared.Finalizers = offlineRequest.Finalizers
 		prepared.Labels = offlineRequest.Labels
 
-		_, createOrUpdateErr = o.secrets.Update(prepared)
+		_, createOrUpdateErr = o.secretRepo.Controller.Update(prepared)
 	}
 
 	return createOrUpdateErr
@@ -121,7 +120,7 @@ func (o *SecretManager) UpdateOfflineRequest(inReq *registration.OfflineRequest)
 }
 
 func (o *SecretManager) RemoveOfflineRequest() error {
-	currentSecret, err := o.secretCache.Get(o.secretNamespace, o.requestSecretName)
+	currentSecret, err := o.secretRepo.Cache.Get(o.secretNamespace, o.requestSecretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -133,7 +132,7 @@ func (o *SecretManager) RemoveOfflineRequest() error {
 		return removeFinalizerErr
 	}
 
-	delErr := o.secrets.Delete(o.secretNamespace, o.requestSecretName, &metav1.DeleteOptions{})
+	delErr := o.secretRepo.Controller.Delete(o.secretNamespace, o.requestSecretName, &metav1.DeleteOptions{})
 	if delErr != nil && apierrors.IsNotFound(delErr) {
 		return nil
 	}

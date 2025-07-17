@@ -3,20 +3,14 @@ package controllers
 import (
 	"github.com/rancher-sandbox/scc-operator/internal/consts"
 	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
-	corev1 "k8s.io/api/core/v1"
 )
 
 const (
-	IndexSecretsBySccHash        = "scc.io/secret-refs-by-scc-hash"
 	IndexRegistrationsBySccHash  = "scc.io/reg-refs-by-scc-hash"
 	IndexRegistrationsByNameHash = "scc.io/reg-refs-by-name-hash"
 )
 
 func (h *handler) initIndexers() {
-	h.secretCache.AddIndexer(
-		IndexSecretsBySccHash,
-		h.secretToHash,
-	)
 	h.registrationCache.AddIndexer(
 		IndexRegistrationsBySccHash,
 		h.registrationToHash,
@@ -25,18 +19,6 @@ func (h *handler) initIndexers() {
 		IndexRegistrationsByNameHash,
 		h.registrationToNameHash,
 	)
-}
-
-func (h *handler) secretToHash(secret *corev1.Secret) ([]string, error) {
-	if secret == nil {
-		return nil, nil
-	}
-
-	hash, ok := secret.Labels[consts.LabelSccHash]
-	if !ok {
-		return []string{}, nil
-	}
-	return []string{hash}, nil
 }
 
 func (h *handler) registrationToHash(reg *v1.Registration) ([]string, error) {

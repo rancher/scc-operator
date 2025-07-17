@@ -3,6 +3,9 @@ package systeminfo
 import (
 	"encoding/json"
 	"github.com/google/uuid"
+	"github.com/rancher-sandbox/scc-operator/internal/telemetry"
+	"github.com/rancher-sandbox/scc-operator/internal/telemetry/secret"
+
 	//"k8s.io/client-go/util/retry"
 
 	"github.com/SUSE/connect-ng/pkg/registration"
@@ -14,11 +17,11 @@ import (
 )
 
 type InfoExporter struct {
-	infoProvider *InfoProvider
-	//tel                  telemetry.TelemetryGatherer
-	isLocalReady bool
-	logger       rootLog.StructuredLogger
-	//metricsSecretManager *secret.MetricsSecretManager
+	infoProvider         *InfoProvider
+	tel                  telemetry.TelemetryGatherer
+	isLocalReady         bool
+	logger               rootLog.StructuredLogger
+	metricsSecretManager *secret.MetricsSecretManager
 }
 
 type RancherSCCInfo struct {
@@ -49,16 +52,16 @@ type RancherOfflineRequestEncoded []byte
 
 func NewInfoExporter(
 	infoProvider *InfoProvider,
-	//rancherTelemetry telemetry.TelemetryGatherer,
+	rancherTelemetry telemetry.TelemetryGatherer,
 	logger rootLog.StructuredLogger,
-	// metricsSecretManager *secret.MetricsSecretManager,
+	metricsSecretManager *secret.MetricsSecretManager,
 ) *InfoExporter {
 	return &InfoExporter{
-		infoProvider: infoProvider,
-		//tel:                  rancherTelemetry,
-		isLocalReady: false,
-		logger:       logger,
-		//metricsSecretManager: metricsSecretManager,
+		infoProvider:         infoProvider,
+		tel:                  rancherTelemetry,
+		isLocalReady:         false,
+		logger:               logger,
+		metricsSecretManager: metricsSecretManager,
 	}
 }
 
@@ -145,12 +148,10 @@ func (e *InfoExporter) PreparedForSCC() (registration.SystemInformation, error) 
 		return nil, jsonErr
 	}
 
-	/*
-		metricsUpdateErr := e.metricsSecretManager.UpdateMetricsDebugSecret(sccJson)
-		if metricsUpdateErr != nil {
-			e.logger.Errorf("error updating metrics secret: %s", metricsUpdateErr.Error())
-		}
-	*/
+	metricsUpdateErr := e.metricsSecretManager.UpdateMetricsDebugSecret(sccJson)
+	if metricsUpdateErr != nil {
+		e.logger.Errorf("error updating metrics secret: %v", metricsUpdateErr)
+	}
 
 	systemInfoMap := make(registration.SystemInformation)
 	err := json.Unmarshal(sccJson, &systemInfoMap)

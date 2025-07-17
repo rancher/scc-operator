@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/rancher-sandbox/scc-operator/internal/consts"
+	"github.com/rancher-sandbox/scc-operator/internal/repos/secretrepo"
 	"github.com/rancher-sandbox/scc-operator/pkg/controllers/common"
 
 	"net/http"
@@ -21,7 +22,6 @@ import (
 	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo"
 
 	"github.com/SUSE/connect-ng/pkg/connection"
-	v1core "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -47,8 +47,8 @@ type sccOnlineMode struct {
 	log                log.StructuredLogger
 	sccCredentials     *credentials.CredentialSecretsAdapter
 	systemInfoExporter *systeminfo.InfoExporter
-	secrets            v1core.SecretController
 	systemNamespace    string
+	secretRepo         *secretrepo.SecretRepository
 }
 
 func (s sccOnlineMode) NeedsRegistration(registrationObj *v1.Registration) bool {
@@ -81,7 +81,7 @@ func (s sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.R
 	// The other cases are either:
 	//	a. an error and should have had a code, OR
 	//	b. BAYG/RMT/etc based Registration and will not use a code
-	registrationCode := suseconnect.FetchSccRegistrationCodeFrom(s.secrets, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
+	registrationCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
 
 	// Initiate connection to SCC & verify reg code is for Rancher
 	sccConnection := suseconnect.OnlineRancherConnection(s.sccCredentials.SccCredentials(), s.systemInfoExporter, suseconnect.PrepareSCCUrl(registrationObj))
@@ -214,7 +214,7 @@ func (s sccOnlineMode) Activate(registrationObj *v1.Registration) error {
 		return fmt.Errorf("cannot load scc credentials: %w", credentialsErr)
 	}
 
-	registrationCode := suseconnect.FetchSccRegistrationCodeFrom(s.secrets, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
+	registrationCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
 	sccConnection := suseconnect.OnlineRancherConnection(s.sccCredentials.SccCredentials(), s.systemInfoExporter, suseconnect.PrepareSCCUrl(registrationObj))
 
 	metaData, product, err := sccConnection.Activate(registrationCode)
@@ -283,7 +283,7 @@ func (s sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 		return fmt.Errorf("cannot refresh credentials: %w", credRefreshErr)
 	}
 
-	regCode := suseconnect.FetchSccRegistrationCodeFrom(s.secrets, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
+	regCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
 	sccConnection := suseconnect.OnlineRancherConnection(s.sccCredentials.SccCredentials(), s.systemInfoExporter, suseconnect.PrepareSCCUrl(registrationObj))
 
 	metaData, product, err := sccConnection.Activate(regCode)
@@ -353,25 +353,23 @@ func (s sccOnlineMode) Deregister() error {
 		return credErr
 	}
 
-	// TODO refactor this to a cleanup
 	regCodeSecretRef := s.registration.Spec.RegistrationRequest.RegistrationCodeSecretRef
-	regCodeSecret, regCodeErr := s.secrets.Get(regCodeSecretRef.Namespace, regCodeSecretRef.Name, metav1.GetOptions{})
+	regCodeSecret, regCodeErr := s.secretRepo.Cache.Get(regCodeSecretRef.Namespace, regCodeSecretRef.Name)
 	if regCodeErr != nil && !apierrors.IsNotFound(regCodeErr) {
 		return regCodeErr
 	}
 	if common.SecretHasRegCodeFinalizer(regCodeSecret) {
 		updateRegCodeSecret := regCodeSecret.DeepCopy()
-		updateRegCodeSecret, _ = common.SecretRemoveRegCodeFinalizer(updateRegCodeSecret)
+		updateRegCodeSecret = common.SecretRemoveRegCodeFinalizer(updateRegCodeSecret)
 
-		_, regCodeErr = s.secrets.Update(updateRegCodeSecret)
+		_, regCodeErr = s.secretRepo.Controller.Update(updateRegCodeSecret)
 		if regCodeErr != nil {
 			return regCodeErr
 		}
 	}
 
-	regCodeErr = s.secrets.Delete(regCodeSecretRef.Namespace, regCodeSecretRef.Name, &metav1.DeleteOptions{})
-	if err := s.secrets.Delete(regCodeSecretRef.Namespace, regCodeSecretRef.Name, &metav1.DeleteOptions{}); err != nil {
-		return regCodeErr
+	if err := s.secretRepo.Controller.Delete(regCodeSecretRef.Namespace, regCodeSecretRef.Name, &metav1.DeleteOptions{}); err != nil {
+		return err
 	}
 
 	return nil

@@ -9,8 +9,10 @@ const (
 	DefaultSCCNamespace = "cattle-scc-system"
 )
 
+// Secret names and name prefixes
 const (
 	ResourceSCCEntrypointSecretName      = "scc-registration"
+	SCCMetricsOutputSecretName           = "scc-metrics"
 	SCCSystemCredentialsSecretNamePrefix = "scc-system-credentials-"
 	RegistrationCodeSecretNamePrefix     = "registration-code-"
 	OfflineRequestSecretNamePrefix       = "offline-request-"

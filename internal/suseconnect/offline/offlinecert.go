@@ -2,16 +2,13 @@ package offline
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"github.com/rancher-sandbox/scc-operator/internal/consts"
+	"github.com/rancher-sandbox/scc-operator/pkg/controllers/common"
 	"io"
 	"maps"
 
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher-sandbox/scc-operator/pkg/controllers/common"
-
-	"github.com/SUSE/connect-ng/pkg/registration"
+	v1 "github.com/rancher/rancher/pkg/apis/scc.cattle.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +24,7 @@ func (o *SecretManager) SetRegistrationOfflineCertificateSecretRef(registrationO
 
 func (o *SecretManager) loadCertificateSecret() ([]byte, error) {
 	var currentOfflineCert []byte
-	offlineCert, err := o.secretCache.Get(o.secretNamespace, o.certificateSecretName)
+	offlineCert, err := o.secretRepo.Cache.Get(o.secretNamespace, o.certificateSecretName)
 	if err != nil || offlineCert == nil {
 		return nil, fmt.Errorf("error loading certificate secret: %v", err)
 	}
@@ -51,14 +48,14 @@ func (o *SecretManager) InitCertificateSecret() error {
 func (o *SecretManager) saveCertificateSecret() error {
 	create := false
 	// TODO gather errors
-	offlineRequest, err := o.secrets.Get(o.secretNamespace, o.certificateSecretName, metav1.GetOptions{})
+	offlineCert, err := o.secretRepo.Controller.Get(o.secretNamespace, o.certificateSecretName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
 	if apierrors.IsNotFound(err) {
 		create = true
-		offlineRequest = &corev1.Secret{
+		offlineCert = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      o.certificateSecretName,
 				Namespace: o.secretNamespace,
@@ -66,61 +63,49 @@ func (o *SecretManager) saveCertificateSecret() error {
 		}
 	}
 
-	if offlineRequest.Data == nil {
-		offlineRequest.Data = map[string][]byte{
+	if offlineCert.Data == nil {
+		offlineCert.Data = map[string][]byte{
 			consts.SecretKeyOfflineRegRequest: make([]byte, 0),
 		}
 	}
 
 	if len(o.offlineRequest) != 0 {
-		offlineRequest.Data[consts.SecretKeyOfflineRegRequest] = o.offlineRequest
+		offlineCert.Data[consts.SecretKeyOfflineRegRequest] = o.offlineRequest
 	}
 
-	offlineRequest, _ = common.SecretAddRegCodeFinalizer(offlineRequest)
+	offlineCert = common.SecretAddOfflineFinalizer(offlineCert)
 
 	labels := o.defaultLabels
-	if offlineRequest.Labels == nil {
-		offlineRequest.Labels = labels
+	if offlineCert.Labels == nil {
+		offlineCert.Labels = labels
 	} else {
-		maps.Copy(offlineRequest.Labels, labels)
+		maps.Copy(offlineCert.Labels, labels)
 	}
 
 	if o.ownerRef != nil {
-		offlineRequest.OwnerReferences = []metav1.OwnerReference{*o.ownerRef}
+		offlineCert.OwnerReferences = []metav1.OwnerReference{*o.ownerRef}
 	}
 
 	var createOrUpdateErr error
 	if create {
-		_, createOrUpdateErr = o.secrets.Create(offlineRequest)
+		_, createOrUpdateErr = o.secretRepo.Controller.Create(offlineCert)
 	} else {
 		// TODO(alex): this was a hack that makes it work...which makes me think secretCache is root of issue?
-		curOfflineRequest, err := o.secrets.Get(o.secretNamespace, o.certificateSecretName, metav1.GetOptions{})
+		curOfflineRequest, err := o.secretRepo.Controller.Get(o.secretNamespace, o.certificateSecretName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 
 		prepared := curOfflineRequest.DeepCopy()
-		prepared.Data = offlineRequest.Data
-		prepared.OwnerReferences = offlineRequest.OwnerReferences
-		prepared.Finalizers = offlineRequest.Finalizers
-		prepared.Labels = offlineRequest.Labels
+		prepared.Data = offlineCert.Data
+		prepared.OwnerReferences = offlineCert.OwnerReferences
+		prepared.Finalizers = offlineCert.Finalizers
+		prepared.Labels = offlineCert.Labels
 
-		_, createOrUpdateErr = o.secrets.Update(prepared)
+		_, createOrUpdateErr = o.secretRepo.Controller.Update(prepared)
 	}
 
 	return createOrUpdateErr
-}
-
-func (o *SecretManager) UpdateOfflineCertificate(inReq *registration.OfflineRequest) error {
-	jsonOfflineRequest, err := json.Marshal(inReq)
-	if err != nil {
-		return err
-	}
-
-	// TODO: get sha of request/secret data then compare to see if actually needs update?
-	o.offlineRequest = jsonOfflineRequest
-
-	return o.saveCertificateSecret()
 }
 
 func (o *SecretManager) OfflineCertificateReader() (io.Reader, error) {
@@ -135,7 +120,7 @@ func (o *SecretManager) OfflineCertificateReader() (io.Reader, error) {
 }
 
 func (o *SecretManager) RemoveOfflineCertificate() error {
-	currentSecret, err := o.secretCache.Get(o.secretNamespace, o.certificateSecretName)
+	currentSecret, err := o.secretRepo.Cache.Get(o.secretNamespace, o.certificateSecretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -147,7 +132,7 @@ func (o *SecretManager) RemoveOfflineCertificate() error {
 		return removeFinalizerErr
 	}
 
-	delErr := o.secrets.Delete(o.secretNamespace, o.certificateSecretName, &metav1.DeleteOptions{})
+	delErr := o.secretRepo.Controller.Delete(o.secretNamespace, o.certificateSecretName, &metav1.DeleteOptions{})
 	if delErr != nil && apierrors.IsNotFound(delErr) {
 		return nil
 	}

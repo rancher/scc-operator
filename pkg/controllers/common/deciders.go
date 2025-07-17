@@ -3,7 +3,7 @@ package common
 import (
 	"github.com/rancher-sandbox/scc-operator/internal/consts"
 	"github.com/rancher-sandbox/scc-operator/internal/types"
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/wrangler/v3/pkg/generic"
 	corev1 "k8s.io/api/core/v1"
 	"slices"
@@ -16,6 +16,7 @@ func GetRegistrationDeciders() []types.RegistrationDecider {
 		RegistrationNeedsSyncNow,
 		RegistrationHasNotStarted,
 		RegistrationNeedsActivation,
+		RegistrationHasManagedFinalizer,
 	}
 }
 
@@ -34,6 +35,10 @@ func RegistrationHasNotStarted(regIn *v1.Registration) bool {
 func RegistrationNeedsActivation(regIn *v1.Registration) bool {
 	return regIn.Status.RegistrationProcessedTS.IsZero() ||
 		!regIn.Status.ActivationStatus.Activated
+}
+
+func RegistrationHasManagedFinalizer(objIn *v1.Registration) bool {
+	return hasFinalizer(objIn, consts.FinalizerSccRegistration)
 }
 
 func GetSecretDeciders() []types.Decider[*corev1.Secret] {
