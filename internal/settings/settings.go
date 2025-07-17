@@ -3,7 +3,6 @@ package settings
 import (
 	v3ctrl "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
 	v3 "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var rootSettingRepo *SettingRepo
@@ -28,10 +27,10 @@ func NewSettingRepository(
 }
 
 func (repo *SettingRepo) HasSetting(name string) bool {
-	_, err := repo.settings.Get(name, metav1.GetOptions{})
+	_, err := repo.settingsCache.Get(name)
 	return err == nil
 }
 
 func (repo *SettingRepo) GetSetting(name string) (*v3.Setting, error) {
-	return repo.settings.Get(name, metav1.GetOptions{})
+	return repo.settingsCache.Get(name)
 }
