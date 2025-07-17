@@ -51,7 +51,7 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push BRO image
+      - name: Build and push SCC-operator image
         env:
           FULL_IMAGE_URL: "${{ env.REGISTRY }}/${{ vars.REPO || env.REPO || github.repository_owner }}/scc-operator"
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
