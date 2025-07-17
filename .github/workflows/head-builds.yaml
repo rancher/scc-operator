@@ -12,7 +12,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  REPO : rancher
+  REPO : rancher-sandbox
 
 permissions:
   contents: write
