@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+
+source $(dirname $0)/version
+
+cd $(dirname $0)/..
+
+mkdir -p bin
+if [ "$(uname)" = "Linux" ]; then
+    OTHER_LINKFLAGS="-extldflags -static -s -w"
+fi
+
+LINKFLAGS="-X github.com/rancher-sandbox/scc-operator/cmd/operator/version.Version=$VERSION"
+LINKFLAGS="-X github.com/rancher-sandbox/scc-operator/cmd/operator/version.Commit=$COMMIT $LINKFLAGS"
+LINKFLAGS="-X github.com/rancher-sandbox/scc-operator/cmd/operator/version.Date=$(date -u +"%Y-%m-%dT%H:%M:%SZ") $LINKFLAGS"
+
+CGO_ENABLED=0 go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o "bin/scc-operator" ./cmd/operator/main.go
