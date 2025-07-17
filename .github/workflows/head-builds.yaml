@@ -20,7 +20,7 @@ permissions:
 jobs:
   prebuild-env:
     name: Prebuild needed Env vars
-    runs-on : runs-on,image=ubuntu22-full-x64,runner=4cpu-linux-x64,run-id=${{ github.run_id }}
+    runs-on: ubuntu-latest
     steps:
       - name: Check out the repository to the runner
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -38,8 +38,8 @@ jobs:
     permissions:
       contents : read
       id-token: write
-    name : Build and push BRO images
-    runs-on : runs-on,image=ubuntu22-full-x64,runner=4cpu-linux-x64,run-id=${{ github.run_id }}
+    name : Build and push SCC-operator images
+    runs-on: ubuntu-latest
     steps:
       - name : Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
