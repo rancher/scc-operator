@@ -3,9 +3,9 @@ package offline
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
-	"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher-sandbox/scc-operator/pkg/controllers/common"
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher/scc-operator/pkg/controllers/common"
 	"maps"
 
 	"github.com/SUSE/connect-ng/pkg/registration"

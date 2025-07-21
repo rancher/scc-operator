@@ -19,8 +19,8 @@ limitations under the License.
 package fake
 
 import (
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
-	scccattleiov1 "github.com/rancher-sandbox/scc-operator/pkg/generated/clientset/versioned/typed/scc.cattle.io/v1"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	scccattleiov1 "github.com/rancher/scc-operator/pkg/generated/clientset/versioned/typed/scc.cattle.io/v1"
 	gentype "k8s.io/client-go/gentype"
 )
 

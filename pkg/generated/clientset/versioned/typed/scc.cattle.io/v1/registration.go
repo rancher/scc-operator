@@ -21,8 +21,8 @@ package v1
 import (
 	context "context"
 
-	scccattleiov1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
-	scheme "github.com/rancher-sandbox/scc-operator/pkg/generated/clientset/versioned/scheme"
+	scccattleiov1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	scheme "github.com/rancher/scc-operator/pkg/generated/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"

@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher/scc-operator/internal/consts"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 )
 
 const (

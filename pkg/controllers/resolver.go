@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/consts"
 	"github.com/rancher/wrangler/v3/pkg/relatedresource"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"

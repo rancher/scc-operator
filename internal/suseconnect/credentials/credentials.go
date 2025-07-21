@@ -2,8 +2,8 @@ package credentials
 
 import (
 	"github.com/SUSE/connect-ng/pkg/connection"
-	rootLog "github.com/rancher-sandbox/scc-operator/internal/log"
-	"github.com/rancher-sandbox/scc-operator/pkg/util/log"
+	rootLog "github.com/rancher/scc-operator/internal/log"
+	"github.com/rancher/scc-operator/pkg/util/log"
 
 	"github.com/pkg/errors"
 )

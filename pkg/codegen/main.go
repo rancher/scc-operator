@@ -13,7 +13,7 @@ func main() {
 	_ = os.Unsetenv("GOPATH")
 
 	controllergen.Run(args.Options{
-		OutputPackage: "github.com/rancher-sandbox/scc-operator/pkg/generated",
+		OutputPackage: "github.com/rancher/scc-operator/pkg/generated",
 		Boilerplate:   "scripts/boilerplate.go.txt",
 		Groups: map[string]args.Group{
 			"management.cattle.io": {

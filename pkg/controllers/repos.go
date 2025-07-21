@@ -2,7 +2,7 @@ package controllers
 
 import (
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

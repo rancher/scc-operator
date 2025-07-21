@@ -3,11 +3,11 @@ package wrangler
 import (
 	"context"
 	"fmt"
-	"github.com/rancher-sandbox/scc-operator/internal/repos/secretrepo"
-	"github.com/rancher-sandbox/scc-operator/internal/repos/settingrepo"
 	lasso "github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/lasso/pkg/mapper"
+	"github.com/rancher/scc-operator/internal/repos/secretrepo"
+	"github.com/rancher/scc-operator/internal/repos/settingrepo"
 	v1core "github.com/rancher/wrangler/v3/pkg/generated/controllers/core"
 	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/rancher/wrangler/v3/pkg/generic"
@@ -25,11 +25,11 @@ import (
 	"k8s.io/client-go/rest"
 	"sync"
 
-	"github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/management.cattle.io"
-	mgmtv3 "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
-	"github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/scc.cattle.io"
-	sccv1 "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 	managementv3api "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
+	"github.com/rancher/scc-operator/pkg/generated/controllers/management.cattle.io"
+	mgmtv3 "github.com/rancher/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
+	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
+	sccv1 "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 )
 
 var (

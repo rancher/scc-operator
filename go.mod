@@ -1,4 +1,4 @@
-module github.com/rancher-sandbox/scc-operator
+module github.com/rancher/scc-operator
 
 go 1.24.0
 

@@ -1,7 +1,7 @@
 package secretrepo
 
 import (
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/consts"
 	corev1 "k8s.io/api/core/v1"
 )
 

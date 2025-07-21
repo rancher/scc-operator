@@ -1,9 +1,9 @@
 package controllers
 
 import (
-	"github.com/rancher-sandbox/scc-operator/internal/util"
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher-sandbox/scc-operator/pkg/util/jitterbug"
+	"github.com/rancher/scc-operator/internal/util"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher/scc-operator/pkg/util/jitterbug"
 	"k8s.io/apimachinery/pkg/labels"
 	"time"
 )

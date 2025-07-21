@@ -2,11 +2,11 @@ package telemetry
 
 import (
 	"errors"
-	"github.com/rancher-sandbox/scc-operator/internal/wrangler"
+	"github.com/rancher/scc-operator/internal/wrangler"
 	"iter"
 
-	v3ctrl "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
 	v3 "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
+	v3ctrl "github.com/rancher/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

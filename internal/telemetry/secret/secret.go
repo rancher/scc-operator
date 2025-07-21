@@ -1,8 +1,8 @@
 package secret
 
 import (
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
-	"github.com/rancher-sandbox/scc-operator/internal/repos/secretrepo"
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/repos/secretrepo"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

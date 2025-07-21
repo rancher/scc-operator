@@ -1,7 +1,7 @@
 package jitterbug
 
 import (
-	rootLog "github.com/rancher-sandbox/scc-operator/internal/log"
+	rootLog "github.com/rancher/scc-operator/internal/log"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"

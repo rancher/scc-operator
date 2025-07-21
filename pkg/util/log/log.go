@@ -1,6 +1,6 @@
 package log
 
-import "github.com/rancher-sandbox/scc-operator/internal/log"
+import "github.com/rancher/scc-operator/internal/log"
 
 func NewSccLogBuilder(opts ...log.Optional) *log.StructuredLoggerBuilder {
 	return log.NewStructuredLoggerBuilder("scc-operator", opts...)

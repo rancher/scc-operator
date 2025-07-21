@@ -19,7 +19,7 @@ limitations under the License.
 package scc
 
 import (
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
+	v1 "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 	"github.com/rancher/lasso/pkg/controller"
 )
 

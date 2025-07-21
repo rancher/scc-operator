@@ -3,9 +3,9 @@ package controllers
 import (
 	"errors"
 	"fmt"
-	"github.com/rancher-sandbox/scc-operator/internal/types"
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
-	registrationControllers "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
+	"github.com/rancher/scc-operator/internal/types"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	registrationControllers "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 )

@@ -3,9 +3,9 @@ package controllers
 import (
 	"errors"
 	"fmt"
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
-	"github.com/rancher-sandbox/scc-operator/internal/repos/secretrepo"
-	"github.com/rancher-sandbox/scc-operator/pkg/controllers/common"
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/repos/secretrepo"
+	"github.com/rancher/scc-operator/pkg/controllers/common"
 
 	"net/http"
 	"sync"
@@ -14,12 +14,12 @@ import (
 	"golang.org/x/sync/semaphore"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/rancher-sandbox/scc-operator/internal/log"
-	"github.com/rancher-sandbox/scc-operator/internal/suseconnect"
-	"github.com/rancher-sandbox/scc-operator/internal/suseconnect/credentials"
-	"github.com/rancher-sandbox/scc-operator/internal/types"
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo"
+	"github.com/rancher/scc-operator/internal/log"
+	"github.com/rancher/scc-operator/internal/suseconnect"
+	"github.com/rancher/scc-operator/internal/suseconnect/credentials"
+	"github.com/rancher/scc-operator/internal/types"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher/scc-operator/pkg/systeminfo"
 
 	"github.com/SUSE/connect-ng/pkg/connection"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/consts"
 	"k8s.io/client-go/rest"
 	"os"
 
@@ -12,12 +12,12 @@ import (
 	"github.com/rancher/wrangler/v3/pkg/kubeconfig"
 	"github.com/rancher/wrangler/v3/pkg/signals"
 
-	"github.com/rancher-sandbox/scc-operator/cmd/operator/version"
-	rootLog "github.com/rancher-sandbox/scc-operator/internal/log"
-	"github.com/rancher-sandbox/scc-operator/internal/types"
-	"github.com/rancher-sandbox/scc-operator/internal/util"
-	"github.com/rancher-sandbox/scc-operator/pkg/operator"
-	"github.com/rancher-sandbox/scc-operator/pkg/util/log"
+	"github.com/rancher/scc-operator/cmd/operator/version"
+	rootLog "github.com/rancher/scc-operator/internal/log"
+	"github.com/rancher/scc-operator/internal/types"
+	"github.com/rancher/scc-operator/internal/util"
+	"github.com/rancher/scc-operator/pkg/operator"
+	"github.com/rancher/scc-operator/pkg/util/log"
 )
 
 var (

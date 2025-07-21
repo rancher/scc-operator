@@ -2,11 +2,11 @@ package operator
 
 import (
 	"context"
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
-	rootLog "github.com/rancher-sandbox/scc-operator/internal/log"
-	"github.com/rancher-sandbox/scc-operator/internal/wrangler"
-	"github.com/rancher-sandbox/scc-operator/pkg/controllers"
-	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo"
+	"github.com/rancher/scc-operator/internal/consts"
+	rootLog "github.com/rancher/scc-operator/internal/log"
+	"github.com/rancher/scc-operator/internal/wrangler"
+	"github.com/rancher/scc-operator/pkg/controllers"
+	"github.com/rancher/scc-operator/pkg/systeminfo"
 	"github.com/rancher/wrangler/v3/pkg/start"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"time"

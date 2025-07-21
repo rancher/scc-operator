@@ -1,7 +1,7 @@
 package settingrepo
 
 import (
-	"github.com/rancher-sandbox/scc-operator/pkg/util/log"
+	"github.com/rancher/scc-operator/pkg/util/log"
 	"net/url"
 )
 

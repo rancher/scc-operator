@@ -2,7 +2,7 @@ package secretrepo
 
 import (
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/rancher-sandbox/scc-operator/internal/repos/generic"
+	"github.com/rancher/scc-operator/internal/repos/generic"
 	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 
-	rootLog "github.com/rancher-sandbox/scc-operator/internal/log"
-	v1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher-sandbox/scc-operator/pkg/systeminfo"
+	rootLog "github.com/rancher/scc-operator/internal/log"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher/scc-operator/pkg/systeminfo"
 
 	"github.com/SUSE/connect-ng/pkg/connection"
 	"github.com/SUSE/connect-ng/pkg/registration"

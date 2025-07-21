@@ -29,12 +29,12 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.Registration":          schema_pkg_apis_scccattleio_v1_Registration(ref),
-		"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationList":      schema_pkg_apis_scccattleio_v1_RegistrationList(ref),
-		"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationRequest":   schema_pkg_apis_scccattleio_v1_RegistrationRequest(ref),
-		"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationSpec":      schema_pkg_apis_scccattleio_v1_RegistrationSpec(ref),
-		"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationStatus":    schema_pkg_apis_scccattleio_v1_RegistrationStatus(ref),
-		"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.SystemActivationState": schema_pkg_apis_scccattleio_v1_SystemActivationState(ref),
+		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.Registration":          schema_pkg_apis_scccattleio_v1_Registration(ref),
+		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationList":      schema_pkg_apis_scccattleio_v1_RegistrationList(ref),
+		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationRequest":   schema_pkg_apis_scccattleio_v1_RegistrationRequest(ref),
+		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationSpec":      schema_pkg_apis_scccattleio_v1_RegistrationSpec(ref),
+		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationStatus":    schema_pkg_apis_scccattleio_v1_RegistrationStatus(ref),
+		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.SystemActivationState": schema_pkg_apis_scccattleio_v1_SystemActivationState(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                                           schema_pkg_apis_meta_v1_APIGroup(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                                       schema_pkg_apis_meta_v1_APIGroupList(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                                        schema_pkg_apis_meta_v1_APIResource(ref),
@@ -116,20 +116,20 @@ func schema_pkg_apis_scccattleio_v1_Registration(ref common.ReferenceCallback) c
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationSpec"),
+							Ref:     ref("github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationStatus"),
+							Ref:     ref("github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationSpec", "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationSpec", "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -167,7 +167,7 @@ func schema_pkg_apis_scccattleio_v1_RegistrationList(ref common.ReferenceCallbac
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.Registration"),
+										Ref:     ref("github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.Registration"),
 									},
 								},
 							},
@@ -178,7 +178,7 @@ func schema_pkg_apis_scccattleio_v1_RegistrationList(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.Registration", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.Registration", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -228,7 +228,7 @@ func schema_pkg_apis_scccattleio_v1_RegistrationSpec(ref common.ReferenceCallbac
 					},
 					"registrationRequest": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationRequest"),
+							Ref: ref("github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationRequest"),
 						},
 					},
 					"offlineRegistrationCertificateSecretRef": {
@@ -247,7 +247,7 @@ func schema_pkg_apis_scccattleio_v1_RegistrationSpec(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationRequest", "k8s.io/api/core/v1.SecretReference"},
+			"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationRequest", "k8s.io/api/core/v1.SecretReference"},
 	}
 }
 
@@ -305,7 +305,7 @@ func schema_pkg_apis_scccattleio_v1_RegistrationStatus(ref common.ReferenceCallb
 					"activationStatus": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.SystemActivationState"),
+							Ref:     ref("github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.SystemActivationState"),
 						},
 					},
 					"systemCredentialsSecretRef": {
@@ -322,7 +322,7 @@ func schema_pkg_apis_scccattleio_v1_RegistrationStatus(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1.SystemActivationState", "github.com/rancher/wrangler/v3/pkg/genericcondition.GenericCondition", "k8s.io/api/core/v1.SecretReference", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.SystemActivationState", "github.com/rancher/wrangler/v3/pkg/genericcondition.GenericCondition", "k8s.io/api/core/v1.SecretReference", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

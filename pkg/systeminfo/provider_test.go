@@ -2,7 +2,7 @@ package systeminfo
 
 import (
 	"github.com/google/uuid"
-	"github.com/rancher-sandbox/scc-operator/internal/settings"
+	"github.com/rancher/scc-operator/internal/settings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

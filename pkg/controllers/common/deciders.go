@@ -1,9 +1,9 @@
 package common
 
 import (
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
-	"github.com/rancher-sandbox/scc-operator/internal/types"
-	"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/types"
+	"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/wrangler/v3/pkg/generic"
 	corev1 "k8s.io/api/core/v1"
 	"slices"

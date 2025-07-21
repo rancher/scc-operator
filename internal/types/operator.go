@@ -1,6 +1,6 @@
 package types
 
-import rootLog "github.com/rancher-sandbox/scc-operator/internal/log"
+import rootLog "github.com/rancher/scc-operator/internal/log"
 
 type RunOptions struct {
 	Logger       rootLog.StructuredLogger

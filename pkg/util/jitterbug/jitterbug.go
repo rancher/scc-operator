@@ -4,7 +4,7 @@ package jitterbug
 // The key principal
 
 import (
-	rootLog "github.com/rancher-sandbox/scc-operator/internal/log"
+	rootLog "github.com/rancher/scc-operator/internal/log"
 	"time"
 )
 

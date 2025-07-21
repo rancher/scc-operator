@@ -1,8 +1,8 @@
 package common
 
 import (
-	"github.com/rancher-sandbox/scc-operator/internal/types"
-	"github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher/scc-operator/internal/types"
+	"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

@@ -19,7 +19,7 @@ limitations under the License.
 package scheme
 
 import (
-	sccv1 "github.com/rancher-sandbox/scc-operator/pkg/apis/scc.cattle.io/v1"
+	sccv1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

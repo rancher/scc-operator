@@ -3,8 +3,8 @@ package offline
 import (
 	"bytes"
 	"fmt"
-	"github.com/rancher-sandbox/scc-operator/internal/consts"
-	"github.com/rancher-sandbox/scc-operator/pkg/controllers/common"
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/pkg/controllers/common"
 	"io"
 	"maps"
 

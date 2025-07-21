@@ -1,9 +1,9 @@
 package settingrepo
 
 import (
-	"github.com/rancher-sandbox/scc-operator/internal/repos/generic"
-	v3ctrl "github.com/rancher-sandbox/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
 	v3 "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
+	"github.com/rancher/scc-operator/internal/repos/generic"
+	v3ctrl "github.com/rancher/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
 )
 
 var rootSettingRepo *SettingRepository
