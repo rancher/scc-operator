@@ -11,7 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  REPO : rancher
+  REPO_OWNER: rancher
+  IMAGE_NAME: scc-operator
 
 permissions:
   contents: write
@@ -55,7 +56,7 @@ jobs:
 
       - name: Build and push SCC-operator (branch head) image
         env:
-          FULL_IMAGE_PATH: "${{ vars.REPO || env.REPO || github.repository_owner }}/${{ github.repository }}"
+          FULL_IMAGE_PATH: "${{ vars.REPO_OWNER || env.REPO_OWNER || github.repository_owner }}/${{ vars.IMAGE_NAME || env.IMAGE_NAME }}"
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
           context: .
