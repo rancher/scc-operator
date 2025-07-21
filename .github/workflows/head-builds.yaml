@@ -11,8 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  REGISTRY: ghcr.io
-  REPO : rancher-sandbox
+  REPO : rancher
 
 permissions:
   contents: write
@@ -45,15 +44,32 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3 
-      - name: Log in to the Container registry
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
+
+
+      - name: Load Secrets from Vault
+        uses: rancher-eio/read-vault-secrets@main
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
+          secrets: |
+            secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials username | DOCKER_USERNAME ;
+            secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials password | DOCKER_PASSWORD ;
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME || vars.DOCKER_USERNAME || github.repository_owner }}
+          password: ${{ env.DOCKER_PASSWORD || secrets.DOCKER_PASSWORD }}
+
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push SCC-operator image
+
+      - name: Build and push SCC-operator (branch head) image
         env:
-          FULL_IMAGE_URL: "${{ env.REGISTRY }}/${{ vars.REPO || env.REPO || github.repository_owner }}/scc-operator"
+          FULL_IMAGE_PATH: "${{ vars.REPO || env.REPO || github.repository_owner }}/scc-operator"
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
           context: .
@@ -61,14 +77,9 @@ jobs:
           build-args: |
             TAG=${{ needs.prebuild-env.outputs.branch_static_tag }}
           push: true
-          tags: ${{ env.FULL_IMAGE_URL }}:${{ needs.prebuild-env.outputs.branch_static_tag }}
           platforms: linux/amd64,linux/arm64
-      - name: Update rolling tag to new static tag
-        env:
-          FULL_IMAGE_URL: ${{ env.REGISTRY }}/${{ vars.REPO || env.REPO || github.repository_owner }}/scc-operator
-        run: |
-          VERSION="1.2.0"
-          curl -LO "https://github.com/oras-project/oras/releases/download/v${VERSION}/oras_${VERSION}_linux_amd64.tar.gz"
-          mkdir -p oras-install/
-          tar -zxf oras_${VERSION}_*.tar.gz -C oras-install/
-          oras-install/oras copy ${{ env.FULL_IMAGE_URL }}:${{ needs.prebuild-env.outputs.branch_static_tag }} ${{ env.FULL_IMAGE_URL }}:${{ needs.prebuild-env.outputs.branch_tag }}
+          tags: |
+            ${{ env.FULL_IMAGE_PATH }}:${{ needs.prebuild-env.outputs.branch_static_tag }}
+            ${{ env.FULL_IMAGE_PATH }}:${{ needs.prebuild-env.outputs.branch_tag }}
+            ghcr.io/${{ env.FULL_IMAGE_PATH }}:${{ needs.prebuild-env.outputs.branch_static_tag }}
+            ghcr.io/${{ env.FULL_IMAGE_PATH }}:${{ needs.prebuild-env.outputs.branch_tag }}

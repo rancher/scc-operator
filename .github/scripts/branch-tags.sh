@@ -34,7 +34,7 @@ if [ "$ref" == "refs/heads/main" ]; then
   branchStaticTag="main-${commitSha}"
   prevTag=$(getPreviousTag "main-")
 elif [[ "$ref" == refs/heads/release/* ]]; then
-  version="${ref#refs/heads/release/}"  # Extract "vX.0"
+  version="${ref#refs/heads/release/}"  # Extract "v{X}.x"
   branchTag="${version}-head"
   branchStaticTag="${version}-head-${commitSha}"
   prevTag=$(getPreviousTag "${version}-head-")
