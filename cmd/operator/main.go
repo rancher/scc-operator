@@ -54,7 +54,7 @@ func init() {
 }
 
 func main() {
-	logger.Infof("Starting scc-operator version %s (%s) [built at %s]", version.Version, version.GitCommit, version.Date)
+	logger.Infof("Starting %s version %s (%s) [built at %s]", consts.AppName, version.Version, version.GitCommit, version.Date)
 	ctx := signals.SetupSignalContext()
 	if KubeConfig == "" {
 		logger.Fatal("--kubeconfig or --kubeconfig is required")
@@ -77,7 +77,6 @@ func main() {
 }
 
 func run(ctx context.Context, restKubeConfig *rest.Config, runOptions types.RunOptions) error {
-	logger.Infof("Starting %s version %s (%s)", consts.AppName, version.Version, version.GitCommit)
 	logger.Debugf("Setting up client for %s...", SCCNamespace)
 	logger.Debugf("Run options: %v", runOptions)
 
