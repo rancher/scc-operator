@@ -16,15 +16,6 @@ func main() {
 		OutputPackage: "github.com/rancher/scc-operator/pkg/generated",
 		Boilerplate:   "scripts/boilerplate.go.txt",
 		Groups: map[string]args.Group{
-			"management.cattle.io": {
-				PackageName: "management.cattle.io",
-				Types: []interface{}{
-					// All structs with an embedded ObjectMeta field will be picked up
-					mgmtv3.Setting{},
-					mgmtv3.Cluster{},
-					mgmtv3.Node{},
-				},
-			},
 			"scc.cattle.io": {
 				PackageName: "scc.cattle.io",
 				Types: []interface{}{
@@ -36,6 +27,21 @@ func main() {
 				GenerateOpenAPI: true,
 				OpenAPIDependencies: []string{
 					"k8s.io/apimachinery/pkg/apis/meta/v1",
+				},
+			},
+		},
+	})
+	controllergen.Run(args.Options{
+		OutputPackage: "github.com/rancher/scc-operator/internal/generated",
+		Boilerplate:   "scripts/boilerplate.go.txt",
+		Groups: map[string]args.Group{
+			"management.cattle.io": {
+				PackageName: "management.cattle.io",
+				Types: []interface{}{
+					// All structs with an embedded ObjectMeta field will be picked up
+					mgmtv3.Setting{},
+					mgmtv3.Cluster{},
+					mgmtv3.Node{},
 				},
 			},
 		},

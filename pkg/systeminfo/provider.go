@@ -2,8 +2,8 @@ package systeminfo
 
 import (
 	"github.com/google/uuid"
+	v3 "github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io/v3"
 	"github.com/rancher/scc-operator/internal/repos/settingrepo"
-	v3 "github.com/rancher/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
 	"k8s.io/apimachinery/pkg/labels"
 	//"github.com/rancher/rancher/pkg/settings"
 )

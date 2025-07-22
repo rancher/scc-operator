@@ -14,4 +14,8 @@ LINKFLAGS="-X github.com/rancher/scc-operator/cmd/operator/version.Version=$VERS
 LINKFLAGS="-X github.com/rancher/scc-operator/cmd/operator/version.Commit=$COMMIT $LINKFLAGS"
 LINKFLAGS="-X github.com/rancher/scc-operator/cmd/operator/version.Date=$(date -u +"%Y-%m-%dT%H:%M:%SZ") $LINKFLAGS"
 
+echo "Starting bin build for scc-operator"
+
 CGO_ENABLED=0 go build -ldflags "$LINKFLAGS $OTHER_LINKFLAGS" -o "bin/scc-operator" ./cmd/operator/main.go
+
+echo "Done"
