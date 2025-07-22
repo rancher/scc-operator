@@ -21,6 +21,9 @@ func run() error {
 	if err := os.RemoveAll("./pkg/generated"); err != nil {
 		return err
 	}
+	if err := os.RemoveAll("./internal/generated"); err != nil {
+		return err
+	}
 
 	return cleanup.Cleanup("./pkg/apis")
 }
