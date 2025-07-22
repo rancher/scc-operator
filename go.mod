@@ -50,6 +50,7 @@ require (
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff
 	sigs.k8s.io/controller-runtime v0.21.0
+	sigs.k8s.io/controller-tools v0.18.0
 )
 
 require (
