@@ -62,13 +62,13 @@ jobs:
           tag: ${{ github.ref_name }}
 
           public-registry: ${{ env.PUBLIC_REGISTRY }}
-          public-repo: ${{ env.PUBLIC_REPO }}
+          public-repo: ${{ env.REPO }}
           public-username: ${{ env.DOCKER_USERNAME || vars.DOCKER_USERNAME || github.repository_owner }}
           public-password: ${{ env.DOCKER_PASSWORD || secrets.DOCKER_PASSWORD }}
 
           push-to-prime: ${{ github.repository == 'rancher/scc-operator' }}
           prime-registry: ${{ env.PRIME_STG_REGISTRY }}
-          prime-repo: rancher
+          prime-repo: ${{ env.REPO }}
           prime-username: ${{ env.PRIME_STG_REGISTRY_USERNAME }}
           prime-password: ${{ env.PRIME_STG_REGISTRY_PASSWORD }}
           identity-registry: ${{ env.PRIME_REGISTRY }}
