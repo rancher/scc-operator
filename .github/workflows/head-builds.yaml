@@ -55,8 +55,6 @@ jobs:
           password: ${{ env.DOCKER_PASSWORD || secrets.DOCKER_PASSWORD }}
 
       - name: Build and push SCC-operator (branch head) image
-        env:
-          FULL_IMAGE_PATH: "${{ vars.REPO_OWNER || env.REPO_OWNER || github.repository_owner }}/${{ vars.IMAGE_NAME || env.IMAGE_NAME }}"
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
         with:
           context: .
@@ -66,7 +64,5 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.FULL_IMAGE_PATH }}:${{ steps.set-vars.outputs.branch_static_tag }}
-            ${{ env.FULL_IMAGE_PATH }}:${{ steps.set-vars.outputs.branch_tag }}
-            ghcr.io/${{ env.FULL_IMAGE_PATH }}:${{ steps.set-vars.outputs.branch_static_tag }}
-            ghcr.io/${{ env.FULL_IMAGE_PATH }}:${{ steps.set-vars.outputs.branch_tag }}
+            ${{ vars.REPO_OWNER || env.REPO_OWNER || github.repository_owner }}/${{ vars.IMAGE_NAME || env.IMAGE_NAME }}:${{ steps.set-vars.outputs.branch_static_tag }}
+            ${{ vars.REPO_OWNER || env.REPO_OWNER || github.repository_owner }}/${{ vars.IMAGE_NAME || env.IMAGE_NAME }}:${{ steps.set-vars.outputs.branch_tag }}
