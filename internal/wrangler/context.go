@@ -26,8 +26,8 @@ import (
 	"sync"
 
 	managementv3api "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
-	"github.com/rancher/scc-operator/pkg/generated/controllers/management.cattle.io"
-	mgmtv3 "github.com/rancher/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
+	"github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io"
+	mgmtv3 "github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io/v3"
 	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
 	sccv1 "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 )
