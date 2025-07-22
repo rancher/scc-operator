@@ -7,13 +7,15 @@ on:
 
 env:
   REGISTRY: docker.io
-  REPO : rancher-sandbox
+  REPO : rancher
 
 permissions:
   contents: write
 
 jobs:
   goreleaser:
+  # Provide binary (for dev/debug only) on releases
+  # In the future, if needed, we can also publish a chart via this step too (similar to BRO) [even if just a dev chart]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
@@ -23,9 +25,6 @@ jobs:
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
         with:
           go-version: 1.24
-      - name : Package release helm charts
-        run : make package-helm
-      - run : mkdir -p ./build/artifacts/ && mv -v ./dist/artifacts/ ./build/
       - uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6
         with:
           distribution: goreleaser
@@ -34,7 +33,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
-  push:
+  image:
     permissions:
       contents : read
       id-token: write
@@ -43,19 +42,33 @@ jobs:
     steps:
       - name : Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3 
-      - name: Log in to the Container registry
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
+      - name: "Read Secrets"
+        if: github.repository == 'rancher/scc-operator'
+        uses: rancher-eio/read-vault-secrets@main
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push SCC-operator image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+          secrets: |
+            secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry | PRIME_REGISTRY ;
+            secret/data/github/repo/${{ github.repository }}/rancher-prime-stg-registry/credentials registry |  PRIME_STG_REGISTRY;
+            secret/data/github/repo/${{ github.repository }}/rancher-prime-stg-registry/credentials username |  PRIME_STG_REGISTRY_USERNAME;
+            secret/data/github/repo/${{ github.repository }}/rancher-prime-stg-registry/credentials password |  PRIME_STG_REGISTRY_PASSWORD;
+            secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials username | DOCKER_USERNAME ;
+            secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials password | DOCKER_PASSWORD
+
+        # This encapsulates: login, qemu, build/push
+      - name: Build and push PushProx image (dockerhub and prime stg)
+        uses: rancher/ecm-distro-tools/actions/publish-image@master
         with:
-          context: .
-          file: ./package/Dockerfile
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.REPO }}/scc-operator:${{ github.ref_name }}
-          platforms: linux/amd64,linux/arm64
+          image: 'scc-operator'
+          tag: ${{ github.ref_name }}
+
+          public-registry: ${{ env.PUBLIC_REGISTRY }}
+          public-repo: ${{ env.PUBLIC_REPO }}
+          public-username: ${{ env.DOCKER_USERNAME || vars.DOCKER_USERNAME || github.repository_owner }}
+          public-password: ${{ env.DOCKER_PASSWORD || secrets.DOCKER_PASSWORD }}
+
+          push-to-prime: ${{ github.repository == 'rancher/scc-operator' }}
+          prime-registry: ${{ env.PRIME_STG_REGISTRY }}
+          prime-repo: rancher
+          prime-username: ${{ env.PRIME_STG_REGISTRY_USERNAME }}
+          prime-password: ${{ env.PRIME_STG_REGISTRY_PASSWORD }}
+          identity-registry: ${{ env.PRIME_REGISTRY }}

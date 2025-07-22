@@ -60,7 +60,7 @@ jobs:
           context: .
           file: ./package/Dockerfile
           build-args: |
-            TAG=${{ needs.prebuild-env.outputs.branch_static_tag }}
+            TAG=${{ steps.set-vars.outputs.branch_static_tag }}
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |

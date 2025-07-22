@@ -19,8 +19,8 @@ limitations under the License.
 package management
 
 import (
-	v3 "github.com/rancher/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
 	"github.com/rancher/lasso/pkg/controller"
+	v3 "github.com/rancher/scc-operator/pkg/generated/controllers/management.cattle.io/v3"
 )
 
 type Interface interface {

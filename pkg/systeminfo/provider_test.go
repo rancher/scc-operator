@@ -2,7 +2,7 @@ package systeminfo
 
 import (
 	"github.com/google/uuid"
-	"github.com/rancher/scc-operator/internal/settings"
+	"github.com/rancher/scc-operator/internal/repos/settingrepo"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -44,6 +44,6 @@ func TestGetProductIdentifier(t *testing.T) {
 }
 
 func TestServerHostname(t *testing.T) {
-	originalUrl := settings.GetServerURL(nil)
+	originalUrl := settingrepo.GetServerURL(nil)
 	assert.IsType(t, string(""), originalUrl)
 }
