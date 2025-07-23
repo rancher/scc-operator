@@ -6,7 +6,7 @@ on:
       - "*"
 
 env:
-  REGISTRY: docker.io
+  PUBLIC_REGISTRY: docker.io
   REPO : rancher
 
 permissions:
