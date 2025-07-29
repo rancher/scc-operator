@@ -30,10 +30,10 @@ func New(
 	operatorLogger := options.Logger
 	operatorLogger.Debug("Preparing to setup SCC operator")
 
-	util.SetSystemNamespace(options.SccNamespace)
 	if err := options.Validate(); err != nil {
 		return nil, err
 	}
+	util.SetSystemNamespace(options.SccNamespace)
 
 	kubeconfig.RateLimiter = ratelimit.None
 	wContext, err := wrangler.NewWranglerMiniContext(ctx, kubeconfig)

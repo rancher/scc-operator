@@ -63,6 +63,9 @@ func init() {
 
 	flag.Parse()
 	SCCNamespace = os.Getenv("SCC_SYSTEM_NAMESPACE")
+	if SCCNamespace == "" {
+		SCCNamespace = consts.DefaultSCCNamespace
+	}
 
 	log.AddDefaultOpts(rootLog.WithOperatorName(OperatorName))
 	logger = log.NewLog()

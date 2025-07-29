@@ -12,10 +12,10 @@ type RunOptions struct {
 }
 
 func (o *RunOptions) Validate() error {
-	// TODO: any necessary validation worth throwing errors on
 	if o.OperatorName == "" {
 		return fmt.Errorf("operator name must be set")
 	}
+	// TODO: should we validate the NS exists? How should mgmt of this be handled?
 	if o.SccNamespace == "" {
 		return fmt.Errorf("operator must have a valid SCC namespace")
 	}
