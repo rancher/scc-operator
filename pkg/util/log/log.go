@@ -2,12 +2,19 @@ package log
 
 import "github.com/rancher/scc-operator/internal/log"
 
-func NewSccLogBuilder(opts ...log.Optional) *log.StructuredLoggerBuilder {
-	return log.NewStructuredLoggerBuilder("scc-operator", opts...)
+var defaultOpts []log.Optional
+
+func AddDefaultOpts(opts ...log.Optional) {
+	defaultOpts = append(defaultOpts, opts...)
 }
 
-func NewLog() log.StructuredLogger {
-	baseLogger := NewSccLogBuilder().ToLogger()
+func NewSccLogBuilder(opts ...log.Optional) *log.StructuredLoggerBuilder {
+	logOpts := append(defaultOpts, opts...)
+	return log.NewStructuredLoggerBuilder("scc-operator", logOpts...)
+}
+
+func NewLog(opts ...log.Optional) log.StructuredLogger {
+	baseLogger := NewSccLogBuilder(opts...).ToLogger()
 
 	return baseLogger
 }
