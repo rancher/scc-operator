@@ -78,13 +78,13 @@ func getCurrentRegURL(secret *corev1.Secret) (regURL []byte) {
 		globalRegistrationUrl := util.GetGlobalPrimeRegistrationUrl()
 		return []byte(globalRegistrationUrl)
 	}
-	if coreUtil.DevMode() {
+	if coreUtil.DevMode.Get() {
 		return []byte(consts.StagingSCCUrl)
 	}
 	return []byte{}
 }
 
-func extractRegistrationParamsFromSecret(secret *corev1.Secret) (RegistrationParams, error) {
+func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedBy string) (RegistrationParams, error) {
 	incomingSalt := []byte(secret.GetLabels()[consts.LabelObjectSalt])
 
 	regMode := v1.RegistrationModeOnline

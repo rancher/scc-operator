@@ -83,7 +83,7 @@ func main() {
 	}
 
 	dm := os.Getenv("CATTLE_DEV_MODE")
-	util.SetDevMode(dm != "")
+	util.DevMode.Set(dm != "")
 	runOptions := types.RunOptions{
 		Logger:       logger,
 		OperatorName: OperatorName,

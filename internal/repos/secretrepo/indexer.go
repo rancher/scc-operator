@@ -14,7 +14,7 @@ const (
 var systemNamespace string
 
 func (r *SecretRepository) InitIndexers() {
-	systemNamespace = util.GetSystemNamespace()
+	systemNamespace = util.SystemNamespace.Get()
 	r.Cache.AddIndexer(
 		IndexSecretsByPath,
 		secretByPath,

@@ -66,7 +66,7 @@ func setup(wContext *wrangler.MiniContext, logger log.StructuredLogger, infoProv
 	rancherTelemetry := telemetry.NewTelemetryGatherer(wContext)
 
 	return &SccOperator{
-		devMode:            util.DevMode(),
+		devMode:            util.DevMode.Get(),
 		log:                logger,
 		sccResourceFactory: sccResources,
 		secrets:            wContext.Core.Secret(),

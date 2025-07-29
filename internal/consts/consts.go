@@ -98,7 +98,7 @@ func (s SCCEnvironment) String() string {
 }
 
 func GetSCCEnvironment() SCCEnvironment {
-	if !util.DevMode() {
+	if !util.DevMode.Get() {
 		return Production
 	}
 	return Staging

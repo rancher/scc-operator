@@ -37,7 +37,7 @@ func New(
 	if err := options.Validate(); err != nil {
 		return nil, err
 	}
-	util.SetSystemNamespace(options.SccNamespace)
+	util.SystemNamespace.Set(options.SccNamespace)
 
 	kubeconfig.RateLimiter = ratelimit.None
 	wContext, err := wrangler.NewWranglerMiniContext(ctx, kubeconfig)
