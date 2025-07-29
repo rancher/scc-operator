@@ -135,6 +135,8 @@ func NewWranglerMiniContext(ctx context.Context, restConfig *rest.Config) (MiniC
 		return MiniContext{}, err
 	}
 
+	// TODO: in the future when there is more than just rancher SCC-operator, this will need to be changed
+	// Unless this is adjusted to be unique for each SCC operator, only one will have controller lease at a time
 	leadership := leader.NewManager("", "scc-controllers", k8s)
 
 	return MiniContext{

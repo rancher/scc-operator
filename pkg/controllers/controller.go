@@ -7,8 +7,8 @@ import (
 	"github.com/rancher/scc-operator/internal/repos/secretrepo"
 	"github.com/rancher/scc-operator/internal/suseconnect/offline"
 	"github.com/rancher/scc-operator/internal/telemetry"
+	"github.com/rancher/scc-operator/internal/util"
 	"github.com/rancher/scc-operator/pkg/util/log"
-	"k8s.io/apimachinery/pkg/runtime"
 	"strings"
 
 	"maps"
@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -82,13 +83,14 @@ type handler struct {
 	registrationCache    registrationControllers.RegistrationCache
 	secretRepo           *secretrepo.SecretRepository
 	systemInfoExporter   *systeminfo.InfoExporter
+	managedByName        string
 	systemNamespace      string
 	metricsSecretManager *metricsSecret.MetricsSecretManager
 }
 
 func Register(
 	ctx context.Context,
-	systemNamespace string,
+	managedByName, systemNamespace string,
 	registrations registrationControllers.RegistrationController,
 	secretsRepo *secretrepo.SecretRepository,
 	rancherTelemetry telemetry.TelemetryGatherer,
@@ -109,6 +111,7 @@ func Register(
 		registrationCache:    registrations.Cache(),
 		secretRepo:           secretsRepo,
 		systemInfoExporter:   systemInfoExporter,
+		managedByName:        managedByName,
 		systemNamespace:      systemNamespace,
 		metricsSecretManager: metricsSecretManager,
 	}
@@ -125,6 +128,18 @@ func Register(
 	scopedOnChange(ctx, controllerID+"-secrets", withinExpectedNamespaceCondition, secretsRepo.Controller, controller.OnSecretChange)
 	scopedOnRemove(ctx, controllerID+"-secrets-remove", withinExpectedNamespaceCondition, secretsRepo.Controller, controller.OnSecretRemove)
 
+	/*
+		withinOperatorScopeCondition := func(_ string, obj runtime.Object) (bool, error) {
+			metaObj, err := meta.Accessor(obj)
+			if err != nil {
+				return false, err
+			}
+
+			return shouldManage(metaObj, managedByName), nil
+		}
+		controller.log.Info(withinOperatorScopeCondition)
+	*/
+	// TODO: update to scoped with withinOperatorScopeCondition
 	registrations.OnChange(ctx, controllerID, controller.OnRegistrationChange)
 	registrations.OnRemove(ctx, controllerID+"-remove", controller.OnRegistrationRemove)
 
@@ -140,6 +155,7 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration) SCCHandler {
 		consts.LabelSccHash:      registrationObj.Labels[consts.LabelSccHash],
 		consts.LabelNameSuffix:   nameSuffixHash,
 		consts.LabelSccManagedBy: controllerID,
+		consts.LabelK8sManagedBy: util.OperatorName.Get(),
 	}
 
 	if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
@@ -178,18 +194,41 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration) SCCHandler {
 	}
 }
 
-func (h *handler) OnSecretChange(name string, incomingObj *corev1.Secret) (*corev1.Secret, error) {
+func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.Secret, error) {
 	if incomingObj == nil || incomingObj.DeletionTimestamp != nil {
 		return incomingObj, nil
 	}
+
 	if h.isRancherEntrypointSecret(incomingObj) {
+		// TODO(alex): sync on this to validate logic
+		// TODO: something to handle adopting new
+		if !shouldManage(incomingObj, h.managedByName) {
+			// When the secret has no managed by label, we should assume ownership I guess?
+			if !hasManagedByLabel(incomingObj) {
+				prepared := incomingObj.DeepCopy()
+				prepared = takeOwnership(prepared, h.managedByName)
+				_, updateErr := h.secretRepo.RetryingPatchUpdate(incomingObj, prepared)
+				if updateErr != nil {
+					h.log.Errorf("failed to take ownership of secret %s/%s: %v", incomingObj.Namespace, incomingObj.Name, updateErr)
+					return incomingObj, updateErr
+				}
+
+				h.log.Debugf("Secret %s/%s is now managed by %s", incomingObj.Namespace, incomingObj.Name, h.managedByName)
+
+				return incomingObj, nil
+			}
+
+			h.log.Debugf("Secret %s/%s is not managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.managedByName)
+			return incomingObj, nil
+		}
+
 		if _, saltOk := incomingObj.GetLabels()[consts.LabelObjectSalt]; !saltOk {
 			return h.prepareSecretSalt(incomingObj)
 		}
 
 		incomingNameHash := incomingObj.GetLabels()[consts.LabelNameSuffix]
 		incomingContentHash := incomingObj.GetLabels()[consts.LabelSccHash]
-		params, err := extractRegistrationParamsFromSecret(incomingObj)
+		params, err := extractRegistrationParamsFromSecret(incomingObj, h.managedByName)
 		if err != nil {
 			return incomingObj, fmt.Errorf("failed to extract registration params from secret %s/%s: %w", incomingObj.Namespace, incomingObj.Name, err)
 		}
@@ -386,6 +425,11 @@ func (h *handler) OnSecretRemove(name string, incomingObj *corev1.Secret) (*core
 	}
 	if incomingObj.Namespace != h.systemNamespace {
 		h.log.Debugf("Secret %s/%s is not in SCC system namespace %s, skipping cleanup", incomingObj.Namespace, incomingObj.Name, h.systemNamespace)
+		return incomingObj, nil
+	}
+
+	if !shouldManage(incomingObj, h.managedByName) {
+		h.log.Debugf("Secret %s/%s is not managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.managedByName)
 		return incomingObj, nil
 	}
 

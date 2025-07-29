@@ -19,4 +19,5 @@ func (v *valueInitializer[T]) Get() T {
 var (
 	DevMode         = valueInitializer[bool]{}
 	SystemNamespace = valueInitializer[string]{}
+	OperatorName    = valueInitializer[string]{}
 )

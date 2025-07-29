@@ -52,6 +52,7 @@ func (s *SccStarter) SetupControllers() error {
 
 		controllers.Register(
 			s.context,
+			util.OperatorName.Get(),
 			util.SystemNamespace.Get(),
 			initOperator.sccResourceFactory.Scc().V1().Registration(),
 			s.wrangler.Secrets,

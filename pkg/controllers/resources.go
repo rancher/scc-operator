@@ -11,6 +11,7 @@ import (
 	"github.com/rancher/scc-operator/pkg/util"
 	"github.com/rancher/scc-operator/pkg/util/salt"
 	"maps"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -134,10 +135,11 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedBy string
 	contentsId := hex.EncodeToString(hasher.Sum(nil))
 
 	return RegistrationParams{
-		regType:     regMode,
-		nameId:      nameId,
-		contentHash: contentsId,
-		regCode:     regCode,
+		managedByOperator: managedBy,
+		regType:           regMode,
+		nameId:            nameId,
+		contentHash:       contentsId,
+		regCode:           regCode,
 		regCodeSecretRef: &corev1.SecretReference{
 			Name:      consts.RegistrationCodeSecretName(nameId),
 			Namespace: secret.Namespace,
@@ -153,6 +155,7 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedBy string
 }
 
 type RegistrationParams struct {
+	managedByOperator    string
 	regType              v1.RegistrationMode
 	nameId               string
 	contentHash          string
@@ -169,6 +172,7 @@ func (r RegistrationParams) Labels() map[string]string {
 		consts.LabelNameSuffix:   r.nameId,
 		consts.LabelSccHash:      r.contentHash,
 		consts.LabelSccManagedBy: consts.ManagedBySecretBroker,
+		consts.LabelK8sManagedBy: r.managedByOperator,
 	}
 }
 
@@ -288,4 +292,46 @@ func (h *handler) offlineCertFromSecretEntrypoint(params RegistrationParams) (*c
 	}
 
 	return offlineCertSecret, nil
+}
+
+func hasManagedByLabel[T metav1.Object](incomingObj T) bool {
+	objectAnnotations := incomingObj.GetAnnotations()
+	_, hasManagedBy := objectAnnotations[consts.LabelSccManagedBy]
+
+	return hasManagedBy
+}
+
+// shouldManage will verify that this operator should manage a given object
+func shouldManage[T metav1.Object](incomingObj T, expectedManager string) bool {
+	objectLabels := incomingObj.GetLabels()
+	managedBy, hasManagedBy := objectLabels[consts.LabelK8sManagedBy]
+	if !hasManagedBy {
+		return false
+	}
+
+	if managedBy == expectedManager {
+		return true
+	}
+
+	return false
+}
+
+// takeOwnership will set or overwrite the value of the k8s managed-by label
+func takeOwnership[T metav1.Object](incomingObj T, owner string) T {
+	var empty T
+	if reflect.DeepEqual(incomingObj, empty) {
+		return incomingObj
+	}
+
+	objectLabels := incomingObj.GetLabels()
+	if objectLabels == nil {
+		objectLabels = map[string]string{
+			consts.LabelK8sManagedBy: owner,
+		}
+	} else {
+		objectLabels[consts.LabelK8sManagedBy] = owner
+	}
+
+	incomingObj.SetLabels(objectLabels)
+	return incomingObj
 }

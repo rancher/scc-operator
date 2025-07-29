@@ -38,6 +38,7 @@ func New(
 		return nil, err
 	}
 	util.SystemNamespace.Set(options.SccNamespace)
+	util.OperatorName.Set(options.OperatorName)
 
 	kubeconfig.RateLimiter = ratelimit.None
 	wContext, err := wrangler.NewWranglerMiniContext(ctx, kubeconfig)
