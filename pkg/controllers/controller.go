@@ -24,13 +24,10 @@ import (
 	registrationControllers "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/systeminfo"
 
-	"github.com/rancher/wrangler/v3/pkg/generic"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -696,40 +693,4 @@ func (h *handler) OnRegistrationRemove(name string, registrationObj *v1.Registra
 	}
 
 	return nil, nil
-}
-
-func scopedOnChange[T generic.RuntimeMetaObject](ctx context.Context, name, namespace string, c generic.ControllerMeta, sync generic.ObjectHandler[T]) {
-	condition := namespaceScopedCondition(namespace)
-	onChangeHandler := generic.FromObjectHandlerToHandler(sync)
-	c.AddGenericHandler(ctx, name, func(key string, obj runtime.Object) (runtime.Object, error) {
-		if condition(obj) {
-			return onChangeHandler(key, obj)
-		}
-		return obj, nil
-	})
-}
-
-// TODO(wrangler/v4): revert to use OnRemove when it supports options (https://github.com/rancher/wrangler/pull/472).
-func scopedOnRemove[T generic.RuntimeMetaObject](ctx context.Context, name, namespace string, c generic.ControllerMeta, sync generic.ObjectHandler[T]) {
-	condition := namespaceScopedCondition(namespace)
-	onRemoveHandler := generic.NewRemoveHandler(name, c.Updater(), generic.FromObjectHandlerToHandler(sync))
-	c.AddGenericHandler(ctx, name, func(key string, obj runtime.Object) (runtime.Object, error) {
-		if condition(obj) {
-			return onRemoveHandler(key, obj)
-		}
-		return obj, nil
-	})
-}
-
-func namespaceScopedCondition(namespace string) func(obj runtime.Object) bool {
-	return func(obj runtime.Object) bool { return inExpectedNamespace(obj, namespace) }
-}
-
-func inExpectedNamespace(obj runtime.Object, namespace string) bool {
-	metadata, err := meta.Accessor(obj)
-	if err != nil {
-		return false
-	}
-
-	return metadata.GetNamespace() == namespace
 }
