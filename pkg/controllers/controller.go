@@ -8,6 +8,7 @@ import (
 	"github.com/rancher/scc-operator/internal/suseconnect/offline"
 	"github.com/rancher/scc-operator/internal/telemetry"
 	"github.com/rancher/scc-operator/pkg/util/log"
+	"k8s.io/apimachinery/pkg/runtime"
 	"strings"
 
 	"maps"
@@ -114,8 +115,15 @@ func Register(
 
 	controller.initIndexers()
 	controller.initResolvers(ctx)
-	scopedOnChange(ctx, controllerID+"-secrets", systemNamespace, secretsRepo.Controller, controller.OnSecretChange)
-	scopedOnRemove(ctx, controllerID+"-secrets-remove", systemNamespace, secretsRepo.Controller, controller.OnSecretRemove)
+
+	withinExpectedNamespaceCondition := func(_ string, obj runtime.Object) (bool, error) {
+		if !inExpectedNamespace(obj, systemNamespace) {
+			return false, nil
+		}
+		return true, nil
+	}
+	scopedOnChange(ctx, controllerID+"-secrets", withinExpectedNamespaceCondition, secretsRepo.Controller, controller.OnSecretChange)
+	scopedOnRemove(ctx, controllerID+"-secrets-remove", withinExpectedNamespaceCondition, secretsRepo.Controller, controller.OnSecretRemove)
 
 	registrations.OnChange(ctx, controllerID, controller.OnRegistrationChange)
 	registrations.OnRemove(ctx, controllerID+"-remove", controller.OnRegistrationRemove)

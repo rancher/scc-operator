@@ -7,6 +7,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// ScopeFunc is a function that determines whether a scoped handler should trigger
+type ScopeFunc func(key string, obj runtime.Object) (bool, error)
+
 func inExpectedNamespace(obj runtime.Object, namespace string) bool {
 	metadata, err := meta.Accessor(obj)
 	if err != nil {
@@ -16,29 +19,26 @@ func inExpectedNamespace(obj runtime.Object, namespace string) bool {
 	return metadata.GetNamespace() == namespace
 }
 
-func namespaceScopedCondition(namespace string) func(obj runtime.Object) bool {
-	return func(obj runtime.Object) bool { return inExpectedNamespace(obj, namespace) }
-}
-
-func scopedOnChange[T generic.RuntimeMetaObject](ctx context.Context, name, namespace string, c generic.ControllerMeta, sync generic.ObjectHandler[T]) {
-	condition := namespaceScopedCondition(namespace)
+func scopedOnChange[T generic.RuntimeMetaObject](ctx context.Context, name string, inScopeFunc ScopeFunc, c generic.ControllerMeta, sync generic.ObjectHandler[T]) {
 	onChangeHandler := generic.FromObjectHandlerToHandler(sync)
 	c.AddGenericHandler(ctx, name, func(key string, obj runtime.Object) (runtime.Object, error) {
-		if condition(obj) {
-			return onChangeHandler(key, obj)
+		isInScope, err := inScopeFunc(key, obj)
+		if err != nil || !isInScope {
+			return obj, err
 		}
-		return obj, nil
+		return onChangeHandler(key, obj)
 	})
 }
 
 // TODO(wrangler/v4): revert to use OnRemove when it supports options (https://github.com/rancher/wrangler/pull/472).
-func scopedOnRemove[T generic.RuntimeMetaObject](ctx context.Context, name, namespace string, c generic.ControllerMeta, sync generic.ObjectHandler[T]) {
-	condition := namespaceScopedCondition(namespace)
+func scopedOnRemove[T generic.RuntimeMetaObject](ctx context.Context, name string, inScopeFunc ScopeFunc, c generic.ControllerMeta, sync generic.ObjectHandler[T]) {
 	onRemoveHandler := generic.NewRemoveHandler(name, c.Updater(), generic.FromObjectHandlerToHandler(sync))
 	c.AddGenericHandler(ctx, name, func(key string, obj runtime.Object) (runtime.Object, error) {
-		if condition(obj) {
-			return onRemoveHandler(key, obj)
+		isInScope, err := inScopeFunc(key, obj)
+		if err != nil || !isInScope {
+			return obj, err
 		}
-		return obj, nil
+
+		return onRemoveHandler(key, obj)
 	})
 }
