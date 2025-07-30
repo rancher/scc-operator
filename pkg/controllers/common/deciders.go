@@ -1,24 +1,30 @@
 package common
 
 import (
-	"github.com/rancher/scc-operator/internal/consts"
-	"github.com/rancher/scc-operator/internal/types"
-	"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"slices"
+
 	"github.com/rancher/wrangler/v3/pkg/generic"
 	corev1 "k8s.io/api/core/v1"
-	"slices"
+
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/types"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 )
 
-// GetRegistrationDeciders returns all shared deciders
-func GetRegistrationDeciders() []types.RegistrationDecider {
-	return []types.RegistrationDecider{
+var (
+	registrationDeciders = []types.RegistrationDecider{
 		RegistrationIsFailed,
 		RegistrationNeedsSyncNow,
 		RegistrationHasNotStarted,
 		RegistrationNeedsActivation,
 		RegistrationHasManagedFinalizer,
 	}
-}
+	secretDeciders = []types.Decider[*corev1.Secret]{
+		SecretHasOfflineFinalizer,
+		SecretHasCredentialsFinalizer,
+		SecretHasRegCodeFinalizer,
+	}
+)
 
 func RegistrationIsFailed(regIn *v1.Registration) bool {
 	return regIn.HasCondition(v1.ResourceConditionFailure) && v1.ResourceConditionFailure.IsTrue(regIn)
@@ -39,14 +45,6 @@ func RegistrationNeedsActivation(regIn *v1.Registration) bool {
 
 func RegistrationHasManagedFinalizer(objIn *v1.Registration) bool {
 	return hasFinalizer(objIn, consts.FinalizerSccRegistration)
-}
-
-func GetSecretDeciders() []types.Decider[*corev1.Secret] {
-	return []types.Decider[*corev1.Secret]{
-		SecretHasOfflineFinalizer,
-		SecretHasCredentialsFinalizer,
-		SecretHasRegCodeFinalizer,
-	}
 }
 
 func hasFinalizer[T generic.RuntimeMetaObject](objIn T, finalizer string) bool {

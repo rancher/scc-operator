@@ -1,22 +1,18 @@
 package common
 
 import (
-	"github.com/rancher/scc-operator/internal/types"
-	"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/rancher/scc-operator/internal/types"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 )
 
-// GetRegistrationProcessors returns all shared processors
-func GetRegistrationProcessors() []types.RegistrationProcessor {
-	return []types.RegistrationProcessor{}
-}
-
-// GetRegistrationStatusProcessors returns all shared processors
-func GetRegistrationStatusProcessors() []types.RegistrationStatusProcessor {
-	return []types.RegistrationStatusProcessor{
+var (
+	registrationProcessors       []types.RegistrationProcessor
+	registrationStatusProcessors = []types.RegistrationStatusProcessor{
 		PrepareSuccessfulActivation,
 	}
-}
+)
 
 func PrepareSuccessfulActivation(regIn *v1.Registration) *v1.Registration {
 	now := metav1.Now()
