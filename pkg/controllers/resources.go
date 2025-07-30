@@ -4,18 +4,18 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"maps"
+
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/rancher/scc-operator/internal/consts"
 	coreUtil "github.com/rancher/scc-operator/internal/util"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/controllers/common"
 	"github.com/rancher/scc-operator/pkg/util"
 	"github.com/rancher/scc-operator/pkg/util/salt"
-	"maps"
-	"reflect"
-
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type HashType int
@@ -292,46 +292,4 @@ func (h *handler) offlineCertFromSecretEntrypoint(params RegistrationParams) (*c
 	}
 
 	return offlineCertSecret, nil
-}
-
-func hasManagedByLabel[T metav1.Object](incomingObj T) bool {
-	objectAnnotations := incomingObj.GetAnnotations()
-	_, hasManagedBy := objectAnnotations[consts.LabelSccManagedBy]
-
-	return hasManagedBy
-}
-
-// shouldManage will verify that this operator should manage a given object
-func shouldManage[T metav1.Object](incomingObj T, expectedManager string) bool {
-	objectLabels := incomingObj.GetLabels()
-	managedBy, hasManagedBy := objectLabels[consts.LabelK8sManagedBy]
-	if !hasManagedBy {
-		return false
-	}
-
-	if managedBy == expectedManager {
-		return true
-	}
-
-	return false
-}
-
-// takeOwnership will set or overwrite the value of the k8s managed-by label
-func takeOwnership[T metav1.Object](incomingObj T, owner string) T {
-	var empty T
-	if reflect.DeepEqual(incomingObj, empty) {
-		return incomingObj
-	}
-
-	objectLabels := incomingObj.GetLabels()
-	if objectLabels == nil {
-		objectLabels = map[string]string{
-			consts.LabelK8sManagedBy: owner,
-		}
-	} else {
-		objectLabels[consts.LabelK8sManagedBy] = owner
-	}
-
-	incomingObj.SetLabels(objectLabels)
-	return incomingObj
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/rancher/scc-operator/internal/suseconnect/offline"
 	"github.com/rancher/scc-operator/internal/telemetry"
 	"github.com/rancher/scc-operator/internal/util"
+	"github.com/rancher/scc-operator/pkg/controllers/helpers"
 	"github.com/rancher/scc-operator/pkg/util/log"
 	"strings"
 
@@ -202,11 +203,11 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 	if h.isRancherEntrypointSecret(incomingObj) {
 		// TODO(alex): sync on this to validate logic
 		// TODO: something to handle adopting new
-		if !shouldManage(incomingObj, h.managedByName) {
+		if !helpers.ShouldManage(incomingObj, h.managedByName) {
 			// When the secret has no managed by label, we should assume ownership I guess?
-			if !hasManagedByLabel(incomingObj) {
+			if !helpers.HasManagedByLabel(incomingObj) {
 				prepared := incomingObj.DeepCopy()
-				prepared = takeOwnership(prepared, h.managedByName)
+				prepared = helpers.TakeOwnership(prepared, h.managedByName)
 				_, updateErr := h.secretRepo.RetryingPatchUpdate(incomingObj, prepared)
 				if updateErr != nil {
 					h.log.Errorf("failed to take ownership of secret %s/%s: %v", incomingObj.Namespace, incomingObj.Name, updateErr)
@@ -428,7 +429,7 @@ func (h *handler) OnSecretRemove(name string, incomingObj *corev1.Secret) (*core
 		return incomingObj, nil
 	}
 
-	if !shouldManage(incomingObj, h.managedByName) {
+	if !helpers.ShouldManage(incomingObj, h.managedByName) {
 		h.log.Debugf("Secret %s/%s is not managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.managedByName)
 		return incomingObj, nil
 	}
