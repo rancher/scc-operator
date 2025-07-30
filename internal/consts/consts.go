@@ -47,6 +47,8 @@ const (
 )
 
 const (
+	LabelK8sManagedBy = "app.kubernetes.io/managed-by"
+
 	LabelObjectSalt       = "scc.cattle.io/instance-salt"
 	LabelNameSuffix       = "scc.cattle.io/related-name-suffix"
 	LabelSccHash          = "scc.cattle.io/scc-hash"
@@ -96,7 +98,7 @@ func (s SCCEnvironment) String() string {
 }
 
 func GetSCCEnvironment() SCCEnvironment {
-	if !util.DevMode() {
+	if !util.DevMode.Get() {
 		return Production
 	}
 	return Staging

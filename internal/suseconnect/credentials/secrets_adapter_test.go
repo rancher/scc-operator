@@ -1,6 +1,7 @@
 package credentials
 
 import (
+	"github.com/rancher/scc-operator/internal/repos/secretrepo"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -33,15 +34,13 @@ func mockRegistration() v1.Registration {
 
 func mockCredentials(
 	testOwnerRef *metav1.OwnerReference,
-	mockSecretsController *fake.MockControllerInterface[*corev1.Secret, *corev1.SecretList],
-	mockSecretsCache *fake.MockCacheInterface[*corev1.Secret],
+	mockBasedSecretRepo *secretrepo.SecretRepository,
 ) *CredentialSecretsAdapter {
 	return New(
 		Namespace,
 		SecretName,
 		testOwnerRef,
-		mockSecretsController,
-		mockSecretsCache,
+		mockBasedSecretRepo,
 		map[string]string{},
 	)
 }
@@ -50,6 +49,10 @@ func TestBasicNewSecretsAdapter(t *testing.T) {
 	gomockCtrl := gomock.NewController(t)
 	mockSecretsController := fake.NewMockControllerInterface[*corev1.Secret, *corev1.SecretList](gomockCtrl)
 	mockSecretsCache := fake.NewMockCacheInterface[*corev1.Secret](gomockCtrl)
+	secretRepo := secretrepo.SecretRepository{
+		Controller: mockSecretsController,
+		Cache:      mockSecretsCache,
+	}
 
 	// Define expected calls to our mock controller using gomock.
 	mockSecretsController.EXPECT().Get(Namespace, SecretName, metav1.GetOptions{}).MaxTimes(1)
@@ -57,12 +60,12 @@ func TestBasicNewSecretsAdapter(t *testing.T) {
 	testReg := mockRegistration()
 	testOwnerRef := testReg.ToOwnerRef()
 
-	secretsBackedCredentials := mockCredentials(testOwnerRef, mockSecretsController, mockSecretsCache)
+	secretsBackedCredentials := mockCredentials(testOwnerRef, &secretRepo)
+
 	assert.Equal(t, &CredentialSecretsAdapter{
 		secretNamespace: Namespace,
 		secretName:      SecretName,
-		secrets:         mockSecretsController,
-		secretCache:     mockSecretsCache,
+		secretRepo:      &secretRepo,
 		ownerRef:        testOwnerRef,
 		labels: map[string]string{
 			consts.LabelSccSecretRole: string(consts.SCCCredentialsRole),
@@ -133,20 +136,27 @@ func preparedSecretsMocks(t *testing.T) (*fake.MockControllerInterface[*corev1.S
 	return mockSecretsController, mockSecretsCache
 }
 
+func preparedSecretRepoMocks(t *testing.T, mockSecretsController *fake.MockControllerInterface[*corev1.Secret, *corev1.SecretList], mockSecretsCache *fake.MockCacheInterface[*corev1.Secret]) secretrepo.SecretRepository {
+	return secretrepo.SecretRepository{
+		Controller: mockSecretsController,
+		Cache:      mockSecretsCache,
+	}
+}
+
 func TestNewSecretsAdapter(t *testing.T) {
 	mockSecretsController, mockSecretsCache := preparedSecretsMocks(t)
+	mockBasedSecretRepo := preparedSecretRepoMocks(t, mockSecretsController, mockSecretsCache)
 
 	testReg := mockRegistration()
 	testOwnerRef := testReg.ToOwnerRef()
-	secretsBackedCredentials := mockCredentials(testOwnerRef, mockSecretsController, mockSecretsCache)
+	secretsBackedCredentials := mockCredentials(testOwnerRef, &mockBasedSecretRepo)
 	_ = secretsBackedCredentials.Refresh()
 
 	assert.Equal(t, &CredentialSecretsAdapter{
 		secretNamespace: Namespace,
 		secretName:      SecretName,
 		ownerRef:        testOwnerRef,
-		secrets:         mockSecretsController,
-		secretCache:     mockSecretsCache,
+		secretRepo:      &mockBasedSecretRepo,
 		credentials: SccCredentials{
 			systemLogin: "system_testLoginUser",
 			password:    "system_testLoginPassword",
@@ -172,18 +182,18 @@ func TestNewSecretsAdapter(t *testing.T) {
 
 func TestSecretsAdapterCredentials_Basic(t *testing.T) {
 	mockSecretsController, mockSecretsCache := preparedSecretsMocks(t)
+	mockBasedSecretRepo := preparedSecretRepoMocks(t, mockSecretsController, mockSecretsCache)
 
 	testReg := mockRegistration()
 	testOwnerRef := testReg.ToOwnerRef()
-	secretsBackedCredentials := mockCredentials(testOwnerRef, mockSecretsController, mockSecretsCache)
+	secretsBackedCredentials := mockCredentials(testOwnerRef, &mockBasedSecretRepo)
 	_ = secretsBackedCredentials.Refresh()
 
 	assert.Equal(t, &CredentialSecretsAdapter{
 		secretNamespace: Namespace,
 		secretName:      SecretName,
 		ownerRef:        testOwnerRef,
-		secrets:         mockSecretsController,
-		secretCache:     mockSecretsCache,
+		secretRepo:      &mockBasedSecretRepo,
 		credentials: SccCredentials{
 			systemLogin: "system_testLoginUser",
 			password:    "system_testLoginPassword",
@@ -244,18 +254,18 @@ func TestSecretsAdapterCredentials_Basic(t *testing.T) {
 
 func TestSecretsAdapterSccCredentials(t *testing.T) {
 	mockSecretsController, mockSecretsCache := preparedSecretsMocks(t)
+	mockBasedSecretRepo := preparedSecretRepoMocks(t, mockSecretsController, mockSecretsCache)
 
 	testReg := mockRegistration()
 	testOwnerRef := testReg.ToOwnerRef()
-	secretsBackedCredentials := mockCredentials(testOwnerRef, mockSecretsController, mockSecretsCache)
+	secretsBackedCredentials := mockCredentials(testOwnerRef, &mockBasedSecretRepo)
 	_ = secretsBackedCredentials.Refresh()
 
 	assert.Equal(t, &CredentialSecretsAdapter{
 		secretNamespace: Namespace,
 		secretName:      SecretName,
 		ownerRef:        testOwnerRef,
-		secrets:         mockSecretsController,
-		secretCache:     mockSecretsCache,
+		secretRepo:      &mockBasedSecretRepo,
 		credentials: SccCredentials{
 			systemLogin: "system_testLoginUser",
 			password:    "system_testLoginPassword",
@@ -273,18 +283,18 @@ func TestSecretsAdapterSccCredentials(t *testing.T) {
 
 func TestSecretEmptyTokenUpdate(t *testing.T) {
 	mockSecretsController, mockSecretsCache := preparedSecretsMocks(t)
+	mockBasedSecretRepo := preparedSecretRepoMocks(t, mockSecretsController, mockSecretsCache)
 
 	testReg := mockRegistration()
 	testOwnerRef := testReg.ToOwnerRef()
-	secretsBackedCredentials := mockCredentials(testOwnerRef, mockSecretsController, mockSecretsCache)
+	secretsBackedCredentials := mockCredentials(testOwnerRef, &mockBasedSecretRepo)
 	_ = secretsBackedCredentials.Refresh()
 
 	assert.Equal(t, &CredentialSecretsAdapter{
 		secretNamespace: Namespace,
 		secretName:      SecretName,
 		ownerRef:        testOwnerRef,
-		secrets:         mockSecretsController,
-		secretCache:     mockSecretsCache,
+		secretRepo:      &mockBasedSecretRepo,
 		credentials: SccCredentials{
 			systemLogin: "system_testLoginUser",
 			password:    "system_testLoginPassword",

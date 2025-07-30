@@ -7,7 +7,7 @@ import (
 
 func minResyncInterval() time.Time {
 	now := time.Now()
-	if util.DevMode() {
+	if util.DevMode.Get() {
 		return now.Add(-devMinCheckin)
 	}
 	return now.Add(-prodMinCheckin)

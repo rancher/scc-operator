@@ -1,26 +1,21 @@
 package common
 
 import (
-	"github.com/rancher/scc-operator/internal/consts"
-	"github.com/rancher/scc-operator/internal/types"
-	"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"slices"
+
 	"github.com/rancher/wrangler/v3/pkg/generic"
 	corev1 "k8s.io/api/core/v1"
-	"slices"
+
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/types"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 )
 
-func GetRegistrationMutators() []types.Mutator[*v1.Registration] {
-	return []types.Mutator[*v1.Registration]{
+var (
+	registrationMutators = []types.Mutator[*v1.Registration]{
 		RegistrationAddManagedFinalizer,
 	}
-}
-
-func RegistrationAddManagedFinalizer(registration *v1.Registration) *v1.Registration {
-	return runtimeAddFinalizer(registration, consts.FinalizerSccRegistration)
-}
-
-func GetSecretMutators() []types.Mutator[*corev1.Secret] {
-	return []types.Mutator[*corev1.Secret]{
+	secretMutators = []types.Mutator[*corev1.Secret]{
 		SecretAddCredentialsFinalizer,
 		SecretRemoveCredentialsFinalizer,
 		SecretAddRegCodeFinalizer,
@@ -28,6 +23,10 @@ func GetSecretMutators() []types.Mutator[*corev1.Secret] {
 		SecretAddOfflineFinalizer,
 		SecretRemoveOfflineFinalizer,
 	}
+)
+
+func RegistrationAddManagedFinalizer(registration *v1.Registration) *v1.Registration {
+	return runtimeAddFinalizer(registration, consts.FinalizerSccRegistration)
 }
 
 func runtimeAddFinalizer[T generic.RuntimeMetaObject](objIn T, finalizer string) T {

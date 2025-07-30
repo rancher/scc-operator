@@ -1,0 +1,33 @@
+name: Rancher `scc-operator` CI
+
+on:
+  workflow_call:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
+      - 'CODEOWNERS'
+      - 'LICENSE'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name : Build, test  & validate
+    runs-on : ubuntu-latest
+    strategy:
+      matrix:
+          include:
+            - platform: linux/amd64
+            - platform: linux/arm64
+    steps:
+      - name : Checkout repository
+        uses : actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name : Set up Go
+        uses : actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5
+        with:
+          go-version: 1.24
+      - name : CI
+        run : make ci

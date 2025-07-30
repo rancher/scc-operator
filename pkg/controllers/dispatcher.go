@@ -16,7 +16,7 @@ func setupCfg() *jitterbug.Config {
 		JitterMaxScale:  time.Hour,
 		PollingInterval: 9 * time.Minute,
 	}
-	if util.DevMode() {
+	if util.DevMode.Get() {
 		jitterbugConfig = jitterbug.Config{
 			BaseInterval:    devBaseCheckin,
 			JitterMax:       10,

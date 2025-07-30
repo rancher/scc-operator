@@ -3,7 +3,8 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/rancher/scc-operator/internal/consts"
+	"fmt"
+
 	"k8s.io/client-go/rest"
 	"os"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/rancher/wrangler/v3/pkg/signals"
 
 	"github.com/rancher/scc-operator/cmd/operator/version"
+	"github.com/rancher/scc-operator/internal/consts"
 	rootLog "github.com/rancher/scc-operator/internal/log"
 	"github.com/rancher/scc-operator/internal/types"
 	"github.com/rancher/scc-operator/internal/util"
@@ -20,12 +22,16 @@ import (
 	"github.com/rancher/scc-operator/pkg/util/log"
 )
 
+// TODO: in the future when this isn't very specific to `rancher` (the product) drop the `rancher-` prefix
+const defaultOperatorName = "rancher-scc-operator"
+
 var (
 	KubeConfig   string
 	LogFormat    string
 	Debug        bool
 	Trace        bool
 	SCCNamespace string
+	OperatorName string
 	logger       rootLog.StructuredLogger
 )
 
@@ -34,6 +40,13 @@ func init() {
 
 	kubeConfigEnv := os.Getenv("KUBECONFIG")
 	flag.StringVar(&KubeConfig, "kubeconfig", kubeConfigEnv, "Path to a kubeconfig. Only required if out-of-cluster.")
+
+	operatorName := os.Getenv("SCC_OPERATOR_NAME")
+	if operatorName == "" {
+		operatorName = defaultOperatorName
+	}
+	operatorNameUsage := fmt.Sprintf("Name of the operator. Defaults to %s", defaultOperatorName)
+	flag.StringVar(&OperatorName, "operator-name", operatorName, operatorNameUsage)
 
 	flag.BoolVar(&Debug, "debug", false, "Enable debug logging.")
 	flag.BoolVar(&Trace, "trace", false, "Enable trace logging.")
@@ -47,10 +60,15 @@ func init() {
 		rootLog.SetLogLevel(logrus.TraceLevel)
 		logrus.Tracef("Loglevel set to [%v]", logrus.TraceLevel)
 	}
-	logger = log.NewLog()
 
 	flag.Parse()
 	SCCNamespace = os.Getenv("SCC_SYSTEM_NAMESPACE")
+	if SCCNamespace == "" {
+		SCCNamespace = consts.DefaultSCCNamespace
+	}
+
+	log.AddDefaultOpts(rootLog.WithOperatorName(OperatorName))
+	logger = log.NewLog()
 }
 
 func main() {
@@ -65,9 +83,10 @@ func main() {
 	}
 
 	dm := os.Getenv("CATTLE_DEV_MODE")
-	util.SetDevMode(dm != "")
+	util.DevMode.Set(dm != "")
 	runOptions := types.RunOptions{
 		Logger:       logger,
+		OperatorName: OperatorName,
 		SccNamespace: SCCNamespace,
 	}
 

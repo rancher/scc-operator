@@ -2,16 +2,20 @@ package operator
 
 import (
 	"context"
+	"fmt"
+
+	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
+	"github.com/rancher/wrangler/v3/pkg/ratelimit"
+	"k8s.io/client-go/rest"
+
 	"github.com/rancher/scc-operator/internal/log"
 	"github.com/rancher/scc-operator/internal/telemetry"
 	"github.com/rancher/scc-operator/internal/types"
 	"github.com/rancher/scc-operator/internal/util"
 	"github.com/rancher/scc-operator/internal/wrangler"
+	"github.com/rancher/scc-operator/pkg/crds"
 	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
 	"github.com/rancher/scc-operator/pkg/systeminfo"
-	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
-	"github.com/rancher/wrangler/v3/pkg/ratelimit"
-	rest "k8s.io/client-go/rest"
 )
 
 type SccOperator struct {
@@ -30,15 +34,27 @@ func New(
 	operatorLogger := options.Logger
 	operatorLogger.Debug("Preparing to setup SCC operator")
 
-	util.SetSystemNamespace(options.SccNamespace)
 	if err := options.Validate(); err != nil {
 		return nil, err
 	}
+	util.SystemNamespace.Set(options.SccNamespace)
+	util.OperatorName.Set(options.OperatorName)
 
 	kubeconfig.RateLimiter = ratelimit.None
 	wContext, err := wrangler.NewWranglerMiniContext(ctx, kubeconfig)
 	if err != nil {
 		return nil, err
+	}
+
+	operatorLogger.Debug("Setting up CRD Manager")
+	crdManager := crds.NewCRDManager(
+		options,
+		wContext.ClientSet.ApiextensionsV1().CustomResourceDefinitions(),
+	)
+
+	ensureCrdErr := crdManager.EnsureRequired(ctx)
+	if ensureCrdErr != nil {
+		return nil, fmt.Errorf("failed to ensure required CRDs: %w", ensureCrdErr)
 	}
 
 	infoProvider := systeminfo.NewInfoProvider(wContext.Settings, wContext.Mgmt.Node().Cache())

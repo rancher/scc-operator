@@ -4,17 +4,18 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"maps"
+
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/rancher/scc-operator/internal/consts"
 	coreUtil "github.com/rancher/scc-operator/internal/util"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/controllers/common"
 	"github.com/rancher/scc-operator/pkg/util"
 	"github.com/rancher/scc-operator/pkg/util/salt"
-	"maps"
-
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type HashType int
@@ -78,13 +79,13 @@ func getCurrentRegURL(secret *corev1.Secret) (regURL []byte) {
 		globalRegistrationUrl := util.GetGlobalPrimeRegistrationUrl()
 		return []byte(globalRegistrationUrl)
 	}
-	if coreUtil.DevMode() {
+	if coreUtil.DevMode.Get() {
 		return []byte(consts.StagingSCCUrl)
 	}
 	return []byte{}
 }
 
-func extractRegistrationParamsFromSecret(secret *corev1.Secret) (RegistrationParams, error) {
+func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedBy string) (RegistrationParams, error) {
 	incomingSalt := []byte(secret.GetLabels()[consts.LabelObjectSalt])
 
 	regMode := v1.RegistrationModeOnline
@@ -134,10 +135,11 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret) (RegistrationPar
 	contentsId := hex.EncodeToString(hasher.Sum(nil))
 
 	return RegistrationParams{
-		regType:     regMode,
-		nameId:      nameId,
-		contentHash: contentsId,
-		regCode:     regCode,
+		managedByOperator: managedBy,
+		regType:           regMode,
+		nameId:            nameId,
+		contentHash:       contentsId,
+		regCode:           regCode,
 		regCodeSecretRef: &corev1.SecretReference{
 			Name:      consts.RegistrationCodeSecretName(nameId),
 			Namespace: secret.Namespace,
@@ -153,6 +155,7 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret) (RegistrationPar
 }
 
 type RegistrationParams struct {
+	managedByOperator    string
 	regType              v1.RegistrationMode
 	nameId               string
 	contentHash          string
@@ -169,6 +172,7 @@ func (r RegistrationParams) Labels() map[string]string {
 		consts.LabelNameSuffix:   r.nameId,
 		consts.LabelSccHash:      r.contentHash,
 		consts.LabelSccManagedBy: consts.ManagedBySecretBroker,
+		consts.LabelK8sManagedBy: r.managedByOperator,
 	}
 }
 

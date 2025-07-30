@@ -11,6 +11,7 @@ type StructuredLoggerBuilder struct {
 	Component    string
 	Controller   *string
 	SubComponent *string
+	OperatorName *string
 }
 
 type Optional func(*StructuredLoggerBuilder)
@@ -30,6 +31,12 @@ func NewStructuredLoggerBuilder(component string, optional ...Optional) *Structu
 	}
 
 	return &logger
+}
+
+func WithOperatorName(operatorName string) Optional {
+	return func(logger *StructuredLoggerBuilder) {
+		logger.OperatorName = &operatorName
+	}
 }
 
 func WithController(controller string) Optional {

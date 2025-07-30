@@ -2,6 +2,7 @@ package secretrepo
 
 import (
 	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -10,7 +11,10 @@ const (
 	IndexSecretsBySccHash = "scc.io/secret-refs-by-scc-hash"
 )
 
+var systemNamespace string
+
 func (r *SecretRepository) InitIndexers() {
+	systemNamespace = util.SystemNamespace.Get()
 	r.Cache.AddIndexer(
 		IndexSecretsByPath,
 		secretByPath,
@@ -24,8 +28,7 @@ func (r *SecretRepository) InitIndexers() {
 }
 
 func secretByPath(obj *corev1.Secret) ([]string, error) {
-	// TODO: SCC namespace should be more configurable globally
-	if obj.GetNamespace() != consts.DefaultSCCNamespace {
+	if obj.GetNamespace() != systemNamespace {
 		return nil, nil
 	}
 
