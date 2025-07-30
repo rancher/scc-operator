@@ -10,6 +10,7 @@ import (
 	"github.com/rancher/scc-operator/internal/util"
 	"github.com/rancher/scc-operator/pkg/controllers/helpers"
 	"github.com/rancher/scc-operator/pkg/util/log"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"strings"
 
 	"maps"
@@ -129,20 +130,16 @@ func Register(
 	scopedOnChange(ctx, controllerID+"-secrets", withinExpectedNamespaceCondition, secretsRepo.Controller, controller.OnSecretChange)
 	scopedOnRemove(ctx, controllerID+"-secrets-remove", withinExpectedNamespaceCondition, secretsRepo.Controller, controller.OnSecretRemove)
 
-	/*
-		withinOperatorScopeCondition := func(_ string, obj runtime.Object) (bool, error) {
-			metaObj, err := meta.Accessor(obj)
-			if err != nil {
-				return false, err
-			}
-
-			return shouldManage(metaObj, managedByName), nil
+	withinOperatorScopeCondition := func(_ string, obj runtime.Object) (bool, error) {
+		metaObj, err := meta.Accessor(obj)
+		if err != nil {
+			return false, err
 		}
-		controller.log.Info(withinOperatorScopeCondition)
-	*/
-	// TODO: update to scoped with withinOperatorScopeCondition
-	registrations.OnChange(ctx, controllerID, controller.OnRegistrationChange)
-	registrations.OnRemove(ctx, controllerID+"-remove", controller.OnRegistrationRemove)
+
+		return helpers.ShouldManage(metaObj, managedByName), nil
+	}
+	scopedOnChange(ctx, controllerID, withinOperatorScopeCondition, registrations, controller.OnRegistrationChange)
+	scopedOnRemove(ctx, controllerID+"-remove", withinOperatorScopeCondition, registrations, controller.OnRegistrationRemove)
 
 	cfg := setupCfg()
 	go controller.RunLifecycleManager(cfg)
