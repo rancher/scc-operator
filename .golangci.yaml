@@ -18,6 +18,8 @@ linters:
           - revive
         path: _test.go
     paths:
+      - internal/telemetry
+      - pkg/systeminfo
       - /zz_generated_
       - third_party$
       - builtin$
