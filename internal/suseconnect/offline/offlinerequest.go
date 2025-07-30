@@ -3,15 +3,16 @@ package offline
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rancher/scc-operator/internal/consts"
-	"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher/scc-operator/pkg/controllers/common"
 	"maps"
 
 	"github.com/SUSE/connect-ng/pkg/registration"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/rancher/scc-operator/internal/consts"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher/scc-operator/pkg/controllers/common"
 )
 
 func (o *SecretManager) SetRegistrationOfflineRegistrationRequestSecretRef(registrationObj *v1.Registration) *v1.Registration {

@@ -3,15 +3,16 @@ package operator
 import (
 	"errors"
 	"fmt"
+
 	"github.com/google/uuid"
-	"github.com/rancher/scc-operator/internal/repos/settingrepo"
-	"github.com/rancher/scc-operator/internal/telemetry"
 	k8sv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 
 	"github.com/rancher/scc-operator/internal/log"
+	"github.com/rancher/scc-operator/internal/repos/settingrepo"
+	"github.com/rancher/scc-operator/internal/telemetry"
 	"github.com/rancher/scc-operator/internal/util"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"

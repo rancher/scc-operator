@@ -3,14 +3,14 @@ package controllers
 import (
 	"fmt"
 
+	"github.com/SUSE/connect-ng/pkg/registration"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/SUSE/connect-ng/pkg/registration"
 	rootLog "github.com/rancher/scc-operator/internal/log"
 	"github.com/rancher/scc-operator/internal/suseconnect"
 	offlineSecrets "github.com/rancher/scc-operator/internal/suseconnect/offline"
 	"github.com/rancher/scc-operator/internal/types"
-	"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/controllers/common"
 	"github.com/rancher/scc-operator/pkg/systeminfo"
 	"github.com/rancher/scc-operator/pkg/systeminfo/offline"

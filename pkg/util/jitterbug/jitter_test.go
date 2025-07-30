@@ -1,11 +1,12 @@
 package jitterbug
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 // MockJitterCalculator is a mock implementation of JitterCalculator for testing purposes.

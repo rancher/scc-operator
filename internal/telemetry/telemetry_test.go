@@ -383,7 +383,7 @@ func TestTelemetryPerNodeCompute(t *testing.T) {
 					},
 				},
 				managedNodes: map[ClusterID][]*v3.Node{
-					ClusterID("c-pkjsf"): []*v3.Node{
+					ClusterID("c-pkjsf"): {
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:      "machine-klawl",
@@ -413,7 +413,7 @@ func TestTelemetryPerNodeCompute(t *testing.T) {
 							},
 						},
 					},
-					ClusterID("c-kwerk"): []*v3.Node{
+					ClusterID("c-kwerk"): {
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:      "machine-sadfk",

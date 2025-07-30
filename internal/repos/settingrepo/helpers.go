@@ -1,8 +1,9 @@
 package settingrepo
 
 import (
-	"github.com/rancher/scc-operator/pkg/util/log"
 	"net/url"
+
+	"github.com/rancher/scc-operator/pkg/util/log"
 )
 
 const (

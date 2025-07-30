@@ -22,7 +22,6 @@ var (
 	OperatorName    = valueInitializer[string]{}
 )
 
-
 func init() {
 	DevMode.Set(true)
 }

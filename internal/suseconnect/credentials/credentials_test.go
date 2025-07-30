@@ -1,9 +1,9 @@
 package credentials
 
 import (
-	"github.com/SUSE/connect-ng/pkg/connection"
 	"testing"
 
+	"github.com/SUSE/connect-ng/pkg/connection"
 	"github.com/stretchr/testify/assert"
 )
 

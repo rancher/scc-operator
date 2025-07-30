@@ -4,14 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-
-	"k8s.io/client-go/rest"
 	"os"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/rancher/wrangler/v3/pkg/kubeconfig"
 	"github.com/rancher/wrangler/v3/pkg/signals"
+	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/rest"
 
 	"github.com/rancher/scc-operator/cmd/operator/version"
 	"github.com/rancher/scc-operator/internal/consts"

@@ -2,10 +2,10 @@ package credentials
 
 import (
 	"github.com/SUSE/connect-ng/pkg/connection"
+	"github.com/pkg/errors"
+
 	rootLog "github.com/rancher/scc-operator/internal/log"
 	"github.com/rancher/scc-operator/pkg/util/log"
-
-	"github.com/pkg/errors"
 )
 
 func credsContextLogger() rootLog.StructuredLogger {

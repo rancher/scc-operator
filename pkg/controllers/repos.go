@@ -2,12 +2,13 @@ package controllers
 
 import (
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/util/retry"
+
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 )
 
 func (h *handler) patchUpdateRegistration(incoming, target *v1.Registration) (*v1.Registration, error) {

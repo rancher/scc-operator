@@ -2,7 +2,6 @@ package secretrepo
 
 import (
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/rancher/scc-operator/internal/repos/generic"
 	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -10,6 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/util/retry"
+
+	"github.com/rancher/scc-operator/internal/repos/generic"
 )
 
 var rootSecretRepo *SecretRepository

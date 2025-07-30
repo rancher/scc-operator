@@ -2,6 +2,7 @@ package settingrepo
 
 import (
 	v3 "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
+
 	v3ctrl "github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io/v3"
 	"github.com/rancher/scc-operator/internal/repos/generic"
 )

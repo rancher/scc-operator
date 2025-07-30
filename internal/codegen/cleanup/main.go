@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/rancher/wrangler/v3/pkg/cleanup"
 	"os"
+
+	"github.com/rancher/wrangler/v3/pkg/cleanup"
 )
 
 func main() {

@@ -1,11 +1,12 @@
 package systeminfo
 
 import (
-	"github.com/google/uuid"
-	"github.com/rancher/scc-operator/internal/repos/settingrepo"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rancher/scc-operator/internal/repos/settingrepo"
 )
 
 func TestNewInfoProvider(t *testing.T) {

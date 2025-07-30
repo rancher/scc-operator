@@ -2,6 +2,7 @@ package consts
 
 import (
 	"fmt"
+
 	"github.com/rancher/scc-operator/internal/util"
 )
 

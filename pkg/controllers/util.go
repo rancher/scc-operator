@@ -1,8 +1,9 @@
 package controllers
 
 import (
-	"github.com/rancher/scc-operator/internal/util"
 	"time"
+
+	"github.com/rancher/scc-operator/internal/util"
 )
 
 func minResyncInterval() time.Time {

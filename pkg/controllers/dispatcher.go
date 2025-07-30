@@ -1,11 +1,13 @@
 package controllers
 
 import (
+	"time"
+
+	"k8s.io/apimachinery/pkg/labels"
+
 	"github.com/rancher/scc-operator/internal/util"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/util/jitterbug"
-	"k8s.io/apimachinery/pkg/labels"
-	"time"
 )
 
 func setupCfg() *jitterbug.Config {
