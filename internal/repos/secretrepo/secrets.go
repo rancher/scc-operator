@@ -38,16 +38,16 @@ func (r *SecretRepository) HasSecret(namespace, name string) bool {
 }
 
 func (r *SecretRepository) PatchUpdate(incoming, desired *v1.Secret) (*v1.Secret, error) {
-	incomingJson, err := json.Marshal(incoming)
+	incomingJSON, err := json.Marshal(incoming)
 	if err != nil {
 		return incoming, err
 	}
-	newJson, err := json.Marshal(desired)
+	newJSON, err := json.Marshal(desired)
 	if err != nil {
 		return incoming, err
 	}
 
-	patch, err := jsonpatch.CreateMergePatch(incomingJson, newJson)
+	patch, err := jsonpatch.CreateMergePatch(incomingJSON, newJSON)
 	if err != nil {
 		return incoming, err
 	}

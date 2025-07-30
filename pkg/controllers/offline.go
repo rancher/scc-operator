@@ -52,13 +52,13 @@ func (s sccOfflineMode) RefreshOfflineRequestSecret() error {
 	return s.offlineSecrets.UpdateOfflineRequest(generatedOfflineRegistrationRequest)
 }
 
-func (s sccOfflineMode) Register(registrationObj *v1.Registration) (suseconnect.RegistrationSystemId, error) {
+func (s sccOfflineMode) Register(_ *v1.Registration) (suseconnect.RegistrationSystemID, error) {
 	refreshErr := s.RefreshOfflineRequestSecret()
 	if refreshErr != nil {
-		return suseconnect.EmptyRegistrationSystemId, refreshErr
+		return suseconnect.EmptyRegistrationSystemID, refreshErr
 	}
 
-	return suseconnect.OfflineRegistrationSystemId, nil
+	return suseconnect.OfflineRegistrationSystemID, nil
 }
 
 func (s sccOfflineMode) PrepareRegisteredForActivation(registrationObj *v1.Registration) (*v1.Registration, error) {
@@ -91,7 +91,7 @@ func (s sccOfflineMode) ReadyForActivation(registrationObj *v1.Registration) boo
 		registrationObj.Spec.OfflineRegistrationCertificateSecretRef != nil
 }
 
-func (s sccOfflineMode) Activate(registrationObj *v1.Registration) error {
+func (s sccOfflineMode) Activate(_ *v1.Registration) error {
 	certReader, err := s.offlineSecrets.OfflineCertificateReader()
 	if err != nil {
 		return fmt.Errorf("activate failed, cannot get offline certificate reader: %w", err)
@@ -128,7 +128,7 @@ func (s sccOfflineMode) PrepareActivatedForKeepalive(registrationObj *v1.Registr
 	return registrationObj, nil
 }
 
-func (s sccOfflineMode) ReconcileActivateError(registrationObj *v1.Registration, activationErr error, phase types.ActivationPhase) *v1.Registration {
+func (s sccOfflineMode) ReconcileActivateError(registrationObj *v1.Registration, activationErr error, _ types.ActivationPhase) *v1.Registration {
 	// TODO: this will need updating to use phase after todo inside PrepareActivatedForKeepalive is solved
 	v1.RegistrationConditionActivated.False(registrationObj)
 	v1.RegistrationConditionActivated.Reason(registrationObj, "offline activation failed")
@@ -184,6 +184,7 @@ func (s sccOfflineMode) PrepareKeepaliveSucceeded(registrationObj *v1.Registrati
 }
 
 func (s sccOfflineMode) ReconcileKeepaliveError(registration *v1.Registration, err error) *v1.Registration {
+	s.log.Error(err)
 	// TODO: handle errors from Keepalive and PrepareKeepaliveSucceeded
 	return registration
 }

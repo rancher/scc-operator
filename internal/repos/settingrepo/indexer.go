@@ -16,7 +16,7 @@ func (repo *SettingRepository) InitIndexers() {
 				return nil, nil
 			}
 
-			if setting.Name != SettingNameInstallUUID && setting.Name != SettingNameServerUrl {
+			if setting.Name != SettingNameInstallUUID && setting.Name != SettingNameServerURL {
 				return nil, nil
 			}
 			return []string{setting.Name}, nil

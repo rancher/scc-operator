@@ -55,7 +55,7 @@ type SCCHandler interface {
 	// PrepareForRegister preforms pre-registration steps
 	PrepareForRegister(*v1.Registration) (*v1.Registration, error)
 	// Register performs the initial system registration with SCC or creates an offline request.
-	Register(*v1.Registration) (suseconnect.RegistrationSystemId, error)
+	Register(*v1.Registration) (suseconnect.RegistrationSystemID, error)
 	// PrepareRegisteredForActivation prepares the Registration object after successful registration.
 	PrepareRegisteredForActivation(*v1.Registration) (*v1.Registration, error)
 	// Activate activates the system with SCC or verifies an offline request.
@@ -251,7 +251,7 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 
 		// If secret hash has changed make sure that we submit objects that correspond to that hash
 		// are cleaned up
-		if incomingNameHash != params.nameId {
+		if incomingNameHash != params.nameID {
 			h.log.Info("must cleanup existing registration managed by secret")
 			if cleanUpErr := h.cleanupRegistrationByHash(hashCleanupRequest{
 				incomingNameHash,
@@ -332,11 +332,11 @@ func (h *handler) cleanupRegistrationByHash(cleanupRequest hashCleanupRequest) e
 	} else {
 		regs, err = h.registrationCache.GetByIndex(IndexRegistrationsByNameHash, cleanupRequest.hash)
 	}
-
-	h.log.Infof("found %d matching registrations to clean up the %s hash", len(regs), cleanupRequest.hashType)
 	if err != nil {
 		return err
 	}
+
+	h.log.Infof("found %d matching registrations to clean up the %s hash", len(regs), cleanupRequest.hashType)
 
 	for _, reg := range regs {
 		if !slices.Contains(reg.Finalizers, consts.FinalizerSccRegistration) {
@@ -396,7 +396,7 @@ func (h *handler) cleanupRelatedSecretsByHash(contentHash string) error {
 			secretUpdated := secret.DeepCopy()
 			secretUpdated = common.SecretRemoveCredentialsFinalizer(secretUpdated)
 			secretUpdated = common.SecretRemoveRegCodeFinalizer(secretUpdated)
-			secretUpdated, updateErr = h.secretRepo.RetryingPatchUpdate(secret, secretUpdated)
+			_, updateErr = h.secretRepo.RetryingPatchUpdate(secret, secretUpdated)
 			if updateErr != nil {
 				h.log.Errorf("failed to update secret %s/%s: %v", secret.Namespace, secret.Name, updateErr)
 				return updateErr
@@ -416,7 +416,7 @@ func (h *handler) cleanupRelatedSecretsByHash(contentHash string) error {
 	return nil
 }
 
-func (h *handler) OnSecretRemove(name string, incomingObj *corev1.Secret) (*corev1.Secret, error) {
+func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.Secret, error) {
 	if incomingObj == nil {
 		return nil, nil
 	}
@@ -463,21 +463,21 @@ func (h *handler) OnSecretRemove(name string, incomingObj *corev1.Secret) (*core
 				reg, err := h.registrations.Get(ref.Name, metav1.GetOptions{})
 				if apierrors.IsNotFound(err) {
 					continue
+				}
+
+				if reg.DeletionTimestamp == nil {
+					danglingRefs++
 				} else {
-					if reg.DeletionTimestamp == nil {
-						danglingRefs++
-					} else {
-						// TODO(alex): verify this logic when you are back
-						// When reg is marked to delete too - we may need to help clean it up
-						regFinalizers := reg.GetFinalizers()
-						if len(regFinalizers) > 0 && slices.Contains(regFinalizers, consts.FinalizerSccRegistration) {
-							regUpdate := reg.DeepCopy()
-							removeIndex := slices.Index(regFinalizers, consts.FinalizerSccRegistration)
-							regUpdate.Finalizers = append(reg.Finalizers[:removeIndex], reg.Finalizers[removeIndex+1:]...)
-							_, err = h.patchUpdateRegistration(reg, regUpdate)
-							if err != nil {
-								h.log.Errorf("failed to patch registration %s/%s: %v", reg.Namespace, reg.Name, err)
-							}
+					// TODO(alex): verify this logic when you are back
+					// When reg is marked to delete too - we may need to help clean it up
+					regFinalizers := reg.GetFinalizers()
+					if len(regFinalizers) > 0 && slices.Contains(regFinalizers, consts.FinalizerSccRegistration) {
+						regUpdate := reg.DeepCopy()
+						removeIndex := slices.Index(regFinalizers, consts.FinalizerSccRegistration)
+						regUpdate.Finalizers = append(reg.Finalizers[:removeIndex], reg.Finalizers[removeIndex+1:]...)
+						_, err = h.patchUpdateRegistration(reg, regUpdate)
+						if err != nil {
+							h.log.Errorf("failed to patch registration %s/%s: %v", reg.Namespace, reg.Name, err)
 						}
 					}
 				}
@@ -507,7 +507,7 @@ func (h *handler) OnSecretRemove(name string, incomingObj *corev1.Secret) (*core
 	return incomingObj, nil
 }
 
-func (h *handler) OnRegistrationChange(name string, registrationObj *v1.Registration) (*v1.Registration, error) {
+func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registration) (*v1.Registration, error) {
 	activiateMu.Lock()
 	defer activiateMu.Unlock()
 	if registrationObj == nil || registrationObj.DeletionTimestamp != nil {
@@ -567,28 +567,28 @@ func (h *handler) OnRegistrationChange(name string, registrationObj *v1.Registra
 			return registrationObj, updateErr
 		}
 
-		announcedSystemId, registerErr := registrationHandler.Register(regForAnnounce)
+		announcedSystemID, registerErr := registrationHandler.Register(regForAnnounce)
 		if registerErr != nil {
 			err := h.reconcileRegistration(registrationHandler, preparedForRegister, registerErr, types.RegistrationMain)
 			return registrationObj, err
 		}
 
-		setSystemId := false
-		switch announcedSystemId {
-		case suseconnect.OfflineRegistrationSystemId:
+		setSystemID := false
+		switch announcedSystemID {
+		case suseconnect.OfflineRegistrationSystemID:
 			h.log.Debugf("SCC system ID cannot be known for offline until activation")
-		case suseconnect.KeepAliveRegistrationSystemId:
+		case suseconnect.KeepAliveRegistrationSystemID:
 			h.log.Debugf("register system handled via keepalive")
-			announcedSystemId = suseconnect.RegistrationSystemId(*registrationObj.Status.SCCSystemId)
+			announcedSystemID = suseconnect.RegistrationSystemID(*registrationObj.Status.SCCSystemID)
 		default:
-			h.log.Debugf("Annoucned System ID: %v", announcedSystemId)
-			setSystemId = true
+			h.log.Debugf("Annoucned System ID: %v", announcedSystemID)
+			setSystemID = true
 		}
 
 		var prepareError error
 		// Prepare the Registration for Activation phase
-		if setSystemId {
-			regForAnnounce.Status.SCCSystemId = announcedSystemId.Ptr()
+		if setSystemID {
+			regForAnnounce.Status.SCCSystemID = announcedSystemID.Ptr()
 		}
 		regForAnnounce, prepareError = registrationHandler.PrepareRegisteredForActivation(regForAnnounce)
 		if prepareError != nil {
@@ -654,23 +654,27 @@ func (h *handler) OnRegistrationChange(name string, registrationObj *v1.Registra
 			_, updateErr := h.registrations.Update(updated)
 
 			return registrationObj, errors.Join(refreshErr, updateErr)
-		} else {
-			// Todo: online/offline  handler should have a sync now
-			updated := registrationObj.DeepCopy()
-			updated.Spec = *registrationObj.Spec.WithoutSyncNow()
-			updated.Status.ActivationStatus.Activated = false
-			updated.Status.ActivationStatus.LastValidatedTS = &metav1.Time{}
-			v1.ResourceConditionProgressing.True(updated)
-			v1.ResourceConditionReady.False(updated)
-			v1.ResourceConditionDone.False(updated)
+		}
 
-			var err error
-			updated, err = h.registrations.UpdateStatus(updated)
+		// Todo: online/offline handler interface should have a SyncNow call to get rid of the if here
+		updated := registrationObj.DeepCopy()
+		updated.Spec = *registrationObj.Spec.WithoutSyncNow()
+		updated.Status.ActivationStatus.Activated = false
+		updated.Status.ActivationStatus.LastValidatedTS = &metav1.Time{}
+		v1.ResourceConditionProgressing.True(updated)
+		v1.ResourceConditionReady.False(updated)
+		v1.ResourceConditionDone.False(updated)
 
-			updated.Spec = *registrationObj.Spec.WithoutSyncNow()
-			updated, err = h.registrations.Update(updated)
+		var err error
+		updated, err = h.registrations.UpdateStatus(updated)
+		if err != nil {
+			// TODO handle this error better via ReconcileSyncNow
 			return registrationObj, err
 		}
+
+		updated.Spec = *registrationObj.Spec.WithoutSyncNow()
+		updated, err = h.registrations.Update(updated)
+		return registrationObj, err
 	}
 
 	keepaliveErr := registrationHandler.Keepalive(registrationObj)

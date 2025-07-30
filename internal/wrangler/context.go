@@ -76,7 +76,7 @@ func enableProtobuf(cfg *rest.Config) *rest.Config {
 	return cpy
 }
 
-func NewWranglerMiniContext(ctx context.Context, restConfig *rest.Config) (MiniContext, error) {
+func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config) (MiniContext, error) {
 	controllerFactory, err := controller.NewSharedControllerFactoryFromConfig(enableProtobuf(restConfig), Scheme)
 	if err != nil {
 		return MiniContext{}, err

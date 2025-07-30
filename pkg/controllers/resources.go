@@ -15,6 +15,7 @@ import (
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/controllers/common"
 	"github.com/rancher/scc-operator/pkg/util"
+	"github.com/rancher/scc-operator/pkg/util/log"
 	"github.com/rancher/scc-operator/pkg/util/salt"
 )
 
@@ -71,16 +72,16 @@ func (h *handler) prepareSecretSalt(secret *corev1.Secret) (*corev1.Secret, erro
 }
 
 func getCurrentRegURL(secret *corev1.Secret) (regURL []byte) {
-	regUrlBytes, ok := secret.Data[consts.RegistrationUrl]
+	regURLBytes, ok := secret.Data[consts.RegistrationURL]
 	if ok {
-		return regUrlBytes
+		return regURLBytes
 	}
-	if util.HasGlobalPrimeRegistrationUrl() {
-		globalRegistrationUrl := util.GetGlobalPrimeRegistrationUrl()
-		return []byte(globalRegistrationUrl)
+	if util.HasGlobalPrimeRegistrationURL() {
+		globalRegistrationURL := util.GetGlobalPrimeRegistrationURL()
+		return []byte(globalRegistrationURL)
 	}
 	if coreUtil.DevMode.Get() {
-		return []byte(consts.StagingSCCUrl)
+		return []byte(consts.StagingSccURL)
 	}
 	return []byte{}
 }
@@ -91,7 +92,8 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedBy string
 	regMode := v1.RegistrationModeOnline
 	regType, ok := secret.Data[dataKeyRegistrationType]
 	if !ok || len(regType) == 0 {
-		// h.log.Warnf("secret does not have the `%s` field, defaulting to %s", dataKeyRegistrationType, regMode)
+		// TODO: consider using an existing logger
+		log.NewLog().Warnf("secret does not have the `%s` field, defaulting to %s", dataKeyRegistrationType, regMode)
 	} else {
 		regMode = v1.RegistrationMode(regType)
 		if !regMode.Valid() {
@@ -109,59 +111,59 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedBy string
 	offlineRegCertData, certOk := secret.Data[consts.SecretKeyOfflineRegCert]
 	hasOfflineCert := certOk && len(offlineRegCertData) > 0
 
-	var regUrlBytes []byte
-	regUrlString := ""
+	var regURLBytes []byte
+	regURLString := ""
 	if regMode == v1.RegistrationModeOnline {
-		regUrlBytes = getCurrentRegURL(secret)
-		regUrlString = string(regUrlBytes)
+		regURLBytes = getCurrentRegURL(secret)
+		regURLString = string(regURLBytes)
 	}
 
 	hasher := md5.New()
 	nameData := append(incomingSalt, regType...)
 	nameData = append(nameData, regCode...)
-	nameData = append(nameData, regUrlBytes...)
+	nameData = append(nameData, regURLBytes...)
 	data := append(nameData, offlineRegCertData...)
 
 	// Generate a hash for the name data
 	if _, err := hasher.Write(nameData); err != nil {
 		return RegistrationParams{}, fmt.Errorf("failed to hash name data: %v", err)
 	}
-	nameId := hex.EncodeToString(hasher.Sum(nil))
+	nameID := hex.EncodeToString(hasher.Sum(nil))
 
 	// Generate hash for the content data
 	if _, err := hasher.Write(data); err != nil {
 		return RegistrationParams{}, fmt.Errorf("failed to hash data: %v", err)
 	}
-	contentsId := hex.EncodeToString(hasher.Sum(nil))
+	contentsID := hex.EncodeToString(hasher.Sum(nil))
 
 	return RegistrationParams{
 		managedByOperator: managedBy,
 		regType:           regMode,
-		nameId:            nameId,
-		contentHash:       contentsId,
+		nameID:            nameID,
+		contentHash:       contentsID,
 		regCode:           regCode,
 		regCodeSecretRef: &corev1.SecretReference{
-			Name:      consts.RegistrationCodeSecretName(nameId),
+			Name:      consts.RegistrationCodeSecretName(nameID),
 			Namespace: secret.Namespace,
 		},
 		hasOfflineCertData: hasOfflineCert,
 		offlineCertData:    &offlineRegCertData,
 		offlineCertSecretRef: &corev1.SecretReference{
-			Name:      consts.OfflineCertificateSecretName(nameId),
+			Name:      consts.OfflineCertificateSecretName(nameID),
 			Namespace: secret.Namespace,
 		},
-		regUrl: regUrlString,
+		regURL: regURLString,
 	}, nil
 }
 
 type RegistrationParams struct {
 	managedByOperator    string
 	regType              v1.RegistrationMode
-	nameId               string
+	nameID               string
 	contentHash          string
 	regCode              []byte
 	regCodeSecretRef     *corev1.SecretReference
-	regUrl               string
+	regURL               string
 	hasOfflineCertData   bool
 	offlineCertData      *[]byte
 	offlineCertSecretRef *corev1.SecretReference
@@ -169,7 +171,7 @@ type RegistrationParams struct {
 
 func (r RegistrationParams) Labels() map[string]string {
 	return map[string]string{
-		consts.LabelNameSuffix:   r.nameId,
+		consts.LabelNameSuffix:   r.nameID,
 		consts.LabelSccHash:      r.contentHash,
 		consts.LabelSccManagedBy: consts.ManagedBySecretBroker,
 		consts.LabelK8sManagedBy: r.managedByOperator,
@@ -188,7 +190,7 @@ func (h *handler) registrationFromSecretEntrypoint(
 		)
 	}
 
-	genName := fmt.Sprintf("scc-registration-%s", params.nameId)
+	genName := fmt.Sprintf("scc-registration-%s", params.nameID)
 	var reg *v1.Registration
 	var err error
 
@@ -226,9 +228,9 @@ func paramsToRegSpec(params RegistrationParams) v1.RegistrationSpec {
 		regSpec.OfflineRegistrationCertificateSecretRef = params.offlineCertSecretRef
 	}
 
-	// check if params has regUrl and use, otherwise check if devmode and when true use staging Scc url
-	if params.regUrl != "" {
-		regSpec.RegistrationRequest.RegistrationAPIUrl = &params.regUrl
+	// check if params has regURL and use, otherwise check if devmode and when true use staging Scc url
+	if params.regURL != "" {
+		regSpec.RegistrationRequest.RegistrationAPIUrl = &params.regURL
 	}
 
 	return regSpec
@@ -265,7 +267,7 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 }
 
 func (h *handler) offlineCertFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
-	secretName := consts.OfflineCertificateSecretName(params.nameId)
+	secretName := consts.OfflineCertificateSecretName(params.nameID)
 
 	offlineCertSecret, err := h.secretRepo.Cache.Get(h.systemNamespace, secretName)
 	if err != nil && apierrors.IsNotFound(err) {

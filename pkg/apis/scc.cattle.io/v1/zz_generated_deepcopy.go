@@ -162,8 +162,8 @@ func (in *RegistrationStatus) DeepCopyInto(out *RegistrationStatus) {
 		in, out := &in.RegistrationProcessedTS, &out.RegistrationProcessedTS
 		*out = (*in).DeepCopy()
 	}
-	if in.SCCSystemId != nil {
-		in, out := &in.SCCSystemId, &out.SCCSystemId
+	if in.SCCSystemID != nil {
+		in, out := &in.SCCSystemID, &out.SCCSystemID
 		*out = new(int)
 		**out = **in
 	}
@@ -207,8 +207,8 @@ func (in *SystemActivationState) DeepCopyInto(out *SystemActivationState) {
 		in, out := &in.LastValidatedTS, &out.LastValidatedTS
 		*out = (*in).DeepCopy()
 	}
-	if in.SystemUrl != nil {
-		in, out := &in.SystemUrl, &out.SystemUrl
+	if in.SystemURL != nil {
+		in, out := &in.SystemURL, &out.SystemURL
 		*out = new(string)
 		**out = **in
 	}

@@ -76,7 +76,7 @@ func (s *SccStarter) SetupControllers() error {
 }
 
 func (s *SccStarter) Run() error {
-	s.wrangler.OnLeader(func(ctx context.Context) error {
+	s.wrangler.OnLeader(func(_ context.Context) error {
 		s.log.Debug("[rancher::start] starting RancherSCCRegistrationExtension")
 		return s.SetupControllers()
 	})

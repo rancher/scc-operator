@@ -12,16 +12,16 @@ import (
 )
 
 func (h *handler) patchUpdateRegistration(incoming, target *v1.Registration) (*v1.Registration, error) {
-	incomingJson, err := json.Marshal(incoming)
+	incomingJSON, err := json.Marshal(incoming)
 	if err != nil {
 		return incoming, err
 	}
-	newJson, err := json.Marshal(target)
+	newJSON, err := json.Marshal(target)
 	if err != nil {
 		return incoming, err
 	}
 
-	patch, err := jsonpatch.CreateMergePatch(incomingJson, newJson)
+	patch, err := jsonpatch.CreateMergePatch(incomingJSON, newJSON)
 	if err != nil {
 		return incoming, err
 	}

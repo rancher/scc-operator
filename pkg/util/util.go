@@ -16,13 +16,13 @@ func BytesToMiBRounded(bytes int) int {
 	return (bytes + MiB - 1) / MiB
 }
 
-// primeSCCRegistrationHostUrl tracks a global custom registration URL for online registrations
-var primeSCCRegistrationHostUrl = os.Getenv("PRIME_SCC_REGISTRATION_HOST_URL")
+// primeSCCRegistrationHostURL tracks a global custom registration URL for online registrations
+var primeSCCRegistrationHostURL = os.Getenv("PRIME_SCC_REGISTRATION_HOST_URL")
 
-func HasGlobalPrimeRegistrationUrl() bool {
-	return primeSCCRegistrationHostUrl != ""
+func HasGlobalPrimeRegistrationURL() bool {
+	return primeSCCRegistrationHostURL != ""
 }
 
-func GetGlobalPrimeRegistrationUrl() string {
-	return primeSCCRegistrationHostUrl
+func GetGlobalPrimeRegistrationURL() string {
+	return primeSCCRegistrationHostURL
 }
