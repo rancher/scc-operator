@@ -17,6 +17,14 @@ linters:
       - linters:
           - revive
         path: _test.go
+      - linters:
+          - revive
+        path: internal/types/.*.go
+        text: 'var-naming: avoid meaningless package names'
+      - linters:
+          - revive
+        path: pkg/util/.*.go
+        text: 'var-naming: avoid meaningless package names'
     paths:
       - internal/telemetry
       - pkg/systeminfo

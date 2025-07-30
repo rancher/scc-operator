@@ -5,7 +5,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/rancher/scc-operator/internal/util"
+	"github.com/rancher/scc-operator/internal/initializer"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/util/jitterbug"
 )
@@ -18,7 +18,7 @@ func setupCfg() *jitterbug.Config {
 		JitterMaxScale:  time.Hour,
 		PollingInterval: 9 * time.Minute,
 	}
-	if util.DevMode.Get() {
+	if initializer.DevMode.Get() {
 		jitterbugConfig = jitterbug.Config{
 			BaseInterval:    devBaseCheckin,
 			JitterMax:       10,

@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/scc-operator/internal/consts"
-	"github.com/rancher/scc-operator/pkg/controllers/common"
+	"github.com/rancher/scc-operator/pkg/controllers/shared"
 )
 
 func (o *SecretManager) SetRegistrationOfflineCertificateSecretRef(registrationObj *v1.Registration) *v1.Registration {
@@ -74,7 +74,7 @@ func (o *SecretManager) saveCertificateSecret() error {
 		offlineCert.Data[consts.SecretKeyOfflineRegRequest] = o.offlineRequest
 	}
 
-	offlineCert = common.SecretAddOfflineFinalizer(offlineCert)
+	offlineCert = shared.SecretAddOfflineFinalizer(offlineCert)
 
 	labels := o.defaultLabels
 	if offlineCert.Labels == nil {

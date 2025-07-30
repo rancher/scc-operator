@@ -10,10 +10,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 
+	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/rancher/scc-operator/internal/log"
 	"github.com/rancher/scc-operator/internal/repos/settingrepo"
 	"github.com/rancher/scc-operator/internal/telemetry"
-	"github.com/rancher/scc-operator/internal/util"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
 	"github.com/rancher/scc-operator/pkg/systeminfo"
@@ -67,7 +67,7 @@ func setup(wContext *wrangler.MiniContext, logger log.StructuredLogger, infoProv
 	rancherTelemetry := telemetry.NewTelemetryGatherer(wContext)
 
 	return &SccOperator{
-		devMode:            util.DevMode.Get(),
+		devMode:            initializer.DevMode.Get(),
 		log:                logger,
 		sccResourceFactory: sccResources,
 		secrets:            wContext.Core.Secret(),

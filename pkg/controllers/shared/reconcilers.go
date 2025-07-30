@@ -1,4 +1,4 @@
-package common
+package shared
 
 import (
 	"github.com/rancher/scc-operator/internal/types"

@@ -3,7 +3,7 @@ package consts
 import (
 	"fmt"
 
-	"github.com/rancher/scc-operator/internal/util"
+	"github.com/rancher/scc-operator/internal/initializer"
 )
 
 const (
@@ -99,7 +99,7 @@ func (s SCCEnvironment) String() string {
 }
 
 func GetSCCEnvironment() SCCEnvironment {
-	if !util.DevMode.Get() {
+	if !initializer.DevMode.Get() {
 		return Production
 	}
 	return Staging

@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/rancher/scc-operator/internal/repos/secretrepo"
 	"github.com/rancher/scc-operator/internal/suseconnect"
 	"github.com/rancher/scc-operator/internal/suseconnect/credentials"
@@ -25,10 +26,9 @@ import (
 	"github.com/rancher/scc-operator/internal/telemetry"
 	metricsSecret "github.com/rancher/scc-operator/internal/telemetry/secret"
 	"github.com/rancher/scc-operator/internal/types"
-	"github.com/rancher/scc-operator/internal/util"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher/scc-operator/pkg/controllers/common"
 	"github.com/rancher/scc-operator/pkg/controllers/helpers"
+	"github.com/rancher/scc-operator/pkg/controllers/shared"
 	registrationControllers "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/systeminfo"
 	"github.com/rancher/scc-operator/pkg/util/log"
@@ -152,7 +152,7 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration) SCCHandler {
 		consts.LabelSccHash:      registrationObj.Labels[consts.LabelSccHash],
 		consts.LabelNameSuffix:   nameSuffixHash,
 		consts.LabelSccManagedBy: controllerID,
-		consts.LabelK8sManagedBy: util.OperatorName.Get(),
+		consts.LabelK8sManagedBy: initializer.OperatorName.Get(),
 	}
 
 	if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
@@ -389,13 +389,13 @@ func (h *handler) cleanupRelatedSecretsByHash(contentHash string) error {
 	})
 
 	for _, secret := range secrets {
-		if common.SecretHasCredentialsFinalizer(secret) ||
-			common.SecretHasRegCodeFinalizer(secret) {
+		if shared.SecretHasCredentialsFinalizer(secret) ||
+			shared.SecretHasRegCodeFinalizer(secret) {
 
 			var updateErr error
 			secretUpdated := secret.DeepCopy()
-			secretUpdated = common.SecretRemoveCredentialsFinalizer(secretUpdated)
-			secretUpdated = common.SecretRemoveRegCodeFinalizer(secretUpdated)
+			secretUpdated = shared.SecretRemoveCredentialsFinalizer(secretUpdated)
+			secretUpdated = shared.SecretRemoveRegCodeFinalizer(secretUpdated)
 			_, updateErr = h.secretRepo.RetryingPatchUpdate(secret, secretUpdated)
 			if updateErr != nil {
 				h.log.Errorf("failed to update secret %s/%s: %v", secret.Namespace, secret.Name, updateErr)
@@ -453,8 +453,8 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 		return incomingObj, nil
 	}
 
-	if common.SecretHasCredentialsFinalizer(incomingObj) ||
-		common.SecretHasRegCodeFinalizer(incomingObj) {
+	if shared.SecretHasCredentialsFinalizer(incomingObj) ||
+		shared.SecretHasRegCodeFinalizer(incomingObj) {
 		refs := incomingObj.GetOwnerReferences()
 		danglingRefs := 0
 		for _, ref := range refs {
@@ -488,11 +488,11 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 			return nil, fmt.Errorf("cannot remove SCC finalizer from secret %s/%s, dangling references to Registration found", incomingObj.Namespace, incomingObj.Name)
 		}
 		newSecret := incomingObj.DeepCopy()
-		if common.SecretHasCredentialsFinalizer(newSecret) {
-			newSecret = common.SecretRemoveCredentialsFinalizer(newSecret)
+		if shared.SecretHasCredentialsFinalizer(newSecret) {
+			newSecret = shared.SecretRemoveCredentialsFinalizer(newSecret)
 		}
-		if common.SecretHasRegCodeFinalizer(newSecret) {
-			newSecret = common.SecretRemoveRegCodeFinalizer(newSecret)
+		if shared.SecretHasRegCodeFinalizer(newSecret) {
+			newSecret = shared.SecretRemoveRegCodeFinalizer(newSecret)
 		}
 		logrus.Info("Removing finalizer from secret", newSecret.Name, "in namespace", newSecret.Namespace)
 		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -519,7 +519,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		return registrationObj, errors.New("no server url found in the system info")
 	}
 
-	if common.RegistrationIsFailed(registrationObj) {
+	if shared.RegistrationIsFailed(registrationObj) {
 		return registrationObj, errors.New("registration has failed status; create a new one to retry")
 	}
 
@@ -627,7 +627,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 			}
 
 			activated := registrationObj.DeepCopy()
-			activated = common.PrepareSuccessfulActivation(activated)
+			activated = shared.PrepareSuccessfulActivation(activated)
 			prepared, err := registrationHandler.PrepareActivatedForKeepalive(activated)
 			if err != nil {
 				err := h.reconcileActivation(registrationHandler, registrationObj, activationErr, types.ActivationPrepForKeepalive)
@@ -644,7 +644,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	}
 
 	// Handle what to do when CheckNow is used...
-	if common.RegistrationNeedsSyncNow(registrationObj) {
+	if shared.RegistrationNeedsSyncNow(registrationObj) {
 		if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
 			updated := registrationObj.DeepCopy()
 			updated.Spec = *registrationObj.Spec.WithoutSyncNow()
@@ -708,7 +708,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		}
 
 		keepalive := registrationObj.DeepCopy()
-		keepalive = common.PrepareSuccessfulActivation(keepalive)
+		keepalive = shared.PrepareSuccessfulActivation(keepalive)
 		v1.RegistrationConditionKeepalive.True(keepalive)
 		prepared, err := registrationHandler.PrepareKeepaliveSucceeded(keepalive)
 		if err != nil {

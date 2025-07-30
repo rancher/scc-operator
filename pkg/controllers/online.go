@@ -19,7 +19,7 @@ import (
 	"github.com/rancher/scc-operator/internal/suseconnect/credentials"
 	"github.com/rancher/scc-operator/internal/types"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher/scc-operator/pkg/controllers/common"
+	"github.com/rancher/scc-operator/pkg/controllers/shared"
 	"github.com/rancher/scc-operator/pkg/systeminfo"
 )
 
@@ -50,7 +50,7 @@ type sccOnlineMode struct {
 }
 
 func (s sccOnlineMode) NeedsRegistration(registrationObj *v1.Registration) bool {
-	return common.RegistrationHasNotStarted(registrationObj) ||
+	return shared.RegistrationHasNotStarted(registrationObj) ||
 		!registrationObj.HasCondition(v1.RegistrationConditionSccURLReady) ||
 		!registrationObj.HasCondition(v1.RegistrationConditionAnnounced)
 }
@@ -152,7 +152,7 @@ func (s sccOnlineMode) reconcileNonRecoverableHTTPError(registrationIn *v1.Regis
 	registrationIn.Status.ActivationStatus.LastValidatedTS = &nowTime
 
 	wrappedErr := fmt.Errorf("non-recoverable HTTP error encountered; to reregister Rancher, resolve connection issues then try again. Original error: %w", registerErr)
-	registrationIn = common.PrepareFailed(registrationIn, wrappedErr)
+	registrationIn = shared.PrepareFailed(registrationIn, wrappedErr)
 
 	if additionalApplier != nil {
 		return additionalApplier(registrationIn, &httpCode)
@@ -162,7 +162,7 @@ func (s sccOnlineMode) reconcileNonRecoverableHTTPError(registrationIn *v1.Regis
 }
 
 func (s sccOnlineMode) ReconcileRegisterError(registrationObj *v1.Registration, registerErr error, phase types.RegistrationPhase) *v1.Registration {
-	registrationObj = common.PrepareFailed(registrationObj, registerErr)
+	registrationObj = shared.PrepareFailed(registrationObj, registerErr)
 
 	if isNonRecoverableHTTPError(registerErr) {
 		return s.reconcileNonRecoverableHTTPError(
@@ -196,7 +196,7 @@ func (s sccOnlineMode) ReconcileRegisterError(registrationObj *v1.Registration, 
 }
 
 func (s sccOnlineMode) NeedsActivation(registrationObj *v1.Registration) bool {
-	return common.RegistrationNeedsActivation(registrationObj)
+	return shared.RegistrationNeedsActivation(registrationObj)
 }
 
 func (s sccOnlineMode) ReadyForActivation(registrationObj *v1.Registration) bool {
@@ -356,9 +356,9 @@ func (s sccOnlineMode) Deregister() error {
 	if regCodeErr != nil && !apierrors.IsNotFound(regCodeErr) {
 		return regCodeErr
 	}
-	if common.SecretHasRegCodeFinalizer(regCodeSecret) {
+	if shared.SecretHasRegCodeFinalizer(regCodeSecret) {
 		updateRegCodeSecret := regCodeSecret.DeepCopy()
-		updateRegCodeSecret = common.SecretRemoveRegCodeFinalizer(updateRegCodeSecret)
+		updateRegCodeSecret = shared.SecretRemoveRegCodeFinalizer(updateRegCodeSecret)
 
 		_, regCodeErr = s.secretRepo.Controller.Update(updateRegCodeSecret)
 		if regCodeErr != nil {

@@ -11,9 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/scc-operator/internal/consts"
-	coreUtil "github.com/rancher/scc-operator/internal/util"
+	coreUtil "github.com/rancher/scc-operator/internal/initializer"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher/scc-operator/pkg/controllers/common"
+	"github.com/rancher/scc-operator/pkg/controllers/shared"
 	"github.com/rancher/scc-operator/pkg/util"
 	"github.com/rancher/scc-operator/pkg/util/log"
 	"github.com/rancher/scc-operator/pkg/util/salt"
@@ -208,8 +208,8 @@ func (h *handler) registrationFromSecretEntrypoint(
 	maps.Copy(reg.Labels, params.Labels())
 
 	reg.Spec = paramsToRegSpec(params)
-	if !common.RegistrationHasManagedFinalizer(reg) {
-		reg = common.RegistrationAddManagedFinalizer(reg)
+	if !shared.RegistrationHasManagedFinalizer(reg) {
+		reg = shared.RegistrationAddManagedFinalizer(reg)
 	}
 
 	return reg, nil
@@ -259,8 +259,8 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 	defaultLabels[consts.LabelSccSecretRole] = string(consts.RegistrationCode)
 	maps.Copy(regcodeSecret.Labels, defaultLabels)
 
-	if !common.SecretHasRegCodeFinalizer(regcodeSecret) {
-		regcodeSecret = common.SecretAddRegCodeFinalizer(regcodeSecret)
+	if !shared.SecretHasRegCodeFinalizer(regcodeSecret) {
+		regcodeSecret = shared.SecretAddRegCodeFinalizer(regcodeSecret)
 	}
 
 	return regcodeSecret, nil
@@ -289,8 +289,8 @@ func (h *handler) offlineCertFromSecretEntrypoint(params RegistrationParams) (*c
 	defaultLabels[consts.LabelSccSecretRole] = string(consts.OfflineCertificate)
 	maps.Copy(offlineCertSecret.Labels, defaultLabels)
 
-	if !common.SecretHasOfflineFinalizer(offlineCertSecret) {
-		offlineCertSecret = common.SecretAddOfflineFinalizer(offlineCertSecret)
+	if !shared.SecretHasOfflineFinalizer(offlineCertSecret) {
+		offlineCertSecret = shared.SecretAddOfflineFinalizer(offlineCertSecret)
 	}
 
 	return offlineCertSecret, nil

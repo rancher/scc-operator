@@ -1,4 +1,4 @@
-package util
+package initializer
 
 type valueInitializer[T any] struct {
 	value T

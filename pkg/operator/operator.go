@@ -8,10 +8,10 @@ import (
 	"github.com/rancher/wrangler/v3/pkg/ratelimit"
 	"k8s.io/client-go/rest"
 
+	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/rancher/scc-operator/internal/log"
 	"github.com/rancher/scc-operator/internal/telemetry"
 	"github.com/rancher/scc-operator/internal/types"
-	"github.com/rancher/scc-operator/internal/util"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/crds"
 	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
@@ -37,8 +37,8 @@ func New(
 	if err := options.Validate(); err != nil {
 		return nil, err
 	}
-	util.SystemNamespace.Set(options.SccNamespace)
-	util.OperatorName.Set(options.OperatorName)
+	initializer.SystemNamespace.Set(options.SccNamespace)
+	initializer.OperatorName.Set(options.OperatorName)
 
 	kubeconfig.RateLimiter = ratelimit.None
 	wContext, err := wrangler.NewWranglerMiniContext(ctx, kubeconfig)

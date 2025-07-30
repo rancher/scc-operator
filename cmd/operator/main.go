@@ -13,9 +13,9 @@ import (
 
 	"github.com/rancher/scc-operator/cmd/operator/version"
 	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/initializer"
 	rootLog "github.com/rancher/scc-operator/internal/log"
 	"github.com/rancher/scc-operator/internal/types"
-	"github.com/rancher/scc-operator/internal/util"
 	"github.com/rancher/scc-operator/pkg/operator"
 	"github.com/rancher/scc-operator/pkg/util/log"
 )
@@ -81,7 +81,7 @@ func main() {
 	}
 
 	dm := os.Getenv("CATTLE_DEV_MODE")
-	util.DevMode.Set(dm != "")
+	initializer.DevMode.Set(dm != "")
 	runOptions := types.RunOptions{
 		Logger:       logger,
 		OperatorName: OperatorName,

@@ -7,8 +7,8 @@ import (
 	"github.com/rancher/wrangler/v3/pkg/start"
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	"github.com/rancher/scc-operator/internal/initializer"
 	rootLog "github.com/rancher/scc-operator/internal/log"
-	"github.com/rancher/scc-operator/internal/util"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/controllers"
 	"github.com/rancher/scc-operator/pkg/systeminfo"
@@ -54,8 +54,8 @@ func (s *SccStarter) SetupControllers() error {
 
 		controllers.Register(
 			s.context,
-			util.OperatorName.Get(),
-			util.SystemNamespace.Get(),
+			initializer.OperatorName.Get(),
+			initializer.SystemNamespace.Get(),
 			initOperator.sccResourceFactory.Scc().V1().Registration(),
 			s.wrangler.Secrets,
 			initOperator.rancherTelemetry,
