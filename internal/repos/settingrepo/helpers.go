@@ -1,35 +1,36 @@
 package settingrepo
 
 import (
-	"github.com/rancher/scc-operator/pkg/util/log"
 	"net/url"
+
+	"github.com/rancher/scc-operator/pkg/util/log"
 )
 
 const (
-	SettingNameServerUrl   = "server-url"
+	SettingNameServerURL   = "server-url"
 	SettingNameInstallUUID = "install-uuid"
 )
 
 func GetServerURL(settings *SettingRepository) string {
-	if settings == nil || !settings.HasSetting(SettingNameServerUrl) {
+	if settings == nil || !settings.HasSetting(SettingNameServerURL) {
 		return ""
 	}
-	serverUrlSetting, err := settings.GetSetting(SettingNameServerUrl)
+	serverURLSetting, err := settings.GetSetting(SettingNameServerURL)
 	if err != nil {
 		log.NewLog().Error(err, "Failed to get server url setting")
 		return ""
 	}
 
-	return serverUrlSetting.Value
+	return serverURLSetting.Value
 }
 
 // ServerHostname returns the hostname of the Rancher server URL
 func ServerHostname(settings *SettingRepository) string {
-	serverUrl := GetServerURL(settings)
-	if serverUrl == "" {
+	serverURL := GetServerURL(settings)
+	if serverURL == "" {
 		return ""
 	}
-	parsed, _ := url.Parse(serverUrl)
+	parsed, _ := url.Parse(serverURL)
 	return parsed.Host
 }
 

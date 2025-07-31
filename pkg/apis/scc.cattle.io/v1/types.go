@@ -1,11 +1,10 @@
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/rancher/wrangler/v3/pkg/condition"
 	"github.com/rancher/wrangler/v3/pkg/genericcondition"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // RegistrationMode enforces the valid registration modes
@@ -33,7 +32,7 @@ const (
 	ActivationConditionOfflineDone               condition.Cond = "OfflineActivationDone"
 
 	RegistrationConditionAnnounced   condition.Cond = "RegistrationAnnounced"
-	RegistrationConditionSccUrlReady condition.Cond = "RegistrationSccUrlReady"
+	RegistrationConditionSccURLReady condition.Cond = "RegistrationSccUrlReady"
 	RegistrationConditionActivated   condition.Cond = "RegistrationActivated"
 	RegistrationConditionKeepalive   condition.Cond = "RegistrationKeepalive"
 )
@@ -94,7 +93,7 @@ type RegistrationStatus struct {
 	// +optional
 	RegistrationProcessedTS *metav1.Time `json:"registrationProcessedTS,omitempty"`
 	// +optional
-	SCCSystemId *int `json:"sccSystemId,omitempty"`
+	SCCSystemID *int `json:"sccSystemID,omitempty"`
 	// +optional
 	RegisteredProduct *string `json:"registeredProduct"`
 	// +optional
@@ -114,7 +113,7 @@ type SystemActivationState struct {
 	// +optional
 	LastValidatedTS *metav1.Time `json:"lastValidatedTS"`
 	// +optional
-	SystemUrl *string `json:"systemUrl,omitempty"`
+	SystemURL *string `json:"systemURL,omitempty"`
 }
 
 func (r *Registration) HasCondition(matchCond condition.Cond) bool {

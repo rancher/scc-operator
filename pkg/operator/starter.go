@@ -2,14 +2,16 @@ package operator
 
 import (
 	"context"
+	"time"
+
+	"github.com/rancher/wrangler/v3/pkg/start"
+	"k8s.io/apimachinery/pkg/util/wait"
+
+	"github.com/rancher/scc-operator/internal/initializer"
 	rootLog "github.com/rancher/scc-operator/internal/log"
-	"github.com/rancher/scc-operator/internal/util"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/controllers"
 	"github.com/rancher/scc-operator/pkg/systeminfo"
-	"github.com/rancher/wrangler/v3/pkg/start"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"time"
 )
 
 type SccStarter struct {
@@ -52,8 +54,8 @@ func (s *SccStarter) SetupControllers() error {
 
 		controllers.Register(
 			s.context,
-			util.OperatorName.Get(),
-			util.SystemNamespace.Get(),
+			initializer.OperatorName.Get(),
+			initializer.SystemNamespace.Get(),
 			initOperator.sccResourceFactory.Scc().V1().Registration(),
 			s.wrangler.Secrets,
 			initOperator.rancherTelemetry,
@@ -74,7 +76,7 @@ func (s *SccStarter) SetupControllers() error {
 }
 
 func (s *SccStarter) Run() error {
-	s.wrangler.OnLeader(func(ctx context.Context) error {
+	s.wrangler.OnLeader(func(_ context.Context) error {
 		s.log.Debug("[rancher::start] starting RancherSCCRegistrationExtension")
 		return s.SetupControllers()
 	})

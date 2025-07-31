@@ -1,8 +1,9 @@
 package types
 
 import (
-	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 )
 
 // Decider makes a decision based on the state of a generic Kubernetes resource; must have no side-effects.

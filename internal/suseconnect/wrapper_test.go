@@ -1,9 +1,10 @@
 package suseconnect
 
 import (
+	"testing"
+
 	"github.com/SUSE/connect-ng/pkg/connection"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestDefaultConnectionOptionsBasic(t *testing.T) {

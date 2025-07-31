@@ -2,16 +2,17 @@ package credentials
 
 import (
 	"fmt"
-	"github.com/rancher/scc-operator/internal/repos/secretrepo"
-	"github.com/rancher/scc-operator/pkg/controllers/common"
+	"maps"
 
 	"github.com/SUSE/connect-ng/pkg/connection"
-	"github.com/rancher/scc-operator/internal/consts"
-	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"maps"
+
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/repos/secretrepo"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher/scc-operator/pkg/controllers/shared"
 )
 
 const (
@@ -104,7 +105,7 @@ func (c *CredentialSecretsAdapter) saveCredentials() error {
 		sccCreds.Data[TokenKey] = []byte(token)
 	}
 
-	sccCreds = common.SecretAddCredentialsFinalizer(sccCreds)
+	sccCreds = shared.SecretAddCredentialsFinalizer(sccCreds)
 
 	if sccCreds.Labels == nil {
 		sccCreds.Labels = c.labels
@@ -135,9 +136,9 @@ func (c *CredentialSecretsAdapter) Remove() error {
 		return nil
 	}
 
-	if common.SecretHasCredentialsFinalizer(currentSecret) {
+	if shared.SecretHasCredentialsFinalizer(currentSecret) {
 		updatedSecret := currentSecret.DeepCopy()
-		updatedSecret = common.SecretRemoveCredentialsFinalizer(updatedSecret)
+		updatedSecret = shared.SecretRemoveCredentialsFinalizer(updatedSecret)
 		if _, updateErr := c.secretRepo.Controller.Update(updatedSecret); updateErr != nil {
 			if apierrors.IsNotFound(updateErr) {
 				return nil

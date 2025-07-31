@@ -2,15 +2,15 @@ package systeminfo
 
 import (
 	"encoding/json"
+
 	"github.com/google/uuid"
+
 	"github.com/rancher/scc-operator/internal/telemetry"
 	"github.com/rancher/scc-operator/internal/telemetry/secret"
 
 	//"k8s.io/client-go/util/retry"
-
 	"github.com/SUSE/connect-ng/pkg/registration"
 	//"github.com/rancher/rancher/pkg/telemetry"
-
 	rootLog "github.com/rancher/scc-operator/internal/log"
 	//"github.com/rancher/scc-operator/pkg/systeminfo/secret"
 	"github.com/rancher/scc-operator/pkg/util"

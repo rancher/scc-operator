@@ -1,9 +1,10 @@
 package suseconnect
 
 import (
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/rancher/scc-operator/internal/consts"
 	"github.com/rancher/scc-operator/internal/repos/secretrepo"
-	corev1 "k8s.io/api/core/v1"
 )
 
 func FetchSccRegistrationCodeFrom(secretRepo *secretrepo.SecretRepository, reference *corev1.SecretReference) string {

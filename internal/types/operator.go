@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+
 	rootLog "github.com/rancher/scc-operator/internal/log"
 )
 

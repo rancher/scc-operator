@@ -2,15 +2,16 @@ package telemetry
 
 import (
 	"errors"
-	"github.com/rancher/scc-operator/internal/wrangler"
 	"iter"
 
 	v3 "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
-	v3ctrl "github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io/v3"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
+
+	v3ctrl "github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io/v3"
+	"github.com/rancher/scc-operator/internal/wrangler"
 )
 
 type ClusterID string

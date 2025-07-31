@@ -1,9 +1,9 @@
 package credentials
 
 import (
-	"github.com/SUSE/connect-ng/pkg/connection"
 	"testing"
 
+	"github.com/SUSE/connect-ng/pkg/connection"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -218,7 +218,9 @@ func TestLoginErrors(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = credential.SetLogin("", "")
+	assert.NoError(t, err)
 	err = credential.UpdateToken("token")
+	assert.NoError(t, err)
 
 	_, _, err = credential.Login()
 	assert.Error(t, err)

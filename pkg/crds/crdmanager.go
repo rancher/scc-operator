@@ -4,18 +4,20 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"github.com/rancher/scc-operator/internal/consts"
-	"github.com/rancher/scc-operator/internal/types"
+	"maps"
+	"path/filepath"
+	"slices"
+	"time"
+
 	"github.com/rancher/wrangler/v3/pkg/crd"
 	"github.com/rancher/wrangler/v3/pkg/yaml"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	clientv1 "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-	"maps"
-	"path/filepath"
-	"slices"
-	"time"
+
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/types"
 )
 
 const (

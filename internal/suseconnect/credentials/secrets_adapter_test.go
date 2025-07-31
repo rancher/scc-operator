@@ -1,17 +1,17 @@
 package credentials
 
 import (
-	"github.com/rancher/scc-operator/internal/repos/secretrepo"
 	"testing"
 
+	"github.com/rancher/wrangler/v3/pkg/generic/fake"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/repos/secretrepo"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher/wrangler/v3/pkg/generic/fake"
 )
 
 const (

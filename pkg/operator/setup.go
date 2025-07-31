@@ -3,16 +3,17 @@ package operator
 import (
 	"errors"
 	"fmt"
+
 	"github.com/google/uuid"
-	"github.com/rancher/scc-operator/internal/repos/settingrepo"
-	"github.com/rancher/scc-operator/internal/telemetry"
 	k8sv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 
+	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/rancher/scc-operator/internal/log"
-	"github.com/rancher/scc-operator/internal/util"
+	"github.com/rancher/scc-operator/internal/repos/settingrepo"
+	"github.com/rancher/scc-operator/internal/telemetry"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
 	"github.com/rancher/scc-operator/pkg/systeminfo"
@@ -42,8 +43,8 @@ func setup(wContext *wrangler.MiniContext, logger log.StructuredLogger, infoProv
 		return nil, fmt.Errorf("failed to get kube-system namespace: %v", kubeNsErr)
 	}
 
-	rancherUuid := settingrepo.GetRancherInstallUUID(wContext.Settings)
-	if rancherUuid == "" {
+	rancherUUID := settingrepo.GetRancherInstallUUID(wContext.Settings)
+	if rancherUUID == "" {
 		err := errors.New("no rancher uuid found")
 		logger.Fatalf("Error getting rancher uuid: %v", err)
 		return nil, err
@@ -54,19 +55,19 @@ func setup(wContext *wrangler.MiniContext, logger log.StructuredLogger, infoProv
 		logger.Fatalf("Error getting scc resources: %v", err)
 		return nil, err
 	}
-	// Validate that the UUID is in correct format
-	parsedRancherUUID, rancherUuidErr := uuid.Parse(rancherUuid)
-	parsedkubeSystemNSUID, kubeUuidErr := uuid.Parse(string(kubeSystemNS.UID))
+	// Validate that the UUID is in the correct format
+	parsedRancherUUID, rancherUUIDErr := uuid.Parse(rancherUUID)
+	parsedkubeSystemNSUID, kubeUUIDErr := uuid.Parse(string(kubeSystemNS.UID))
 
-	if rancherUuidErr != nil || kubeUuidErr != nil {
-		return nil, fmt.Errorf("invalid UUID format: rancherUuid=%s, kubeSystemNS.UID=%s", rancherUuid, string(kubeSystemNS.UID))
+	if rancherUUIDErr != nil || kubeUUIDErr != nil {
+		return nil, fmt.Errorf("invalid UUID format: rancherUUID=%s, kubeSystemNS.UID=%s", rancherUUID, string(kubeSystemNS.UID))
 	}
 	infoProvider = infoProvider.SetUuids(parsedRancherUUID, parsedkubeSystemNSUID)
 
 	rancherTelemetry := telemetry.NewTelemetryGatherer(wContext)
 
 	return &SccOperator{
-		devMode:            util.DevMode.Get(),
+		devMode:            initializer.DevMode.Get(),
 		log:                logger,
 		sccResourceFactory: sccResources,
 		secrets:            wContext.Core.Secret(),

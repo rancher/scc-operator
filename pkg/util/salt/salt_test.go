@@ -1,9 +1,10 @@
 package salt
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewSaltGen(t *testing.T) {

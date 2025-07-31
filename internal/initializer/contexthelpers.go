@@ -1,4 +1,4 @@
-package util
+package initializer
 
 type valueInitializer[T any] struct {
 	value T
@@ -21,7 +21,6 @@ var (
 	SystemNamespace = valueInitializer[string]{}
 	OperatorName    = valueInitializer[string]{}
 )
-
 
 func init() {
 	DevMode.Set(true)

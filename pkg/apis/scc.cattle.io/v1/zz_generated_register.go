@@ -22,10 +22,11 @@ limitations under the License.
 package v1
 
 import (
-	scc "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	scc "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io"
 )
 
 var (

@@ -4,8 +4,9 @@ package jitterbug
 // The key principal
 
 import (
-	rootLog "github.com/rancher/scc-operator/internal/log"
 	"time"
+
+	rootLog "github.com/rancher/scc-operator/internal/log"
 )
 
 type JitterFunction func(nextTrigger, strictDeadline time.Duration) (bool, error)

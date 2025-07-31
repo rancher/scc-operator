@@ -4,20 +4,18 @@ import (
 	"context"
 	"flag"
 	"fmt"
-
-	"k8s.io/client-go/rest"
 	"os"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/rancher/wrangler/v3/pkg/kubeconfig"
 	"github.com/rancher/wrangler/v3/pkg/signals"
+	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/rest"
 
 	"github.com/rancher/scc-operator/cmd/operator/version"
 	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/initializer"
 	rootLog "github.com/rancher/scc-operator/internal/log"
 	"github.com/rancher/scc-operator/internal/types"
-	"github.com/rancher/scc-operator/internal/util"
 	"github.com/rancher/scc-operator/pkg/operator"
 	"github.com/rancher/scc-operator/pkg/util/log"
 )
@@ -83,7 +81,7 @@ func main() {
 	}
 
 	dm := os.Getenv("CATTLE_DEV_MODE")
-	util.DevMode.Set(dm != "")
+	initializer.DevMode.Set(dm != "")
 	runOptions := types.RunOptions{
 		Logger:       logger,
 		OperatorName: OperatorName,

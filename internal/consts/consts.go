@@ -2,7 +2,8 @@ package consts
 
 import (
 	"fmt"
-	"github.com/rancher/scc-operator/internal/util"
+
+	"github.com/rancher/scc-operator/internal/initializer"
 )
 
 const (
@@ -61,7 +62,7 @@ const (
 	SecretKeyRegistrationCode  = "regCode"
 	SecretKeyOfflineRegRequest = "request"
 	SecretKeyOfflineRegCert    = "certificate"
-	RegistrationUrl            = "registrationUrl"
+	RegistrationURL            = "registrationUrl"
 )
 
 type SecretRole string
@@ -98,37 +99,37 @@ func (s SCCEnvironment) String() string {
 }
 
 func GetSCCEnvironment() SCCEnvironment {
-	if !util.DevMode.Get() {
+	if !initializer.DevMode.Get() {
 		return Production
 	}
 	return Staging
 }
 
-type AlternativeSCCUrls string
+type AlternativeSccURLs string
 
 const (
-	ProdSCCUrl    AlternativeSCCUrls = "https://scc.suse.com"
-	StagingSCCUrl AlternativeSCCUrls = "https://stgscc.suse.com"
+	ProdSccURL    AlternativeSccURLs = "https://scc.suse.com"
+	StagingSccURL AlternativeSccURLs = "https://stgscc.suse.com"
 )
 
 // TODO in the future we can store the PAYG and other urls too
 
-func (s AlternativeSCCUrls) Ptr() *string {
+func (s AlternativeSccURLs) Ptr() *string {
 	stringVal := string(s)
 	return &stringVal
 }
 
 func BaseURLForSCC() string {
-	var baseUrl string
+	var baseURL string
 	switch GetSCCEnvironment() {
 	case Production:
-		baseUrl = string(ProdSCCUrl)
+		baseURL = string(ProdSccURL)
 	case Staging:
-		baseUrl = string(StagingSCCUrl)
+		baseURL = string(StagingSccURL)
 	case RGS: // explicitly return empty for RGS
 	default:
 		// intentionally do nothing and return empty string
 	}
 
-	return baseUrl
+	return baseURL
 }

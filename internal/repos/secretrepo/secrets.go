@@ -2,7 +2,6 @@ package secretrepo
 
 import (
 	jsonpatch "github.com/evanphx/json-patch/v5"
-	"github.com/rancher/scc-operator/internal/repos/generic"
 	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -10,6 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/util/retry"
+
+	"github.com/rancher/scc-operator/internal/repos/generic"
 )
 
 var rootSecretRepo *SecretRepository
@@ -37,16 +38,16 @@ func (r *SecretRepository) HasSecret(namespace, name string) bool {
 }
 
 func (r *SecretRepository) PatchUpdate(incoming, desired *v1.Secret) (*v1.Secret, error) {
-	incomingJson, err := json.Marshal(incoming)
+	incomingJSON, err := json.Marshal(incoming)
 	if err != nil {
 		return incoming, err
 	}
-	newJson, err := json.Marshal(desired)
+	newJSON, err := json.Marshal(desired)
 	if err != nil {
 		return incoming, err
 	}
 
-	patch, err := jsonpatch.CreateMergePatch(incomingJson, newJson)
+	patch, err := jsonpatch.CreateMergePatch(incomingJSON, newJSON)
 	if err != nil {
 		return incoming, err
 	}

@@ -2,14 +2,14 @@ package suseconnect
 
 import (
 	"fmt"
+
+	"github.com/SUSE/connect-ng/pkg/connection"
+	"github.com/SUSE/connect-ng/pkg/registration"
 	"github.com/pkg/errors"
 
 	rootLog "github.com/rancher/scc-operator/internal/log"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/systeminfo"
-
-	"github.com/SUSE/connect-ng/pkg/connection"
-	"github.com/SUSE/connect-ng/pkg/registration"
 )
 
 func sccContextLogger() rootLog.StructuredLogger {
@@ -63,44 +63,44 @@ func OfflineRancherRegistration(systemInfo *systeminfo.InfoExporter) SccWrapper 
 	}
 }
 
-type RegistrationSystemId int
+type RegistrationSystemID int
 
-func (id RegistrationSystemId) Int() int {
+func (id RegistrationSystemID) Int() int {
 	return int(id)
 }
 
-func (id RegistrationSystemId) Ptr() *int {
+func (id RegistrationSystemID) Ptr() *int {
 	i := int(id)
 	return &i
 }
 
 // Define constant values for empty and error
 const (
-	EmptyRegistrationSystemId     RegistrationSystemId = 0  // Used if an error happened before registration
-	ErrorRegistrationSystemId     RegistrationSystemId = -1 // Used when error is related to registration
-	KeepAliveRegistrationSystemId RegistrationSystemId = -2 // Indicates the Registration was handled via keepalive instead
-	OfflineRegistrationSystemId   RegistrationSystemId = -3
+	EmptyRegistrationSystemID     RegistrationSystemID = 0  // Used if an error happened before registration
+	ErrorRegistrationSystemID     RegistrationSystemID = -1 // Used when error is related to registration
+	KeepAliveRegistrationSystemID RegistrationSystemID = -2 // Indicates the Registration was handled via keepalive instead
+	OfflineRegistrationSystemID   RegistrationSystemID = -3
 )
 
-func (sw *SccWrapper) SystemRegistration(regCode string) (RegistrationSystemId, error) {
+func (sw *SccWrapper) SystemRegistration(regCode string) (RegistrationSystemID, error) {
 	// 1 collect system info
 	systemInfo := sw.systemInfo
 	preparedSystemInfo, err := systemInfo.PreparedForSCC()
 	if err != nil {
-		return EmptyRegistrationSystemId, err
+		return EmptyRegistrationSystemID, err
 	}
 
 	id, regErr := registration.Register(sw.conn, regCode, sw.rancherHostname, preparedSystemInfo, registration.NoExtraData)
 	if regErr != nil {
-		return ErrorRegistrationSystemId, errors.Wrap(regErr, "Cannot register system to SCC")
+		return ErrorRegistrationSystemID, errors.Wrap(regErr, "Cannot register system to SCC")
 	}
 
-	return RegistrationSystemId(id), nil
+	return RegistrationSystemID(id), nil
 }
 
 func (sw *SccWrapper) PrepareOfflineRegistrationRequest() (*registration.OfflineRequest, error) {
 	identifier, version, arch := sw.systemInfo.GetProductIdentifier()
-	rancherUuid := sw.systemInfo.RancherUuid()
+	rancherUUID := sw.systemInfo.RancherUuid()
 
 	// 1 collect system info
 	preparedSystemInfo, err := sw.systemInfo.PreparedForSCC()
@@ -108,7 +108,7 @@ func (sw *SccWrapper) PrepareOfflineRegistrationRequest() (*registration.Offline
 		return nil, err
 	}
 
-	return registration.BuildOfflineRequest(identifier, version, arch, rancherUuid.String(), preparedSystemInfo), nil
+	return registration.BuildOfflineRequest(identifier, version, arch, rancherUUID.String(), preparedSystemInfo), nil
 }
 
 func (sw *SccWrapper) KeepAlive() error {
@@ -127,9 +127,9 @@ func (sw *SccWrapper) KeepAlive() error {
 	return statusErr
 }
 
-func (sw *SccWrapper) RegisterOrKeepAlive(regCode string) (RegistrationSystemId, error) {
+func (sw *SccWrapper) RegisterOrKeepAlive(regCode string) (RegistrationSystemID, error) {
 	if *sw.registered {
-		return KeepAliveRegistrationSystemId, sw.KeepAlive()
+		return KeepAliveRegistrationSystemID, sw.KeepAlive()
 	}
 
 	return sw.SystemRegistration(regCode)
@@ -165,7 +165,7 @@ func (sw *SccWrapper) Deregister() error {
 	return registration.Deregister(sw.conn)
 }
 
-func PrepareSCCUrl(regIn *v1.Registration) string {
+func PrepareSccURL(regIn *v1.Registration) string {
 	if regIn != nil && regIn.Spec.RegistrationRequest != nil && regIn.Spec.RegistrationRequest.RegistrationAPIUrl != nil {
 		return *regIn.Spec.RegistrationRequest.RegistrationAPIUrl
 	}

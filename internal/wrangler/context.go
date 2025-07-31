@@ -3,11 +3,12 @@ package wrangler
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	lasso "github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/lasso/pkg/mapper"
-	"github.com/rancher/scc-operator/internal/repos/secretrepo"
-	"github.com/rancher/scc-operator/internal/repos/settingrepo"
+	managementv3api "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
 	v1core "github.com/rancher/wrangler/v3/pkg/generated/controllers/core"
 	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/rancher/wrangler/v3/pkg/generic"
@@ -23,11 +24,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"sync"
 
-	managementv3api "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
 	"github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io"
 	mgmtv3 "github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io/v3"
+	"github.com/rancher/scc-operator/internal/repos/secretrepo"
+	"github.com/rancher/scc-operator/internal/repos/settingrepo"
 	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
 	sccv1 "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 )
@@ -75,7 +76,7 @@ func enableProtobuf(cfg *rest.Config) *rest.Config {
 	return cpy
 }
 
-func NewWranglerMiniContext(ctx context.Context, restConfig *rest.Config) (MiniContext, error) {
+func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config) (MiniContext, error) {
 	controllerFactory, err := controller.NewSharedControllerFactoryFromConfig(enableProtobuf(restConfig), Scheme)
 	if err != nil {
 		return MiniContext{}, err

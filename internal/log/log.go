@@ -1,11 +1,12 @@
 package log
 
 import (
-	"github.com/ehazlett/simplelog"
-	"github.com/sirupsen/logrus"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/ehazlett/simplelog"
+	"github.com/sirupsen/logrus"
 )
 
 type Format string

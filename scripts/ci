@@ -7,4 +7,4 @@ echo "Starting CI for scc-operator"
 
 ./build
 ./test
-#./validate
+./validate

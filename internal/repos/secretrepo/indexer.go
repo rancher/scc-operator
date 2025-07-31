@@ -1,9 +1,10 @@
 package secretrepo
 
 import (
-	"github.com/rancher/scc-operator/internal/consts"
-	"github.com/rancher/scc-operator/internal/util"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/initializer"
 )
 
 const (
@@ -14,7 +15,7 @@ const (
 var systemNamespace string
 
 func (r *SecretRepository) InitIndexers() {
-	systemNamespace = util.SystemNamespace.Get()
+	systemNamespace = initializer.SystemNamespace.Get()
 	r.Cache.AddIndexer(
 		IndexSecretsByPath,
 		secretByPath,
