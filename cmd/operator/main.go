@@ -72,11 +72,11 @@ func init() {
 func main() {
 	logger.Infof("Starting %s version %s (%s) [built at %s]", consts.AppName, version.Version, version.GitCommit, version.Date)
 	ctx := signals.SetupSignalContext()
-	if KubeConfig == "" {
-		logger.Fatal("--kubeconfig or --kubeconfig is required")
-	}
 	restKubeConfig, err := kubeconfig.GetNonInteractiveClientConfig(KubeConfig).ClientConfig()
 	if err != nil {
+		if KubeConfig == "" {
+			logger.Warn("If outside of cluster --kubeconfig is required")
+		}
 		logger.Fatalf("failed to find kubeconfig: %v", err)
 	}
 
