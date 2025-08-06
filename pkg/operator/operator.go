@@ -41,7 +41,7 @@ func New(
 	initializer.OperatorName.Set(options.OperatorName)
 
 	kubeconfig.RateLimiter = ratelimit.None
-	wContext, err := wrangler.NewWranglerMiniContext(ctx, kubeconfig)
+	wContext, err := wrangler.NewWranglerMiniContext(ctx, kubeconfig, options.LeaseNamespace)
 	if err != nil {
 		return nil, err
 	}

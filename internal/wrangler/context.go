@@ -76,7 +76,7 @@ func enableProtobuf(cfg *rest.Config) *rest.Config {
 	return cpy
 }
 
-func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config) (MiniContext, error) {
+func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNamespace string) (MiniContext, error) {
 	controllerFactory, err := controller.NewSharedControllerFactoryFromConfig(enableProtobuf(restConfig), Scheme)
 	if err != nil {
 		return MiniContext{}, err
@@ -136,9 +136,9 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config) (MiniCon
 		return MiniContext{}, err
 	}
 
-	// TODO: in the future when there is more than just rancher SCC-operator, this will need to be changed
-	// Unless this is adjusted to be unique for each SCC operator, only one will have controller lease at a time
-	leadership := leader.NewManager("", "scc-controllers", k8s)
+	// By default, the `leaseNamespace` will be empty which defaults to `kube-system`.
+	// If there are multiple SCC operator instances, only one will have controller leases at a time.
+	leadership := leader.NewManager(leaseNamespace, "scc-controllers", k8s)
 
 	return MiniContext{
 		RESTConfig: restConfig,

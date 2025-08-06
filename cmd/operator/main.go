@@ -24,13 +24,14 @@ import (
 const defaultOperatorName = "rancher-scc-operator"
 
 var (
-	KubeConfig   string
-	LogFormat    string
-	Debug        bool
-	Trace        bool
-	SCCNamespace string
-	OperatorName string
-	logger       rootLog.StructuredLogger
+	KubeConfig     string
+	LogFormat      string
+	Debug          bool
+	Trace          bool
+	SCCNamespace   string
+	LeaseNamespace string
+	OperatorName   string
+	logger         rootLog.StructuredLogger
 )
 
 func init() {
@@ -65,6 +66,8 @@ func init() {
 		SCCNamespace = consts.DefaultSCCNamespace
 	}
 
+	LeaseNamespace = os.Getenv("SCC_LEASE_NAMESPACE")
+
 	log.AddDefaultOpts(rootLog.WithOperatorName(OperatorName))
 	logger = log.NewLog()
 }
@@ -83,9 +86,10 @@ func main() {
 	dm := os.Getenv("CATTLE_DEV_MODE")
 	initializer.DevMode.Set(dm != "")
 	runOptions := types.RunOptions{
-		Logger:       logger,
-		OperatorName: OperatorName,
-		SccNamespace: SCCNamespace,
+		Logger:         logger,
+		OperatorName:   OperatorName,
+		SccNamespace:   SCCNamespace,
+		LeaseNamespace: LeaseNamespace,
 	}
 
 	if err := run(ctx, restKubeConfig, runOptions); err != nil {
