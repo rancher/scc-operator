@@ -122,6 +122,8 @@ func Register(
 	wranglerPolyfill.ScopedOnChange(ctx, controllerID+"-secrets", withinExpectedNamespaceCondition, secretsRepo.Controller, controller.OnSecretChange)
 	wranglerPolyfill.ScopedOnRemove(ctx, controllerID+"-secrets-remove", withinExpectedNamespaceCondition, secretsRepo.Controller, controller.OnSecretRemove)
 
+	// TODO: pull out registration controllers to register only when system is ready
+	// TODO: also add a watcher to trigger enqueue on related resource changes
 	withinOperatorScopeCondition := func(_ string, obj runtime.Object) (bool, error) {
 		metaObj, err := meta.Accessor(obj)
 		if err != nil {

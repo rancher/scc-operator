@@ -2,6 +2,8 @@ package operator
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/rancher/scc-operator/internal/consts"
@@ -75,6 +77,8 @@ func (s *SccStarter) SetupControllers() error {
 			s.log.Errorf("error setting up scc operator: %s", err.Error())
 		}
 
+		// TODO: this can be split up by secrets and registrations - allowing secrets to register first
+		// Registration controller should still wait until the metrics secret is available to start
 		controllers.Register(
 			s.context,
 			&s.options,
@@ -104,4 +108,19 @@ func (s *SccStarter) Run() error {
 	})
 
 	return s.wrangler.Start(s.context)
+}
+
+func (s *SccStarter) StartMetricsAndHealthEndpoint() {
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		// TODO: utilize more complex logic for ready condition & expose more info?
+		if s.systemRegistrationReady != nil {
+			w.WriteHeader(500)
+			w.Write([]byte(fmt.Sprintf("error: %v", "some err here")))
+		} else {
+			w.WriteHeader(200)
+			w.Write([]byte("ok"))
+		}
+	})
+
+	http.ListenAndServe(":8080", nil)
 }

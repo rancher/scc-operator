@@ -115,6 +115,7 @@ func run(ctx context.Context, restKubeConfig *rest.Config, runOptions types.RunO
 		return metricErr
 	}
 
+	go sccOperatorStarter.StartMetricsAndHealthEndpoint()
 	if runErr := sccOperatorStarter.Run(); runErr != nil {
 		logger.Errorf("Error running operator: %v", runErr)
 		return runErr
