@@ -24,6 +24,7 @@ import (
 	"github.com/rancher/scc-operator/internal/suseconnect/credentials"
 	"github.com/rancher/scc-operator/internal/suseconnect/offline"
 	"github.com/rancher/scc-operator/internal/types"
+	wranglerPolyfill "github.com/rancher/scc-operator/internal/wrangler/polyfill"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/controllers/helpers"
 	"github.com/rancher/scc-operator/pkg/controllers/shared"
@@ -106,13 +107,13 @@ func Register(
 	controller.initResolvers(ctx)
 
 	withinExpectedNamespaceCondition := func(_ string, obj runtime.Object) (bool, error) {
-		if !inExpectedNamespace(obj, systemNamespace) {
+		if !wranglerPolyfill.InExpectedNamespace(obj, systemNamespace) {
 			return false, nil
 		}
 		return true, nil
 	}
-	scopedOnChange(ctx, controllerID+"-secrets", withinExpectedNamespaceCondition, secretsRepo.Controller, controller.OnSecretChange)
-	scopedOnRemove(ctx, controllerID+"-secrets-remove", withinExpectedNamespaceCondition, secretsRepo.Controller, controller.OnSecretRemove)
+	wranglerPolyfill.ScopedOnChange(ctx, controllerID+"-secrets", withinExpectedNamespaceCondition, secretsRepo.Controller, controller.OnSecretChange)
+	wranglerPolyfill.ScopedOnRemove(ctx, controllerID+"-secrets-remove", withinExpectedNamespaceCondition, secretsRepo.Controller, controller.OnSecretRemove)
 
 	withinOperatorScopeCondition := func(_ string, obj runtime.Object) (bool, error) {
 		metaObj, err := meta.Accessor(obj)
@@ -122,8 +123,8 @@ func Register(
 
 		return helpers.ShouldManage(metaObj, managedByName), nil
 	}
-	scopedOnChange(ctx, controllerID, withinOperatorScopeCondition, registrations, controller.OnRegistrationChange)
-	scopedOnRemove(ctx, controllerID+"-remove", withinOperatorScopeCondition, registrations, controller.OnRegistrationRemove)
+	wranglerPolyfill.ScopedOnChange(ctx, controllerID, withinOperatorScopeCondition, registrations, controller.OnRegistrationChange)
+	wranglerPolyfill.ScopedOnRemove(ctx, controllerID+"-remove", withinOperatorScopeCondition, registrations, controller.OnRegistrationRemove)
 
 	cfg := setupCfg()
 	go controller.RunLifecycleManager(cfg)
