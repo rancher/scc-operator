@@ -7,6 +7,8 @@ import (
 )
 
 const (
+	// DefaultOperatorName TODO: in the future when this isn't very specific to `rancher` (the product) drop the `rancher-` prefix
+	DefaultOperatorName = "rancher-scc-operator"
 	DefaultSCCNamespace = "cattle-scc-system"
 )
 

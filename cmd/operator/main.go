@@ -20,9 +20,6 @@ import (
 	"github.com/rancher/scc-operator/pkg/util/log"
 )
 
-// TODO: in the future when this isn't very specific to `rancher` (the product) drop the `rancher-` prefix
-const defaultOperatorName = "rancher-scc-operator"
-
 var (
 	KubeConfig     string
 	LogFormat      string
@@ -42,9 +39,9 @@ func init() {
 
 	operatorName := os.Getenv("SCC_OPERATOR_NAME")
 	if operatorName == "" {
-		operatorName = defaultOperatorName
+		operatorName = consts.DefaultOperatorName
 	}
-	operatorNameUsage := fmt.Sprintf("Name of the operator. Defaults to %s", defaultOperatorName)
+	operatorNameUsage := fmt.Sprintf("Name of the operator. Defaults to %s", consts.DefaultOperatorName)
 	flag.StringVar(&OperatorName, "operator-name", operatorName, operatorNameUsage)
 
 	flag.BoolVar(&Debug, "debug", false, "Enable debug logging.")
