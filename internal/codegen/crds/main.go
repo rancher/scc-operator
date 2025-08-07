@@ -30,18 +30,6 @@ func main() {
 	// Remove empty CRD
 	cleanEmptyCRD("./pkg/crds/yaml/generated/_.yaml")
 
-	internalCmdArgs := append(baseControllerGenCmd(), []string{
-		"crd:generateEmbeddedObjectMeta=false,allowDangerousTypes=false",
-		"paths=./internal/rancher/apis/...",
-		"output:crd:dir=./internal/rancher/crds/yaml/generated",
-	}...)
-
-	fmt.Printf("Executing command: go %s\n", strings.Join(internalCmdArgs, " "))
-	runControllerGen(internalCmdArgs)
-
-	// Remove empty CRD
-	cleanEmptyCRD("./internal/rancher/crds/yaml/generated/_.yaml")
-
 	fmt.Println("controller-gen command executed successfully.")
 }
 

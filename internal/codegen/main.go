@@ -30,18 +30,4 @@ func main() {
 			},
 		},
 	})
-	controllergen.Run(args.Options{
-		OutputPackage: "github.com/rancher/scc-operator/internal/rancher/generated",
-		Boilerplate:   "scripts/boilerplate.go.txt",
-		Groups: map[string]args.Group{
-			"telemetry.cattle.io": {
-				PackageName: "telemetry.cattle.io",
-				Types: []interface{}{
-					"./internal/rancher/apis/telemetry.cattle.io/v1",
-				},
-				GenerateTypes:   true,
-				GenerateClients: true,
-			},
-		},
-	})
 }
