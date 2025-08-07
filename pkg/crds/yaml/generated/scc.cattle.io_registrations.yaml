@@ -123,7 +123,7 @@ spec:
                   lastValidatedTS:
                     format: date-time
                     type: string
-                  systemUrl:
+                  systemURL:
                     type: string
                 required:
                 - activated
@@ -182,7 +182,7 @@ spec:
               registrationProcessedTS:
                 format: date-time
                 type: string
-              sccSystemId:
+              sccSystemID:
                 type: integer
               systemCredentialsSecretRef:
                 description: |-

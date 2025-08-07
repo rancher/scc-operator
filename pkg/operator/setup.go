@@ -1,7 +1,6 @@
 package operator
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/rancher/scc-operator/internal/log"
-	"github.com/rancher/scc-operator/internal/repos/settingrepo"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
 )
@@ -41,12 +39,7 @@ func setup(wContext *wrangler.MiniContext, logger log.StructuredLogger) (*SccOpe
 		return nil, fmt.Errorf("failed to get kube-system namespace: %v", kubeNsErr)
 	}
 
-	rancherUUID := settingrepo.GetRancherInstallUUID(wContext.Settings)
-	if rancherUUID == "" {
-		err := errors.New("no rancher uuid found")
-		logger.Fatalf("Error getting rancher uuid: %v", err)
-		return nil, err
-	}
+	// todo: replace rancher UUID startup info
 
 	sccResources, err := scc.NewFactoryFromConfig(wContext.RESTConfig)
 	if err != nil {
@@ -54,10 +47,12 @@ func setup(wContext *wrangler.MiniContext, logger log.StructuredLogger) (*SccOpe
 		return nil, err
 	}
 	// Validate that the UUID is in the correct format
-	_, rancherUUIDErr := uuid.Parse(rancherUUID)
+	//_, rancherUUIDErr := uuid.Parse(rancherUUID)
 	_, kubeUUIDErr := uuid.Parse(string(kubeSystemNS.UID))
 
-	if rancherUUIDErr != nil || kubeUUIDErr != nil {
+	// TODO: cleanup
+	rancherUUID := "<DEBUG>"
+	if kubeUUIDErr != nil {
 		return nil, fmt.Errorf("invalid UUID format: rancherUUID=%s, kubeSystemNS.UID=%s", rancherUUID, string(kubeSystemNS.UID))
 	}
 

@@ -285,7 +285,7 @@ func schema_pkg_apis_scccattleio_v1_RegistrationStatus(ref common.ReferenceCallb
 							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
-					"sccSystemId": {
+					"sccSystemID": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"integer"},
 							Format: "int32",
@@ -344,7 +344,7 @@ func schema_pkg_apis_scccattleio_v1_SystemActivationState(ref common.ReferenceCa
 							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
-					"systemUrl": {
+					"systemURL": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",

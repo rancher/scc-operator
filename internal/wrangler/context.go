@@ -8,7 +8,7 @@ import (
 	lasso "github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/lasso/pkg/mapper"
-	managementv3api "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	v1core "github.com/rancher/wrangler/v3/pkg/generated/controllers/core"
 	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/rancher/wrangler/v3/pkg/generic"
@@ -25,17 +25,14 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
-	"github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io"
-	mgmtv3 "github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io/v3"
 	"github.com/rancher/scc-operator/internal/repos/secretrepo"
-	"github.com/rancher/scc-operator/internal/repos/settingrepo"
-	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
+	sccControllers "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
 	sccv1 "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 )
 
 var (
 	localSchemeBuilder = runtime.SchemeBuilder{
-		managementv3api.AddToScheme,
+		v1.AddToScheme,
 		scheme.AddToScheme,
 	}
 	AddToScheme = localSchemeBuilder.AddToScheme
@@ -58,12 +55,10 @@ type MiniContext struct {
 	Mapper            meta.RESTMapper
 	ClientSet         *clientset.Clientset
 
-	Mgmt mgmtv3.Interface
 	Core corev1.Interface
 	SCC  sccv1.Interface
 
-	Secrets  *secretrepo.SecretRepository
-	Settings *settingrepo.SettingRepository
+	Secrets *secretrepo.SecretRepository
 
 	leadership     *leader.Manager
 	controllerLock *sync.Mutex
@@ -115,21 +110,13 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNam
 		return MiniContext{}, fmt.Errorf("error building core sample controllers: %s", err.Error())
 	}
 
-	sccFactory, err := scc.NewFactoryFromConfigWithOptions(restConfig, opts)
+	sccFactory, err := sccControllers.NewFactoryFromConfigWithOptions(restConfig, opts)
 	if err != nil {
 		return MiniContext{}, err
 	}
-
-	mgmtFactory, err := management.NewFactoryFromConfigWithOptions(restConfig, opts)
-	if err != nil {
-		return MiniContext{}, err
-	}
-
-	mgmtInterface := mgmtFactory.Management().V3()
 
 	coreInterface := coreF.Core().V1()
 	secretRepo := secretrepo.NewSecretRepository(coreInterface.Secret(), coreInterface.Secret().Cache())
-	settingRepo := settingrepo.NewSettingRepository(mgmtInterface.Setting(), mgmtInterface.Setting().Cache())
 
 	k8s, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
@@ -150,12 +137,10 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNam
 		Mapper:            restmapper,
 		ClientSet:         clientSet,
 
-		Mgmt: mgmtInterface,
 		Core: coreInterface,
 		SCC:  sccFactory.Scc().V1(),
 
-		Secrets:  secretRepo,
-		Settings: settingRepo,
+		Secrets: secretRepo,
 
 		leadership:     leadership,
 		controllerLock: &sync.Mutex{},

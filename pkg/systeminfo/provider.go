@@ -2,8 +2,7 @@ package systeminfo
 
 import (
 	"github.com/google/uuid"
-	v3 "github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io/v3"
-	"github.com/rancher/scc-operator/internal/repos/settingrepo"
+	"github.com/rancher/scc-operator/internal/rancher"
 )
 
 const (
@@ -14,8 +13,6 @@ const (
 type InfoProvider struct {
 	rancherUuid uuid.UUID
 	clusterUuid uuid.UUID
-	settings    *settingrepo.SettingRepository
-	nodeCache   v3.NodeCache
 }
 
 // GetProductIdentifier returns a triple of product ID, version and CPU architecture
@@ -30,10 +27,10 @@ func (i *InfoProvider) GetProductIdentifier() (string, string, string) {
 // ServerUrl returns the Rancher server URL
 func (i *InfoProvider) serverUrl() string {
 	// Find setting from outside rancher
-	return settingrepo.GetServerURL(i.settings)
+	return rancher.GetServerURL()
 }
 
 func (i *InfoProvider) ServerHostname() string {
-	serverHostname := settingrepo.ServerHostname(i.settings)
+	serverHostname := rancher.ServerHostname()
 	return serverHostname
 }
