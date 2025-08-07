@@ -7,17 +7,22 @@ import (
 	"strings"
 )
 
-func main() {
-	// Define controller-gen command and arguments
-	cmdArgs := []string{
+func baseControllerGenCmd() []string {
+	return []string{
 		"tool",
 		"-modfile",
 		"gotools/controller-gen/go.mod",
 		"controller-gen",
+	}
+}
+
+func main() {
+	// Define controller-gen command and arguments
+	cmdArgs := append(baseControllerGenCmd(), []string{
 		"crd:generateEmbeddedObjectMeta=true,allowDangerousTypes=false",
 		"paths=./pkg/apis/...",
 		"output:crd:dir=./pkg/crds/yaml/generated",
-	}
+	}...)
 
 	fmt.Printf("Executing command: go %s\n", strings.Join(cmdArgs, " "))
 	runControllerGen(cmdArgs)
@@ -25,15 +30,11 @@ func main() {
 	// Remove empty CRD
 	cleanEmptyCRD("./pkg/crds/yaml/generated/_.yaml")
 
-	internalCmdArgs := []string{
-		"tool",
-		"-modfile",
-		"gotools/controller-gen/go.mod",
-		"controller-gen",
-		"crd:generateEmbeddedObjectMeta=true,allowDangerousTypes=false",
+	internalCmdArgs := append(baseControllerGenCmd(), []string{
+		"crd:generateEmbeddedObjectMeta=false,allowDangerousTypes=false",
 		"paths=./internal/rancher/apis/...",
 		"output:crd:dir=./internal/rancher/crds/yaml/generated",
-	}
+	}...)
 
 	fmt.Printf("Executing command: go %s\n", strings.Join(internalCmdArgs, " "))
 	runControllerGen(internalCmdArgs)

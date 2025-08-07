@@ -41,10 +41,7 @@ func main() {
 				},
 				GenerateTypes:   true,
 				GenerateClients: true,
-				GenerateOpenAPI: true,
-				OpenAPIDependencies: []string{
-					"k8s.io/apimachinery/pkg/apis/meta/v1",
-				},
+				GenerateOpenAPI: false,
 			},
 		},
 	})
