@@ -23,14 +23,11 @@ import (
 	"github.com/rancher/scc-operator/internal/suseconnect"
 	"github.com/rancher/scc-operator/internal/suseconnect/credentials"
 	"github.com/rancher/scc-operator/internal/suseconnect/offline"
-	"github.com/rancher/scc-operator/internal/telemetry"
-	metricsSecret "github.com/rancher/scc-operator/internal/telemetry/secret"
 	"github.com/rancher/scc-operator/internal/types"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/controllers/helpers"
 	"github.com/rancher/scc-operator/pkg/controllers/shared"
 	registrationControllers "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
-	"github.com/rancher/scc-operator/pkg/systeminfo"
 	"github.com/rancher/scc-operator/pkg/util/log"
 )
 
@@ -78,43 +75,31 @@ type SCCHandler interface {
 }
 
 type handler struct {
-	ctx                  context.Context
-	log                  *logrus.Entry
-	registrations        registrationControllers.RegistrationController
-	registrationCache    registrationControllers.RegistrationCache
-	secretRepo           *secretrepo.SecretRepository
-	systemInfoExporter   *systeminfo.InfoExporter
-	managedByName        string
-	systemNamespace      string
-	metricsSecretManager *metricsSecret.MetricsSecretManager
+	ctx               context.Context
+	log               *logrus.Entry
+	registrations     registrationControllers.RegistrationController
+	registrationCache registrationControllers.RegistrationCache
+	secretRepo        *secretrepo.SecretRepository
+	managedByName     string
+	systemNamespace   string
 }
 
+// Register will setup the SCC registration CRDs controllers (and related secret controllers)
+// TODO: pull out secret stuff to their own controller
 func Register(
 	ctx context.Context,
 	managedByName, systemNamespace string,
 	registrations registrationControllers.RegistrationController,
 	secretsRepo *secretrepo.SecretRepository,
-	rancherTelemetry telemetry.TelemetryGatherer,
-	systemInfoProvider *systeminfo.InfoProvider,
 ) {
-	metricsSecretManager := metricsSecret.New(systemNamespace, secretsRepo)
-	systemInfoExporter := systeminfo.NewInfoExporter(
-		systemInfoProvider,
-		rancherTelemetry,
-		log.NewLog().WithField("subcomponent", "systeminfo-exporter"),
-		metricsSecretManager,
-	)
-
 	controller := &handler{
-		log:                  log.NewControllerLogger("registration-controller"),
-		ctx:                  ctx,
-		registrations:        registrations,
-		registrationCache:    registrations.Cache(),
-		secretRepo:           secretsRepo,
-		systemInfoExporter:   systemInfoExporter,
-		managedByName:        managedByName,
-		systemNamespace:      systemNamespace,
-		metricsSecretManager: metricsSecretManager,
+		log:               log.NewControllerLogger("registration-controller"),
+		ctx:               ctx,
+		registrations:     registrations,
+		registrationCache: registrations.Cache(),
+		secretRepo:        secretsRepo,
+		managedByName:     managedByName,
+		systemNamespace:   systemNamespace,
 	}
 
 	controller.initIndexers()
@@ -159,9 +144,8 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration) SCCHandler {
 		offlineRequestSecretName := consts.OfflineRequestSecretName(nameSuffixHash)
 		offlineCertSecretName := consts.OfflineCertificateSecretName(nameSuffixHash)
 		return sccOfflineMode{
-			registration:       registrationObj,
-			log:                h.log.WithField("regHandler", "offline"),
-			systemInfoExporter: h.systemInfoExporter,
+			registration: registrationObj,
+			log:          h.log.WithField("regHandler", "offline"),
 			offlineSecrets: offline.New(
 				h.systemNamespace,
 				offlineRequestSecretName,
@@ -185,9 +169,8 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration) SCCHandler {
 			h.secretRepo,
 			defaultLabels,
 		),
-		systemInfoExporter: h.systemInfoExporter,
-		systemNamespace:    h.systemNamespace,
-		secretRepo:         h.secretRepo,
+		systemNamespace: h.systemNamespace,
+		secretRepo:      h.secretRepo,
 	}
 }
 
@@ -514,7 +497,8 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		return nil, nil
 	}
 
-	if !h.systemInfoExporter.Provider().IsServerUrlReady() {
+	// TODO: replace with new ready verification method
+	if false {
 		h.log.Info("Server URL not set")
 		return registrationObj, errors.New("no server url found in the system info")
 	}
@@ -738,11 +722,6 @@ func (h *handler) OnRegistrationRemove(name string, registrationObj *v1.Registra
 	err := h.registrations.Delete(name, &metav1.DeleteOptions{})
 	if err != nil {
 		return registrationObj, err
-	}
-
-	cleanupErr := h.metricsSecretManager.Remove()
-	if cleanupErr != nil {
-		return registrationObj, cleanupErr
 	}
 
 	return nil, nil

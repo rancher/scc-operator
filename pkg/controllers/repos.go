@@ -21,6 +21,7 @@ func (h *handler) patchUpdateRegistration(incoming, target *v1.Registration) (*v
 		return incoming, err
 	}
 
+	// TODO: debug why this patch is causing issue snow
 	patch, err := jsonpatch.CreateMergePatch(incomingJSON, newJSON)
 	if err != nil {
 		return incoming, err

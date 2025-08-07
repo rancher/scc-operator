@@ -12,16 +12,14 @@ import (
 	"github.com/rancher/scc-operator/internal/types"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/controllers/shared"
-	"github.com/rancher/scc-operator/pkg/systeminfo"
 	"github.com/rancher/scc-operator/pkg/systeminfo/offline"
 )
 
 type sccOfflineMode struct {
-	registration       *v1.Registration
-	log                rootLog.StructuredLogger
-	systemInfoExporter *systeminfo.InfoExporter
-	offlineSecrets     *offlineSecrets.SecretManager
-	systemNamespace    string
+	registration    *v1.Registration
+	log             rootLog.StructuredLogger
+	offlineSecrets  *offlineSecrets.SecretManager
+	systemNamespace string
 }
 
 func (s sccOfflineMode) NeedsRegistration(registrationObj *v1.Registration) bool {
@@ -44,7 +42,8 @@ func (s sccOfflineMode) PrepareForRegister(registrationObj *v1.Registration) (*v
 }
 
 func (s sccOfflineMode) RefreshOfflineRequestSecret() error {
-	sccWrapper := suseconnect.OfflineRancherRegistration(s.systemInfoExporter)
+	// TODO: sort out something other than nil
+	sccWrapper := suseconnect.OfflineRancherRegistration(nil)
 	generatedOfflineRegistrationRequest, err := sccWrapper.PrepareOfflineRegistrationRequest()
 	if err != nil {
 		return err
@@ -102,7 +101,7 @@ func (s sccOfflineMode) Activate(_ *v1.Registration) error {
 		return fmt.Errorf("activate failed, cannot prepare offline certificate: %w", certErr)
 	}
 
-	offlineCertValidator := offline.New(offlineCert, s.systemInfoExporter)
+	offlineCertValidator := offline.New(offlineCert, nil)
 
 	return offlineCertValidator.ValidateCertificate()
 }
@@ -160,7 +159,7 @@ func (s sccOfflineMode) Keepalive(registrationObj *v1.Registration) error {
 		return fmt.Errorf("activate failed, cannot prepare offline certificate: %w", certErr)
 	}
 
-	offlineCertValidator := offline.New(offlineCert, s.systemInfoExporter)
+	offlineCertValidator := offline.New(offlineCert, nil)
 	validateErr := offlineCertValidator.ValidateCertificate()
 	if validateErr != nil {
 		return fmt.Errorf("activate failed, cannot validate offline certificate: %w", validateErr)
@@ -170,7 +169,7 @@ func (s sccOfflineMode) Keepalive(registrationObj *v1.Registration) error {
 }
 
 func (s sccOfflineMode) PrepareKeepaliveSucceeded(registrationObj *v1.Registration) (*v1.Registration, error) {
-	sccWrapper := suseconnect.OfflineRancherRegistration(s.systemInfoExporter)
+	sccWrapper := suseconnect.OfflineRancherRegistration(nil)
 	generatedOfflineRegistrationRequest, err := sccWrapper.PrepareOfflineRegistrationRequest()
 	if err != nil {
 		return registrationObj, err

@@ -10,12 +10,10 @@ import (
 
 	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/rancher/scc-operator/internal/log"
-	"github.com/rancher/scc-operator/internal/telemetry"
 	"github.com/rancher/scc-operator/internal/types"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/crds"
 	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
-	"github.com/rancher/scc-operator/pkg/systeminfo"
 )
 
 type SccOperator struct {
@@ -23,7 +21,6 @@ type SccOperator struct {
 	log                log.StructuredLogger
 	sccResourceFactory *scc.Factory
 	secrets            corev1.SecretController
-	rancherTelemetry   telemetry.TelemetryGatherer
 }
 
 func New(
@@ -57,13 +54,10 @@ func New(
 		return nil, fmt.Errorf("failed to ensure required CRDs: %w", ensureCrdErr)
 	}
 
-	infoProvider := systeminfo.NewInfoProvider(wContext.Settings, wContext.Mgmt.Node().Cache())
-
 	return &SccStarter{
 		context:                 ctx,
 		wrangler:                wContext,
 		log:                     operatorLogger.WithField("component", "scc-starter"),
-		systemInfoProvider:      infoProvider,
 		systemRegistrationReady: make(chan struct{}),
 	}, nil
 }

@@ -11,14 +11,13 @@ import (
 	rootLog "github.com/rancher/scc-operator/internal/log"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/controllers"
-	"github.com/rancher/scc-operator/pkg/systeminfo"
 )
 
 type SccStarter struct {
-	context                 context.Context
-	wrangler                wrangler.MiniContext
-	log                     rootLog.StructuredLogger
-	systemInfoProvider      *systeminfo.InfoProvider
+	context  context.Context
+	wrangler wrangler.MiniContext
+	log      rootLog.StructuredLogger
+	// TODO: removing systemInfoProvider, do we replace it with something else?
 	systemRegistrationReady chan struct{}
 }
 
@@ -29,13 +28,11 @@ func (s *SccStarter) waitForSystemReady(onSystemReady func()) {
 	// Currently we only wait for ServerUrl not being empty, this is a good start as without the URL we cannot start.
 	// However, we should also consider other state that we "need" to register with SCC like metrics about nodes/clusters.
 	defer onSystemReady()
-	if s.systemInfoProvider != nil && s.systemInfoProvider.CanStartSccOperator() {
-		close(s.systemRegistrationReady)
-		return
-	}
+
 	s.log.Info("Waiting for server-url and/or local cluster to be ready")
 	wait.Until(func() {
-		if s.systemInfoProvider != nil && s.systemInfoProvider.CanStartSccOperator() {
+		// TODO: determine what the new start condition is...
+		if false {
 			s.log.Info("can now start controllers; server URL and local cluster are now ready.")
 			close(s.systemRegistrationReady)
 		} else {
@@ -47,7 +44,7 @@ func (s *SccStarter) waitForSystemReady(onSystemReady func()) {
 func (s *SccStarter) SetupControllers() error {
 	go s.waitForSystemReady(func() {
 		s.log.Debug("Setting up SCC Operator")
-		initOperator, err := setup(&s.wrangler, s.log, s.systemInfoProvider)
+		initOperator, err := setup(&s.wrangler, s.log)
 		if err != nil {
 			s.log.Errorf("error setting up scc operator: %s", err.Error())
 		}
@@ -58,8 +55,6 @@ func (s *SccStarter) SetupControllers() error {
 			initializer.SystemNamespace.Get(),
 			initOperator.sccResourceFactory.Scc().V1().Registration(),
 			s.wrangler.Secrets,
-			initOperator.rancherTelemetry,
-			s.systemInfoProvider,
 		)
 
 		if startErr := start.All(s.context, 2, initOperator.sccResourceFactory); startErr != nil {

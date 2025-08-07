@@ -2,11 +2,8 @@ package systeminfo
 
 import (
 	"github.com/google/uuid"
-	"k8s.io/apimachinery/pkg/labels"
-
 	v3 "github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io/v3"
 	"github.com/rancher/scc-operator/internal/repos/settingrepo"
-	//"github.com/rancher/rancher/pkg/settings"
 )
 
 const (
@@ -21,22 +18,6 @@ type InfoProvider struct {
 	nodeCache   v3.NodeCache
 }
 
-func NewInfoProvider(
-	settings *settingrepo.SettingRepository,
-	nodeCache v3.NodeCache,
-) *InfoProvider {
-	return &InfoProvider{
-		settings:  settings,
-		nodeCache: nodeCache,
-	}
-}
-
-func (i *InfoProvider) SetUuids(rancherUuid uuid.UUID, clusterUuid uuid.UUID) *InfoProvider {
-	i.rancherUuid = rancherUuid
-	i.clusterUuid = clusterUuid
-	return i
-}
-
 // GetProductIdentifier returns a triple of product ID, version and CPU architecture
 func (i *InfoProvider) GetProductIdentifier() (string, string, string) {
 	// Rancher always returns "rancher" as product, and "unknown" as the architecture
@@ -46,31 +27,10 @@ func (i *InfoProvider) GetProductIdentifier() (string, string, string) {
 	return RancherProductIdentifier, SCCSafeVersion(), RancherCPUArch
 }
 
-func (i *InfoProvider) IsLocalReady() bool {
-	localNodes, nodesErr := i.nodeCache.List("local", labels.Everything())
-	// TODO: should this also check status of nodes and only count ready/healthy nodes?
-	if nodesErr == nil && len(localNodes) > 0 {
-		return true
-	}
-
-	return false
-}
-
-// CanStartSccOperator determines when the SCC operator should fully start
-// Currently this waits for a valid Server URL to be configured and the local cluster to appear ready
-func (i *InfoProvider) CanStartSccOperator() bool {
-	return i.IsServerUrlReady() && i.IsLocalReady()
-}
-
 // ServerUrl returns the Rancher server URL
 func (i *InfoProvider) serverUrl() string {
 	// Find setting from outside rancher
 	return settingrepo.GetServerURL(i.settings)
-}
-
-func (i *InfoProvider) IsServerUrlReady() bool {
-	serverUrl := i.serverUrl()
-	return serverUrl != ""
 }
 
 func (i *InfoProvider) ServerHostname() string {
