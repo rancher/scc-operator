@@ -6,54 +6,80 @@ import (
 	"reflect"
 
 	"github.com/rancher/scc-operator/internal/consts"
-	v1 "github.com/rancher/scc-operator/internal/rancher/apis/telemetry.cattle.io/v1"
-	telemetryV1 "github.com/rancher/scc-operator/internal/rancher/generated/controllers/telemetry.cattle.io/v1"
 	"github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 )
 
 type SecretRequester struct {
-	secretRequests telemetryV1.SecretRequestController
-	labels         map[string]string
+	labels                     map[string]string
+	secretRequestDynamicClient dynamic.NamespaceableResourceInterface
 }
 
-func NewSecretRequester(secretRequests telemetryV1.SecretRequestController, labels map[string]string) *SecretRequester {
+func NewSecretRequester(
+	labels map[string]string,
+	dynamicClient dynamic.Interface,
+) *SecretRequester {
 	return &SecretRequester{
-		secretRequests: secretRequests,
-		labels:         labels,
+		labels:                     labels,
+		secretRequestDynamicClient: dynamicClient.Resource(telemetrySecretRequestGVR()),
 	}
 }
 
-func (s *SecretRequester) prepareSecretRequest() *v1.SecretRequest {
-	secretRef := corev1.SecretReference{
-		Namespace: consts.DefaultSCCNamespace,
-		Name:      consts.SCCMetricsOutputSecretName,
-	}
-	return &v1.SecretRequest{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   consts.SCCMetricsOutputSecretName,
-			Labels: s.labels,
-		},
-		Spec: v1.SecretRequestSpec{
-			SecretType:      "scc",
-			TargetSecretRef: &secretRef,
-		},
+const (
+	RancherTelemetryGroup                 = "telemetry.cattle.io"
+	RancherTelemetryVersion               = "v1"
+	RancherTelemetrySecretRequestResource = "secretrequests"
+)
+
+func telemetrySecretRequestGVR() schema.GroupVersionResource {
+	return schema.GroupVersionResource{
+		Group:    RancherTelemetryGroup,
+		Version:  RancherTelemetryVersion,
+		Resource: RancherTelemetrySecretRequestResource,
 	}
 }
 
-func (s *SecretRequester) EnsureSecretRequest(_ context.Context) error {
-	desiredSecretRequest := s.prepareSecretRequest()
+func (s *SecretRequester) prepareSecretRequestUnstructured() *unstructured.Unstructured {
+	gvr := telemetrySecretRequestGVR()
+	desiredSecretRequest := unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": gvr.GroupVersion().Identifier(),
+			"kind":       "SecretRequest",
+			"metadata": map[string]interface{}{
+				"name": consts.SCCMetricsOutputSecretName,
+			},
+			"spec": map[string]interface{}{
+				"secretType": "scc",
+				"targetSecretRef": map[string]interface{}{
+					"namespace": consts.DefaultSCCNamespace,
+					"name":      consts.SCCMetricsOutputSecretName,
+				},
+			},
+		},
+	}
+	desiredSecretRequest.SetFinalizers([]string{
+		consts.FinalizerSccMetricsSecretRequest,
+	})
+	desiredSecretRequest.SetLabels(s.labels)
+
+	return &desiredSecretRequest
+}
+
+func (s *SecretRequester) EnsureSecretRequest(ctx context.Context) error {
+	desiredSecretRequest := s.prepareSecretRequestUnstructured()
 	logrus.Debug(desiredSecretRequest)
 
-	existing, getErr := s.secretRequests.Get(consts.SCCMetricsOutputSecretName, metav1.GetOptions{})
+	existing, getErr := s.secretRequestDynamicClient.Get(ctx, desiredSecretRequest.GetName(), metav1.GetOptions{})
 	if getErr != nil && !errors.IsNotFound(getErr) {
 		return fmt.Errorf("get secret request %s failed: %w", consts.SCCMetricsOutputSecretName, getErr)
 	}
 
 	if errors.IsNotFound(getErr) {
-		_, err := s.secretRequests.Create(desiredSecretRequest)
+		_, err := s.secretRequestDynamicClient.Create(ctx, desiredSecretRequest, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("create secret request %s failed: %w", consts.SCCMetricsOutputSecretName, err)
 		}

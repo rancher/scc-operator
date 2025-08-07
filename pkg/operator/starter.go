@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/rancher"
 	"github.com/rancher/scc-operator/internal/telemetry"
 	"github.com/rancher/wrangler/v3/pkg/start"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -16,18 +17,34 @@ import (
 )
 
 type SccStarter struct {
-	context  context.Context
-	wrangler wrangler.MiniContext
-	log      rootLog.StructuredLogger
-	// TODO: removing systemInfoProvider, do we replace it with something else?
+	context                 context.Context
+	wrangler                wrangler.MiniContext
+	log                     rootLog.StructuredLogger
 	systemRegistrationReady chan struct{}
+}
+
+func (s *SccStarter) CanStartSccOperator() bool {
+	// TODO: add back the condition for local cluster?
+	return s.isServerUrlReady() && s.hasSccMetricsSecretPopulated()
+}
+
+func (s *SccStarter) isServerUrlReady() bool {
+	serverUrl := rancher.GetServerURL(s.context, s.wrangler.Settings)
+	return serverUrl != ""
+}
+
+func (s *SccStarter) hasSccMetricsSecretPopulated() bool {
+	return s.wrangler.Secrets.HasSecret(consts.DefaultSCCNamespace, consts.SCCMetricsOutputSecretName)
 }
 
 func (s *SccStarter) EnsureMetricsSecretRequest(ctx context.Context) error {
 	labels := map[string]string{
 		consts.LabelK8sManagedBy: consts.DefaultOperatorName,
 	}
-	metricsRequester := telemetry.NewSecretRequester(s.wrangler.Telemetry.SecretRequest(), labels)
+	metricsRequester := telemetry.NewSecretRequester(
+		labels,
+		s.wrangler.Dynamic,
+	)
 	return metricsRequester.EnsureSecretRequest(ctx)
 }
 
@@ -35,15 +52,18 @@ func (s *SccStarter) waitForSystemReady(onSystemReady func()) {
 	// Currently we only wait for ServerUrl not being empty, this is a good start as without the URL we cannot start.
 	// However, we should also consider other state that we "need" to register with SCC like metrics about nodes/clusters.
 	defer onSystemReady()
+	if s.CanStartSccOperator() {
+		close(s.systemRegistrationReady)
+		return
+	}
 
-	s.log.Info("Waiting for server-url and/or local cluster to be ready")
+	s.log.Info("Waiting for server-url and/or initial metrics to be ready")
 	wait.Until(func() {
-		// TODO: determine what the new start condition is...
-		if false {
-			s.log.Info("can now start controllers; server URL and local cluster are now ready.")
+		if s.CanStartSccOperator() {
+			s.log.Info("can now start controllers; server URL and initial metrics are now ready.")
 			close(s.systemRegistrationReady)
 		} else {
-			s.log.Info("cannot start controllers yet; server URL and/or local cluster are not ready.")
+			s.log.Info("cannot start controllers yet; server URL and/or initial metrics are not ready.")
 		}
 	}, 15*time.Second, s.systemRegistrationReady)
 }
@@ -51,7 +71,7 @@ func (s *SccStarter) waitForSystemReady(onSystemReady func()) {
 func (s *SccStarter) SetupControllers() error {
 	go s.waitForSystemReady(func() {
 		s.log.Debug("Setting up SCC Operator")
-		initOperator, err := setup(&s.wrangler, s.log)
+		initOperator, err := setup(s.context, &s.wrangler, s.log)
 		if err != nil {
 			s.log.Errorf("error setting up scc operator: %s", err.Error())
 		}

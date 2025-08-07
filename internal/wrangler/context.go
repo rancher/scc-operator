@@ -8,6 +8,7 @@ import (
 	lasso "github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/lasso/pkg/mapper"
+	"github.com/rancher/scc-operator/internal/rancher/settings"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	v1core "github.com/rancher/wrangler/v3/pkg/generated/controllers/core"
 	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
@@ -60,8 +61,9 @@ type MiniContext struct {
 	Core      corev1.Interface
 	SCC       sccv1.Interface
 	Telemetry telemetryv1.Interface
+	Secrets   *secretrepo.SecretRepository
 
-	Secrets *secretrepo.SecretRepository
+	Settings *settings.SettingReader
 
 	leadership     *leader.Manager
 	controllerLock *sync.Mutex
@@ -85,7 +87,7 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNam
 		return MiniContext{}, fmt.Errorf("error getting clientSet: %s", err.Error())
 	}
 
-	dynamicInterface, err := dynamic.NewForConfig(restConfig)
+	dynamicClient, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		return MiniContext{}, fmt.Errorf("error generating dynamic client: %s", err.Error())
 	}
@@ -141,7 +143,7 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNam
 
 		ClientSet:         clientSet,
 		ControllerFactory: controllerFactory,
-		Dynamic:           dynamicInterface,
+		Dynamic:           dynamicClient,
 		K8sClient:         k8sClient,
 		Mapper:            restMapper,
 		SharedFactory:     sharedClientFactory,
@@ -150,6 +152,8 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNam
 		Telemetry: telemetryFactory.Telemetry().V1(),
 		SCC:       sccFactory.Scc().V1(),
 		Secrets:   secretRepo,
+
+		Settings: settings.NewSettingReader(dynamicClient),
 
 		leadership:     leadership,
 		controllerLock: &sync.Mutex{},
@@ -160,7 +164,7 @@ func (c *MiniContext) Start(ctx context.Context) error {
 	c.controllerLock.Lock()
 	defer c.controllerLock.Unlock()
 
-	if err := c.ControllerFactory.Start(ctx, 50); err != nil {
+	if err := c.ControllerFactory.Start(ctx, 10); err != nil {
 		return err
 	}
 	c.leadership.Start(ctx)
