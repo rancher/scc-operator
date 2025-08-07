@@ -89,7 +89,7 @@ type handler struct {
 // TODO: pull out secret stuff to their own controller
 func Register(
 	ctx context.Context,
-	managedByName, systemNamespace string,
+	options *types.RunOptions,
 	registrations registrationControllers.RegistrationController,
 	secretsRepo *secretrepo.SecretRepository,
 ) {
@@ -99,15 +99,15 @@ func Register(
 		registrations:     registrations,
 		registrationCache: registrations.Cache(),
 		secretRepo:        secretsRepo,
-		managedByName:     managedByName,
-		systemNamespace:   systemNamespace,
+		managedByName:     options.OperatorName,
+		systemNamespace:   options.SystemNamespace,
 	}
 
 	controller.initIndexers()
 	controller.initResolvers(ctx)
 
 	withinExpectedNamespaceCondition := func(_ string, obj runtime.Object) (bool, error) {
-		if !wranglerPolyfill.InExpectedNamespace(obj, systemNamespace) {
+		if !wranglerPolyfill.InExpectedNamespace(obj, controller.systemNamespace) {
 			return false, nil
 		}
 		return true, nil
@@ -121,7 +121,7 @@ func Register(
 			return false, err
 		}
 
-		return helpers.ShouldManage(metaObj, managedByName), nil
+		return helpers.ShouldManage(metaObj, controller.managedByName), nil
 	}
 	wranglerPolyfill.ScopedOnChange(ctx, controllerID, withinOperatorScopeCondition, registrations, controller.OnRegistrationChange)
 	wranglerPolyfill.ScopedOnRemove(ctx, controllerID+"-remove", withinOperatorScopeCondition, registrations, controller.OnRegistrationRemove)

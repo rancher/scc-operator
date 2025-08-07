@@ -83,10 +83,16 @@ func main() {
 	dm := os.Getenv("CATTLE_DEV_MODE")
 	initializer.DevMode.Set(dm != "")
 	runOptions := types.RunOptions{
-		Logger:         logger,
-		OperatorName:   OperatorName,
-		SccNamespace:   SCCNamespace,
-		LeaseNamespace: LeaseNamespace,
+		Logger:       logger,
+		OperatorName: OperatorName,
+		DevMode:      initializer.DevMode.Get(),
+		OperatorMetadata: types.OperatorMetadata{
+			Version:   version.Version,
+			GitCommit: version.GitCommit,
+			BuildDate: version.Date,
+		},
+		SystemNamespace: SCCNamespace,
+		LeaseNamespace:  LeaseNamespace,
 	}
 
 	if err := run(ctx, restKubeConfig, runOptions); err != nil {

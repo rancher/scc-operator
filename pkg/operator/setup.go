@@ -7,12 +7,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rancher/scc-operator/internal/rancher"
+	"github.com/rancher/scc-operator/internal/types"
 	k8sv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 
-	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/rancher/scc-operator/internal/log"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
@@ -20,8 +20,9 @@ import (
 
 func setup(
 	ctx context.Context,
-	wContext *wrangler.MiniContext,
 	logger log.StructuredLogger,
+	options *types.RunOptions,
+	wContext *wrangler.MiniContext,
 ) (*SccOperator, error) {
 	namespaces := wContext.Core.Namespace()
 	var kubeSystemNS *k8sv1.Namespace
@@ -67,8 +68,8 @@ func setup(
 	}
 
 	return &SccOperator{
-		devMode:            initializer.DevMode.Get(),
 		log:                logger,
+		options:            options,
 		sccResourceFactory: sccResources,
 		secrets:            wContext.Core.Secret(),
 	}, nil

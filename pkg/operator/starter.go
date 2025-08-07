@@ -7,10 +7,10 @@ import (
 	"github.com/rancher/scc-operator/internal/consts"
 	"github.com/rancher/scc-operator/internal/rancher"
 	"github.com/rancher/scc-operator/internal/telemetry"
+	"github.com/rancher/scc-operator/internal/types"
 	"github.com/rancher/wrangler/v3/pkg/start"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/rancher/scc-operator/internal/initializer"
 	rootLog "github.com/rancher/scc-operator/internal/log"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/controllers"
@@ -21,10 +21,10 @@ type SccStarter struct {
 	wrangler                wrangler.MiniContext
 	log                     rootLog.StructuredLogger
 	systemRegistrationReady chan struct{}
+	options                 types.RunOptions
 }
 
 func (s *SccStarter) CanStartSccOperator() bool {
-	// TODO: add back the condition for local cluster?
 	return s.isServerUrlReady() && s.hasSccMetricsSecretPopulated()
 }
 
@@ -71,15 +71,14 @@ func (s *SccStarter) waitForSystemReady(onSystemReady func()) {
 func (s *SccStarter) SetupControllers() error {
 	go s.waitForSystemReady(func() {
 		s.log.Debug("Setting up SCC Operator")
-		initOperator, err := setup(s.context, &s.wrangler, s.log)
+		initOperator, err := setup(s.context, s.log, &s.options, &s.wrangler)
 		if err != nil {
 			s.log.Errorf("error setting up scc operator: %s", err.Error())
 		}
 
 		controllers.Register(
 			s.context,
-			initializer.OperatorName.Get(),
-			initializer.SystemNamespace.Get(),
+			&s.options,
 			initOperator.sccResourceFactory.Scc().V1().Registration(),
 			s.wrangler.Secrets,
 		)

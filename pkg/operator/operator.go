@@ -21,6 +21,7 @@ type SccOperator struct {
 	log                log.StructuredLogger
 	sccResourceFactory *scc.Factory
 	secrets            corev1.SecretController
+	options            *types.RunOptions
 }
 
 func New(
@@ -34,7 +35,7 @@ func New(
 	if err := options.Validate(); err != nil {
 		return nil, err
 	}
-	initializer.SystemNamespace.Set(options.SccNamespace)
+	initializer.SystemNamespace.Set(options.SystemNamespace)
 	initializer.OperatorName.Set(options.OperatorName)
 
 	kubeconfig.RateLimiter = ratelimit.None
@@ -56,6 +57,7 @@ func New(
 
 	return &SccStarter{
 		context:                 ctx,
+		options:                 options,
 		wrangler:                wContext,
 		log:                     operatorLogger.WithField("component", "scc-starter"),
 		systemRegistrationReady: make(chan struct{}),
