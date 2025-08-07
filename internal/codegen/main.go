@@ -30,22 +30,22 @@ func main() {
 			},
 		},
 	})
-	/*
-		# stop using r/r code in this operator
-		controllergen.Run(args.Options{
-			OutputPackage: "github.com/rancher/scc-operator/internal/generated",
-			Boilerplate:   "scripts/boilerplate.go.txt",
-			Groups: map[string]args.Group{
-				"management.cattle.io": {
-					PackageName: "management.cattle.io",
-					Types: []interface{}{
-						// All structs with an embedded ObjectMeta field will be picked up
-						mgmtv3.Setting{},
-						mgmtv3.Cluster{},
-						mgmtv3.Node{},
-					},
+	controllergen.Run(args.Options{
+		OutputPackage: "github.com/rancher/scc-operator/internal/rancher/generated",
+		Boilerplate:   "scripts/boilerplate.go.txt",
+		Groups: map[string]args.Group{
+			"telemetry.cattle.io": {
+				PackageName: "telemetry.cattle.io",
+				Types: []interface{}{
+					"./internal/rancher/apis/telemetry.cattle.io/v1",
+				},
+				GenerateTypes:   true,
+				GenerateClients: true,
+				GenerateOpenAPI: true,
+				OpenAPIDependencies: []string{
+					"k8s.io/apimachinery/pkg/apis/meta/v1",
 				},
 			},
-		})
-	*/
+		},
+	})
 }

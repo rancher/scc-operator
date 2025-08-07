@@ -22,10 +22,29 @@ func main() {
 	fmt.Printf("Executing command: go %s\n", strings.Join(cmdArgs, " "))
 	runControllerGen(cmdArgs)
 
-	fmt.Println("controller-gen command executed successfully.")
+	// Remove empty CRD
+	cleanEmptyCRD("./pkg/crds/yaml/generated/_.yaml")
+
+	internalCmdArgs := []string{
+		"tool",
+		"-modfile",
+		"gotools/controller-gen/go.mod",
+		"controller-gen",
+		"crd:generateEmbeddedObjectMeta=true,allowDangerousTypes=false",
+		"paths=./internal/rancher/apis/...",
+		"output:crd:dir=./internal/rancher/crds/yaml/generated",
+	}
+
+	fmt.Printf("Executing command: go %s\n", strings.Join(internalCmdArgs, " "))
+	runControllerGen(internalCmdArgs)
 
 	// Remove empty CRD
-	emptyCRDPath := "./pkg/crds/yaml/generated/_.yaml"
+	cleanEmptyCRD("./internal/rancher/crds/yaml/generated/_.yaml")
+
+	fmt.Println("controller-gen command executed successfully.")
+}
+
+func cleanEmptyCRD(emptyCRDPath string) {
 	if _, err := os.Stat(emptyCRDPath); err == nil {
 		fmt.Printf("Removing empty CRD: %s\n", emptyCRDPath)
 		if err := os.Remove(emptyCRDPath); err != nil {

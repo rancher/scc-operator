@@ -22,7 +22,18 @@ func run() error {
 	if err := os.RemoveAll("./pkg/generated"); err != nil {
 		return err
 	}
-	if err := os.RemoveAll("./internal/generated"); err != nil {
+
+	if err := os.RemoveAll("./internal/rancher/client/generated"); err != nil {
+		return err
+	}
+	if err := os.RemoveAll("./internal/rancher/crds/yamls/generated"); err != nil {
+		return err
+	}
+	if err := os.RemoveAll("./internal/rancher/generated"); err != nil {
+		return err
+	}
+
+	if err := cleanup.Cleanup("./internal/rancher/apis"); err != nil {
 		return err
 	}
 
