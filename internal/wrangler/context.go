@@ -25,6 +25,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
+	telemetryControllers "github.com/rancher/scc-operator/internal/rancher/generated/controllers/telemetry.cattle.io"
+	telemetryv1 "github.com/rancher/scc-operator/internal/rancher/generated/controllers/telemetry.cattle.io/v1"
 	"github.com/rancher/scc-operator/internal/repos/secretrepo"
 	sccControllers "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
 	sccv1 "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
@@ -55,8 +57,9 @@ type MiniContext struct {
 	Mapper            meta.RESTMapper
 	ClientSet         *clientset.Clientset
 
-	Core corev1.Interface
-	SCC  sccv1.Interface
+	Core      corev1.Interface
+	SCC       sccv1.Interface
+	Telemetry telemetryv1.Interface
 
 	Secrets *secretrepo.SecretRepository
 
@@ -77,37 +80,43 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNam
 		return MiniContext{}, err
 	}
 
-	opts := &generic.FactoryOptions{
-		SharedControllerFactory: controllerFactory,
-	}
-
-	restmapper, err := mapper.New(restConfig)
-	if err != nil {
-		return MiniContext{}, fmt.Errorf("error building rest mapper: %s", err.Error())
-	}
-
 	clientSet, err := clientset.NewForConfig(restConfig)
 	if err != nil {
 		return MiniContext{}, fmt.Errorf("error getting clientSet: %s", err.Error())
-	}
-
-	k8sclient, err := kubernetes.NewForConfig(restConfig)
-	if err != nil {
-		return MiniContext{}, fmt.Errorf("error getting kubernetes client: %s", err.Error())
 	}
 
 	dynamicInterface, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		return MiniContext{}, fmt.Errorf("error generating dynamic client: %s", err.Error())
 	}
+
+	k8sClient, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return MiniContext{}, fmt.Errorf("error getting kubernetes client: %s", err.Error())
+	}
+
+	restMapper, err := mapper.New(restConfig)
+	if err != nil {
+		return MiniContext{}, fmt.Errorf("error building rest mapper: %s", err.Error())
+	}
+
 	sharedClientFactory, err := lasso.NewSharedClientFactoryForConfig(restConfig)
 	if err != nil {
 		return MiniContext{}, fmt.Errorf("error generating shared client factory: %s", err.Error())
 	}
 
+	opts := &generic.FactoryOptions{
+		SharedControllerFactory: controllerFactory,
+	}
+
 	coreF, err := v1core.NewFactoryFromConfigWithOptions(restConfig, opts)
 	if err != nil {
 		return MiniContext{}, fmt.Errorf("error building core sample controllers: %s", err.Error())
+	}
+
+	telemetryFactory, err := telemetryControllers.NewFactoryFromConfigWithOptions(restConfig, opts)
+	if err != nil {
+		return MiniContext{}, err
 	}
 
 	sccFactory, err := sccControllers.NewFactoryFromConfigWithOptions(restConfig, opts)
@@ -130,17 +139,17 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNam
 	return MiniContext{
 		RESTConfig: restConfig,
 
-		Dynamic:           dynamicInterface,
-		ControllerFactory: controllerFactory,
-		SharedFactory:     sharedClientFactory,
-		K8sClient:         k8sclient,
-		Mapper:            restmapper,
 		ClientSet:         clientSet,
+		ControllerFactory: controllerFactory,
+		Dynamic:           dynamicInterface,
+		K8sClient:         k8sClient,
+		Mapper:            restMapper,
+		SharedFactory:     sharedClientFactory,
 
-		Core: coreInterface,
-		SCC:  sccFactory.Scc().V1(),
-
-		Secrets: secretRepo,
+		Core:      coreInterface,
+		Telemetry: telemetryFactory.Telemetry().V1(),
+		SCC:       sccFactory.Scc().V1(),
+		Secrets:   secretRepo,
 
 		leadership:     leadership,
 		controllerLock: &sync.Mutex{},

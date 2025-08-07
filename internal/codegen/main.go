@@ -41,7 +41,6 @@ func main() {
 				},
 				GenerateTypes:   true,
 				GenerateClients: true,
-				GenerateOpenAPI: false,
 			},
 		},
 	})

@@ -15,7 +15,7 @@ const (
 // Secret names and name prefixes
 const (
 	ResourceSCCEntrypointSecretName      = "scc-registration"
-	SCCMetricsOutputSecretName           = "scc-metrics"
+	SCCMetricsOutputSecretName           = "rancher-scc-metrics"
 	SCCSystemCredentialsSecretNamePrefix = "scc-system-credentials-"
 	RegistrationCodeSecretNamePrefix     = "registration-code-"
 	OfflineRequestSecretNamePrefix       = "offline-request-"
@@ -56,8 +56,10 @@ const (
 	LabelNameSuffix       = "scc.cattle.io/related-name-suffix"
 	LabelSccHash          = "scc.cattle.io/scc-hash"
 	LabelSccLastProcessed = "scc.cattle.io/last-processed"
-	LabelSccManagedBy     = "scc.cattle.io/managed-by"
-	LabelSccSecretRole    = "scc.cattle.io/secret-role"
+
+	// LabelSccManagedBy identifies the name of the SCC operator that manages a specific resource
+	LabelSccManagedBy  = "scc.cattle.io/managed-by"
+	LabelSccSecretRole = "scc.cattle.io/secret-role"
 )
 
 const (

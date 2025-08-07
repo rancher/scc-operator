@@ -104,6 +104,11 @@ func run(ctx context.Context, restKubeConfig *rest.Config, runOptions types.RunO
 		return err
 	}
 
+	if metricErr := sccOperatorStarter.EnsureMetricsSecretRequest(ctx); metricErr != nil {
+		logger.Errorf("Error ensuring metrics secret request: %v", metricErr)
+		return metricErr
+	}
+
 	if runErr := sccOperatorStarter.Run(); runErr != nil {
 		logger.Errorf("Error running operator: %v", runErr)
 		return runErr

@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/telemetry"
 	"github.com/rancher/wrangler/v3/pkg/start"
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -21,9 +23,14 @@ type SccStarter struct {
 	systemRegistrationReady chan struct{}
 }
 
-// TODO: in a standalone container we need to consider leadership/lease tracking
-// Only one container of this type should hold the leadership role and actually start fully.
-// Any non-leaders should be ready to start fully if they are promoted.
+func (s *SccStarter) EnsureMetricsSecretRequest(ctx context.Context) error {
+	labels := map[string]string{
+		consts.LabelK8sManagedBy: consts.DefaultOperatorName,
+	}
+	metricsRequester := telemetry.NewSecretRequester(s.wrangler.Telemetry.SecretRequest(), labels)
+	return metricsRequester.EnsureSecretRequest(ctx)
+}
+
 func (s *SccStarter) waitForSystemReady(onSystemReady func()) {
 	// Currently we only wait for ServerUrl not being empty, this is a good start as without the URL we cannot start.
 	// However, we should also consider other state that we "need" to register with SCC like metrics about nodes/clusters.
@@ -71,8 +78,9 @@ func (s *SccStarter) SetupControllers() error {
 }
 
 func (s *SccStarter) Run() error {
+	s.log.Debug("Starting to run SCC Operator; will only activate on leader")
 	s.wrangler.OnLeader(func(_ context.Context) error {
-		s.log.Debug("[rancher::start] starting RancherSCCRegistrationExtension")
+		s.log.Debug("Preparing SCC controllers and starting them up")
 		return s.SetupControllers()
 	})
 
