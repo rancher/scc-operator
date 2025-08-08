@@ -247,6 +247,8 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 
 		// If secret hash has changed make sure that we submit objects that correspond to that hash
 		// are cleaned up
+		// TODO: make it so that changes to the incoming Salt (which changes the nameID) are correctly handled
+		// Note that change would affect both name and content hashes - however something seems to not.
 		if incomingNameHash != params.nameID {
 			h.log.Info("must cleanup existing registration managed by secret")
 			if cleanUpErr := h.cleanupRegistrationByHash(hashCleanupRequest{
@@ -674,6 +676,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		v1.ResourceConditionProgressing.True(updated)
 		v1.ResourceConditionReady.False(updated)
 		v1.ResourceConditionDone.False(updated)
+		v1.RegistrationConditionActivated.False(updated)
 
 		var err error
 		updated, err = h.registrations.UpdateStatus(updated)
