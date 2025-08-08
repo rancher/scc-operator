@@ -55,7 +55,7 @@ jobs:
             secret/data/github/repo/${{ github.repository }}/dockerhub/rancher/credentials password | DOCKER_PASSWORD
 
         # This encapsulates: login, qemu, build/push
-      - name: Build and push PushProx image (dockerhub and prime stg)
+      - name: Build and push scc-operator image (dockerhub and prime stg)
         uses: rancher/ecm-distro-tools/actions/publish-image@master
         with:
           image: 'scc-operator'
