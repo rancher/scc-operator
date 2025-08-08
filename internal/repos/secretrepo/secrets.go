@@ -1,7 +1,12 @@
 package secretrepo
 
 import (
+	"errors"
+	"fmt"
+
 	jsonpatch "github.com/evanphx/json-patch/v5"
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/telemetry"
 	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,6 +40,14 @@ func NewSecretRepository(
 func (r *SecretRepository) HasSecret(namespace, name string) bool {
 	_, err := r.Cache.Get(namespace, name)
 	return err == nil
+}
+
+func (r *SecretRepository) Get(namespace, name string) (*v1.Secret, error) {
+	secret, err := r.Cache.Get(namespace, name)
+	if err != nil && apierrors.IsNotFound(err) {
+		return r.Controller.Get(namespace, name, metav1.GetOptions{})
+	}
+	return secret, err
 }
 
 func (r *SecretRepository) PatchUpdate(incoming, desired *v1.Secret) (*v1.Secret, error) {
@@ -87,6 +100,30 @@ func (r *SecretRepository) CreateOrUpdateSecret(secret *v1.Secret) (*v1.Secret, 
 	}
 
 	return r.RetryingPatchUpdate(existingSecret, secret)
+}
+
+func (r *SecretRepository) HasMetricsSecret() bool {
+	return r.HasSecret(consts.DefaultSCCNamespace, consts.SCCMetricsOutputSecretName)
+}
+
+func (r *SecretRepository) FetchMetricsSecret() (telemetry.MetricsWrapper, error) {
+	metricsSecret, err := r.Get(consts.DefaultSCCNamespace, consts.SCCMetricsOutputSecretName)
+	if err != nil {
+		return telemetry.MetricsWrapper{}, err
+	}
+
+	payloadData, ok := metricsSecret.Data[consts.SecretKeyMetricsData]
+	if !ok {
+		return telemetry.MetricsWrapper{}, errors.New("metrics secret does not contain metrics data; missing the expected key")
+	}
+
+	secretData := make(map[string]any)
+	jsonErr := json.Unmarshal(payloadData, &secretData)
+	if jsonErr != nil {
+		return telemetry.MetricsWrapper{}, fmt.Errorf("failed to unmarshal metrics secret data: %v", jsonErr)
+	}
+
+	return telemetry.NewMetricsWrapper(secretData), nil
 }
 
 var _ generic.RuntimeObjectRepository = &SecretRepository{}

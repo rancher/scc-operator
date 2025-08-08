@@ -26,8 +26,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
-	telemetryControllers "github.com/rancher/scc-operator/internal/rancher/generated/controllers/telemetry.cattle.io"
-	telemetryv1 "github.com/rancher/scc-operator/internal/rancher/generated/controllers/telemetry.cattle.io/v1"
 	"github.com/rancher/scc-operator/internal/repos/secretrepo"
 	sccControllers "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
 	sccv1 "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
@@ -58,10 +56,9 @@ type MiniContext struct {
 	Mapper            meta.RESTMapper
 	ClientSet         *clientset.Clientset
 
-	Core      corev1.Interface
-	SCC       sccv1.Interface
-	Telemetry telemetryv1.Interface
-	Secrets   *secretrepo.SecretRepository
+	Core    corev1.Interface
+	SCC     sccv1.Interface
+	Secrets *secretrepo.SecretRepository
 
 	Settings *settings.SettingReader
 
@@ -116,11 +113,6 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNam
 		return MiniContext{}, fmt.Errorf("error building core sample controllers: %s", err.Error())
 	}
 
-	telemetryFactory, err := telemetryControllers.NewFactoryFromConfigWithOptions(restConfig, opts)
-	if err != nil {
-		return MiniContext{}, err
-	}
-
 	sccFactory, err := sccControllers.NewFactoryFromConfigWithOptions(restConfig, opts)
 	if err != nil {
 		return MiniContext{}, err
@@ -148,10 +140,9 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNam
 		Mapper:            restMapper,
 		SharedFactory:     sharedClientFactory,
 
-		Core:      coreInterface,
-		Telemetry: telemetryFactory.Telemetry().V1(),
-		SCC:       sccFactory.Scc().V1(),
-		Secrets:   secretRepo,
+		Core:    coreInterface,
+		SCC:     sccFactory.Scc().V1(),
+		Secrets: secretRepo,
 
 		Settings: settings.NewSettingReader(dynamicClient),
 

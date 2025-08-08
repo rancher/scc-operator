@@ -34,7 +34,7 @@ func (s *SccStarter) isServerUrlReady() bool {
 }
 
 func (s *SccStarter) hasSccMetricsSecretPopulated() bool {
-	return s.wrangler.Secrets.HasSecret(consts.DefaultSCCNamespace, consts.SCCMetricsOutputSecretName)
+	return s.wrangler.Secrets.HasMetricsSecret()
 }
 
 func (s *SccStarter) EnsureMetricsSecretRequest(ctx context.Context) error {
@@ -81,6 +81,7 @@ func (s *SccStarter) SetupControllers() error {
 			&s.options,
 			initOperator.sccResourceFactory.Scc().V1().Registration(),
 			s.wrangler.Secrets,
+			s.wrangler.Settings,
 		)
 
 		if startErr := start.All(s.context, 2, initOperator.sccResourceFactory); startErr != nil {

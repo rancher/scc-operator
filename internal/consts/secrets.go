@@ -1,6 +1,7 @@
 package consts
 
 const (
+	SecretKeyMetricsData       = "payload"
 	SecretKeyRegistrationCode  = "regCode"
 	SecretKeyOfflineRegRequest = "request"
 	SecretKeyOfflineRegCert    = "certificate"

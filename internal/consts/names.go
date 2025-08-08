@@ -6,6 +6,7 @@ import "fmt"
 const (
 	ResourceSCCEntrypointSecretName      = "scc-registration"
 	SCCMetricsOutputSecretName           = "rancher-scc-metrics"
+	RancherMetricsSecretRequestName      = SCCMetricsOutputSecretName
 	SCCSystemCredentialsSecretNamePrefix = "scc-system-credentials-"
 	RegistrationCodeSecretNamePrefix     = "registration-code-"
 	OfflineRequestSecretNamePrefix       = "offline-request-"

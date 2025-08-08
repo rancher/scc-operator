@@ -50,7 +50,7 @@ func (s *SecretRequester) prepareSecretRequestUnstructured() *unstructured.Unstr
 			"apiVersion": gvr.GroupVersion().Identifier(),
 			"kind":       "SecretRequest",
 			"metadata": map[string]interface{}{
-				"name": consts.SCCMetricsOutputSecretName,
+				"name": consts.RancherMetricsSecretRequestName,
 			},
 			"spec": map[string]interface{}{
 				"secretType": "scc",
@@ -75,13 +75,13 @@ func (s *SecretRequester) EnsureSecretRequest(ctx context.Context) error {
 
 	existing, getErr := s.secretRequestDynamicClient.Get(ctx, desiredSecretRequest.GetName(), metav1.GetOptions{})
 	if getErr != nil && !errors.IsNotFound(getErr) {
-		return fmt.Errorf("get secret request %s failed: %w", consts.SCCMetricsOutputSecretName, getErr)
+		return fmt.Errorf("get secret request %s failed: %w", consts.RancherMetricsSecretRequestName, getErr)
 	}
 
 	if errors.IsNotFound(getErr) {
 		_, err := s.secretRequestDynamicClient.Create(ctx, desiredSecretRequest, metav1.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("create secret request %s failed: %w", consts.SCCMetricsOutputSecretName, err)
+			return fmt.Errorf("create secret request %s failed: %w", consts.RancherMetricsSecretRequestName, err)
 		}
 
 		return nil

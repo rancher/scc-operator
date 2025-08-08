@@ -9,6 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rancher/scc-operator/internal/rancher"
+	"github.com/rancher/scc-operator/internal/rancher/settings"
+	"github.com/rancher/scc-operator/internal/telemetry"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -43,6 +46,9 @@ const (
 // SCCHandler Defines a common interface for online and offline operations
 // IMPORTANT: All the `Reconcile*` methods modifies the object in memory but does NOT save it. The caller is responsible for saving the state.
 type SCCHandler interface {
+	// SetRancherMetrics adds the current Rancher metrics to the SCCHandler for processing
+	// This must be added after initialization so that we only fetch metrics if we need to sync.
+	SetRancherMetrics(rancherMetrics telemetry.MetricsWrapper)
 	// NeedsRegistration determines if the system requires initial SCC registration.
 	NeedsRegistration(*v1.Registration) bool
 	// NeedsActivation checks if the system requires activation with SCC.
@@ -78,11 +84,11 @@ type SCCHandler interface {
 type handler struct {
 	ctx               context.Context
 	log               *logrus.Entry
+	options           *types.RunOptions
 	registrations     registrationControllers.RegistrationController
 	registrationCache registrationControllers.RegistrationCache
 	secretRepo        *secretrepo.SecretRepository
-	managedByName     string
-	systemNamespace   string
+	settings          *settings.SettingReader
 }
 
 // Register will setup the SCC registration CRDs controllers (and related secret controllers)
@@ -92,22 +98,23 @@ func Register(
 	options *types.RunOptions,
 	registrations registrationControllers.RegistrationController,
 	secretsRepo *secretrepo.SecretRepository,
+	settings *settings.SettingReader,
 ) {
 	controller := &handler{
 		log:               log.NewControllerLogger("registration-controller"),
 		ctx:               ctx,
+		options:           options,
 		registrations:     registrations,
 		registrationCache: registrations.Cache(),
 		secretRepo:        secretsRepo,
-		managedByName:     options.OperatorName,
-		systemNamespace:   options.SystemNamespace,
+		settings:          settings,
 	}
 
 	controller.initIndexers()
 	controller.initResolvers(ctx)
 
 	withinExpectedNamespaceCondition := func(_ string, obj runtime.Object) (bool, error) {
-		if !wranglerPolyfill.InExpectedNamespace(obj, controller.systemNamespace) {
+		if !wranglerPolyfill.InExpectedNamespace(obj, controller.options.SystemNamespace) {
 			return false, nil
 		}
 		return true, nil
@@ -121,16 +128,16 @@ func Register(
 			return false, err
 		}
 
-		return helpers.ShouldManage(metaObj, controller.managedByName), nil
+		return helpers.ShouldManage(metaObj, controller.options.OperatorName), nil
 	}
 	wranglerPolyfill.ScopedOnChange(ctx, controllerID, withinOperatorScopeCondition, registrations, controller.OnRegistrationChange)
 	wranglerPolyfill.ScopedOnRemove(ctx, controllerID+"-remove", withinOperatorScopeCondition, registrations, controller.OnRegistrationRemove)
 
 	cfg := setupCfg()
-	go controller.RunLifecycleManager(cfg)
+	go controller.RunLifecycleManager(cfg, rancher.GetServerURL(ctx, settings))
 }
 
-func (h *handler) prepareHandler(registrationObj *v1.Registration) SCCHandler {
+func (h *handler) prepareHandler(registrationObj *v1.Registration, rancherUrl string) SCCHandler {
 	ref := registrationObj.ToOwnerRef()
 	nameSuffixHash := registrationObj.Labels[consts.LabelNameSuffix]
 
@@ -144,34 +151,36 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration) SCCHandler {
 	if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
 		offlineRequestSecretName := consts.OfflineRequestSecretName(nameSuffixHash)
 		offlineCertSecretName := consts.OfflineCertificateSecretName(nameSuffixHash)
-		return sccOfflineMode{
-			registration: registrationObj,
+		return &sccOfflineMode{
+			rancherUrl:   rancherUrl,
 			log:          h.log.WithField("regHandler", "offline"),
+			options:      h.options,
+			registration: registrationObj,
 			offlineSecrets: offline.New(
-				h.systemNamespace,
+				h.options.SystemNamespace,
 				offlineRequestSecretName,
 				offlineCertSecretName,
 				ref,
 				h.secretRepo,
 				defaultLabels,
 			),
-			systemNamespace: h.systemNamespace,
 		}
 	}
 
 	credsSecretName := consts.SCCCredentialsSecretName(nameSuffixHash)
-	return sccOnlineMode{
-		registration: registrationObj,
+	return &sccOnlineMode{
+		rancherUrl:   rancherUrl,
 		log:          h.log.WithField("regHandler", "online"),
+		options:      h.options,
+		registration: registrationObj,
 		sccCredentials: credentials.New(
-			h.systemNamespace,
+			h.options.SystemNamespace,
 			credsSecretName,
 			ref,
 			h.secretRepo,
 			defaultLabels,
 		),
-		systemNamespace: h.systemNamespace,
-		secretRepo:      h.secretRepo,
+		secretRepo: h.secretRepo,
 	}
 }
 
@@ -183,23 +192,23 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 	if h.isRancherEntrypointSecret(incomingObj) {
 		// TODO(alex): sync on this to validate logic
 		// TODO: something to handle adopting new
-		if !helpers.ShouldManage(incomingObj, h.managedByName) {
+		if !helpers.ShouldManage(incomingObj, h.options.OperatorName) {
 			// When the secret has no managed by label, we should assume ownership I guess?
 			if !helpers.HasManagedByLabel(incomingObj) {
 				prepared := incomingObj.DeepCopy()
-				prepared = helpers.TakeOwnership(prepared, h.managedByName)
+				prepared = helpers.TakeOwnership(prepared, h.options.OperatorName)
 				_, updateErr := h.secretRepo.RetryingPatchUpdate(incomingObj, prepared)
 				if updateErr != nil {
 					h.log.Errorf("failed to take ownership of secret %s/%s: %v", incomingObj.Namespace, incomingObj.Name, updateErr)
 					return incomingObj, updateErr
 				}
 
-				h.log.Debugf("Secret %s/%s is now managed by %s", incomingObj.Namespace, incomingObj.Name, h.managedByName)
+				h.log.Debugf("Secret %s/%s is now managed by %s", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
 
 				return incomingObj, nil
 			}
 
-			h.log.Debugf("Secret %s/%s is not managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.managedByName)
+			h.log.Debugf("Secret %s/%s is not managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
 			return incomingObj, nil
 		}
 
@@ -209,7 +218,7 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 
 		incomingNameHash := incomingObj.GetLabels()[consts.LabelNameSuffix]
 		incomingContentHash := incomingObj.GetLabels()[consts.LabelSccHash]
-		params, err := extractRegistrationParamsFromSecret(incomingObj, h.managedByName)
+		params, err := extractRegistrationParamsFromSecret(incomingObj, h.options.OperatorName)
 		if err != nil {
 			return incomingObj, fmt.Errorf("failed to extract registration params from secret %s/%s: %w", incomingObj.Namespace, incomingObj.Name, err)
 		}
@@ -404,13 +413,13 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 	if incomingObj == nil {
 		return nil, nil
 	}
-	if incomingObj.Namespace != h.systemNamespace {
-		h.log.Debugf("Secret %s/%s is not in SCC system namespace %s, skipping cleanup", incomingObj.Namespace, incomingObj.Name, h.systemNamespace)
+	if incomingObj.Namespace != h.options.SystemNamespace {
+		h.log.Debugf("Secret %s/%s is not in SCC system namespace %s, skipping cleanup", incomingObj.Namespace, incomingObj.Name, h.options.SystemNamespace)
 		return incomingObj, nil
 	}
 
-	if !helpers.ShouldManage(incomingObj, h.managedByName) {
-		h.log.Debugf("Secret %s/%s is not managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.managedByName)
+	if !helpers.ShouldManage(incomingObj, h.options.OperatorName) {
+		h.log.Debugf("Secret %s/%s is not managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
 		return incomingObj, nil
 	}
 
@@ -498,8 +507,8 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		return nil, nil
 	}
 
-	// TODO: replace with new ready verification method
-	if false {
+	rancherUrl := rancher.GetServerURL(h.ctx, h.settings)
+	if rancherUrl == "" {
 		h.log.Info("Server URL not set")
 		return registrationObj, errors.New("no server url found in the system info")
 	}
@@ -508,7 +517,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		return registrationObj, errors.New("registration has failed status; create a new one to retry")
 	}
 
-	registrationHandler := h.prepareHandler(registrationObj)
+	registrationHandler := h.prepareHandler(registrationObj, rancherUrl)
 
 	// Skip keepalive for anything activated within the last 20 hours
 	if !registrationHandler.NeedsRegistration(registrationObj) &&
@@ -519,6 +528,16 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 			return registrationObj, nil
 		}
 	}
+
+	// Fetch Rancher metrics for SCC
+	systemMetrics, metricsErr := h.secretRepo.FetchMetricsSecret()
+	if metricsErr != nil {
+		wrappedErr := fmt.Errorf("encoutnered additional error when preparing SCC handler: %v", metricsErr)
+		h.log.Error(wrappedErr)
+		return registrationObj, wrappedErr
+	}
+	// TODO: parse out the secret data
+	registrationHandler.SetRancherMetrics(systemMetrics)
 
 	// Only on the first time an object passes through here should it need to be registered
 	// The logical default condition should always be to try activation, unless we know it's not registered.
@@ -634,11 +653,14 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 			updated := registrationObj.DeepCopy()
 			updated.Spec = *registrationObj.Spec.WithoutSyncNow()
 
-			offlineHandler := registrationHandler.(sccOfflineMode)
+			offlineHandler := registrationHandler.(*sccOfflineMode)
 			refreshErr := offlineHandler.RefreshOfflineRequestSecret()
 			_, updateErr := h.registrations.Update(updated)
+			if updateErr != nil || refreshErr != nil {
+				return registrationObj, errors.Join(refreshErr, updateErr)
+			}
 
-			return registrationObj, errors.Join(refreshErr, updateErr)
+			return registrationObj, nil
 		}
 
 		// Todo: online/offline handler interface should have a SyncNow call to get rid of the if here
@@ -714,7 +736,12 @@ func (h *handler) OnRegistrationRemove(name string, registrationObj *v1.Registra
 		return nil, nil
 	}
 
-	regHandler := h.prepareHandler(registrationObj)
+	rancherUrl := rancher.GetServerURL(h.ctx, h.settings)
+	if rancherUrl == "" {
+		h.log.Info("Server URL not set")
+		return registrationObj, errors.New("no server url found in the system info")
+	}
+	regHandler := h.prepareHandler(registrationObj, rancherUrl)
 	deRegErr := regHandler.Deregister()
 	if deRegErr != nil {
 		h.log.Warn(deRegErr)

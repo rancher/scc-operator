@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/SUSE/connect-ng/pkg/connection"
+	"github.com/rancher/scc-operator/internal/telemetry"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -25,21 +26,42 @@ var (
 )
 
 type sccOnlineMode struct {
-	registration    *v1.Registration
-	log             log.StructuredLogger
-	sccCredentials  *credentials.CredentialSecretsAdapter
-	systemNamespace string
-	secretRepo      *secretrepo.SecretRepository
+	rancherUrl     string
+	options        *types.RunOptions
+	registration   *v1.Registration
+	log            log.StructuredLogger
+	sccCredentials *credentials.CredentialSecretsAdapter
+	secretRepo     *secretrepo.SecretRepository
+	rancherMetrics telemetry.MetricsWrapper
 }
 
-func (s sccOnlineMode) NeedsRegistration(registrationObj *v1.Registration) bool {
+func (s *sccOnlineMode) SetRancherMetrics(rancherMetrics telemetry.MetricsWrapper) {
+	s.rancherMetrics = rancherMetrics
+}
+
+func (s *sccOnlineMode) prepareSCCOnlineConnection(
+	rancherMetrics telemetry.MetricsWrapper,
+	registrationUrl string,
+) suseconnect.SccWrapper {
+	return suseconnect.OnlineRancherConnection(
+		suseconnect.OnlineConnectionParams{
+			RancherUrl:      registrationUrl,
+			RegistrationUrl: registrationUrl,
+			Options:         suseconnect.DefaultConnectionOptions(s.options.OperatorName, s.options.OperatorMetadata.Version),
+		},
+		s.sccCredentials.SccCredentials(),
+		rancherMetrics,
+	)
+}
+
+func (s *sccOnlineMode) NeedsRegistration(registrationObj *v1.Registration) bool {
 	return shared.RegistrationHasNotStarted(registrationObj) ||
 		!registrationObj.HasCondition(v1.RegistrationConditionSccURLReady) ||
 		!registrationObj.HasCondition(v1.RegistrationConditionAnnounced)
 }
 
 // PrepareForRegister creates the necessary SCC creds secret and secret reference
-func (s sccOnlineMode) PrepareForRegister(registration *v1.Registration) (*v1.Registration, error) {
+func (s *sccOnlineMode) PrepareForRegister(registration *v1.Registration) (*v1.Registration, error) {
 	if registration.Status.SystemCredentialsSecretRef == nil {
 		err := s.sccCredentials.InitSecret()
 		if err != nil {
@@ -51,7 +73,7 @@ func (s sccOnlineMode) PrepareForRegister(registration *v1.Registration) (*v1.Re
 	return registration, nil
 }
 
-func (s sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.RegistrationSystemID, error) {
+func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.RegistrationSystemID, error) {
 	// We must always refresh the sccCredentials - this ensures they are current from the secrets
 	credentialsErr := s.sccCredentials.Refresh()
 	if credentialsErr != nil {
@@ -65,7 +87,7 @@ func (s sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.R
 	registrationCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
 
 	// Initiate connection to SCC & verify reg code is for Rancher
-	sccConnection := suseconnect.OnlineRancherConnection(s.sccCredentials.SccCredentials(), nil, suseconnect.PrepareSccURL(registrationObj))
+	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
 	// Register this Rancher cluster to SCC
 	id, regErr := sccConnection.RegisterOrKeepAlive(registrationCode)
@@ -77,7 +99,7 @@ func (s sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.R
 	return id, nil
 }
 
-func (s sccOnlineMode) PrepareRegisteredForActivation(registration *v1.Registration) (*v1.Registration, error) {
+func (s *sccOnlineMode) PrepareRegisteredForActivation(registration *v1.Registration) (*v1.Registration, error) {
 	if registration.Status.SCCSystemID == nil {
 		return registration, errors.New("SCC system ID cannot be empty when preparing registered system")
 	}
@@ -128,7 +150,7 @@ func getHTTPErrorCode(err error) *int {
 type registrationReconcilerApplier func(regApplierIn *v1.Registration, httpCode *int) *v1.Registration
 
 // reconcileNonRecoverableHTTPError can help reconcile the registration state for any API/HTTP error related reasons
-func (s sccOnlineMode) reconcileNonRecoverableHTTPError(registrationIn *v1.Registration, registerErr error, additionalApplier registrationReconcilerApplier) *v1.Registration {
+func (s *sccOnlineMode) reconcileNonRecoverableHTTPError(registrationIn *v1.Registration, registerErr error, additionalApplier registrationReconcilerApplier) *v1.Registration {
 	httpCode := *getHTTPErrorCode(registerErr)
 	nowTime := metav1.Now()
 	registrationIn.Status.RegistrationProcessedTS = &nowTime
@@ -144,7 +166,7 @@ func (s sccOnlineMode) reconcileNonRecoverableHTTPError(registrationIn *v1.Regis
 	return registrationIn
 }
 
-func (s sccOnlineMode) ReconcileRegisterError(registrationObj *v1.Registration, registerErr error, phase types.RegistrationPhase) *v1.Registration {
+func (s *sccOnlineMode) ReconcileRegisterError(registrationObj *v1.Registration, registerErr error, phase types.RegistrationPhase) *v1.Registration {
 	registrationObj = shared.PrepareFailed(registrationObj, registerErr)
 
 	if isNonRecoverableHTTPError(registerErr) {
@@ -178,15 +200,15 @@ func (s sccOnlineMode) ReconcileRegisterError(registrationObj *v1.Registration, 
 	return registrationObj
 }
 
-func (s sccOnlineMode) NeedsActivation(registrationObj *v1.Registration) bool {
+func (s *sccOnlineMode) NeedsActivation(registrationObj *v1.Registration) bool {
 	return shared.RegistrationNeedsActivation(registrationObj)
 }
 
-func (s sccOnlineMode) ReadyForActivation(registrationObj *v1.Registration) bool {
+func (s *sccOnlineMode) ReadyForActivation(registrationObj *v1.Registration) bool {
 	return v1.RegistrationConditionAnnounced.IsTrue(registrationObj)
 }
 
-func (s sccOnlineMode) Activate(registrationObj *v1.Registration) error {
+func (s *sccOnlineMode) Activate(registrationObj *v1.Registration) error {
 	s.log.Debugf("received registration ready for activations %q", registrationObj.Name)
 	s.log.Debug("registration ", registrationObj)
 
@@ -196,7 +218,7 @@ func (s sccOnlineMode) Activate(registrationObj *v1.Registration) error {
 	}
 
 	registrationCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
-	sccConnection := suseconnect.OnlineRancherConnection(s.sccCredentials.SccCredentials(), nil, suseconnect.PrepareSccURL(registrationObj))
+	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
 	metaData, product, err := sccConnection.Activate(registrationCode)
 	if err != nil {
@@ -210,14 +232,14 @@ func (s sccOnlineMode) Activate(registrationObj *v1.Registration) error {
 	return nil
 }
 
-func (s sccOnlineMode) PrepareActivatedForKeepalive(registrationObj *v1.Registration) (*v1.Registration, error) {
+func (s *sccOnlineMode) PrepareActivatedForKeepalive(registrationObj *v1.Registration) (*v1.Registration, error) {
 	v1.RegistrationConditionSccURLReady.True(registrationObj)
 
 	credentialsErr := s.sccCredentials.Refresh()
 	if credentialsErr != nil {
 		return nil, fmt.Errorf("cannot load scc credentials: %w", credentialsErr)
 	}
-	sccConnection := suseconnect.OnlineRancherConnection(s.sccCredentials.SccCredentials(), nil, suseconnect.PrepareSccURL(registrationObj))
+	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
 	activations, err := sccConnection.ActivationStatus()
 	if err != nil {
@@ -235,7 +257,7 @@ func (s sccOnlineMode) PrepareActivatedForKeepalive(registrationObj *v1.Registra
 }
 
 // ReconcileActivateError will first verify if an error is recoverable and then reconcile the error as needed
-func (s sccOnlineMode) ReconcileActivateError(registration *v1.Registration, activationErr error, _ types.ActivationPhase) *v1.Registration {
+func (s *sccOnlineMode) ReconcileActivateError(registration *v1.Registration, activationErr error, _ types.ActivationPhase) *v1.Registration {
 	if isNonRecoverableHTTPError(activationErr) {
 		return s.reconcileNonRecoverableHTTPError(
 			registration,
@@ -258,14 +280,14 @@ func (s sccOnlineMode) ReconcileActivateError(registration *v1.Registration, act
 	return registration
 }
 
-func (s sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
+func (s *sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 	credRefreshErr := s.sccCredentials.Refresh() // We must always refresh the sccCredentials - this ensures they are current from the secrets
 	if credRefreshErr != nil {
 		return fmt.Errorf("cannot refresh credentials: %w", credRefreshErr)
 	}
 
 	regCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
-	sccConnection := suseconnect.OnlineRancherConnection(s.sccCredentials.SccCredentials(), nil, suseconnect.PrepareSccURL(registrationObj))
+	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
 	metaData, product, err := sccConnection.Activate(regCode)
 	if err != nil {
@@ -285,7 +307,7 @@ func (s sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 	return nil
 }
 
-func (s sccOnlineMode) PrepareKeepaliveSucceeded(registration *v1.Registration) (*v1.Registration, error) {
+func (s *sccOnlineMode) PrepareKeepaliveSucceeded(registration *v1.Registration) (*v1.Registration, error) {
 	v1.RegistrationConditionSccURLReady.True(registration)
 
 	// TODO take any post keepalive success steps
@@ -293,7 +315,7 @@ func (s sccOnlineMode) PrepareKeepaliveSucceeded(registration *v1.Registration) 
 	return registration, nil
 }
 
-func (s sccOnlineMode) ReconcileKeepaliveError(registration *v1.Registration, keepaliveErr error) *v1.Registration {
+func (s *sccOnlineMode) ReconcileKeepaliveError(registration *v1.Registration, keepaliveErr error) *v1.Registration {
 	if isNonRecoverableHTTPError(keepaliveErr) {
 		return s.reconcileNonRecoverableHTTPError(
 			registration,
@@ -315,9 +337,9 @@ func (s sccOnlineMode) ReconcileKeepaliveError(registration *v1.Registration, ke
 	return registration
 }
 
-func (s sccOnlineMode) Deregister() error {
+func (s *sccOnlineMode) Deregister() error {
 	_ = s.sccCredentials.Refresh()
-	sccConnection := suseconnect.OnlineRancherConnection(s.sccCredentials.SccCredentials(), nil, suseconnect.PrepareSccURL(s.registration))
+	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(s.registration))
 	// TODO : this causes deletion to fail if the credentials are invalid. I think we
 	// need to do a best effort check to see if it was ever registered before
 	// we want to fail to delete if deregister fails, but the system is registered in SCC

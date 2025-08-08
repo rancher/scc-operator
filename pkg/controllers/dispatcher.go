@@ -31,6 +31,7 @@ func setupCfg() *jitterbug.Config {
 
 func (h *handler) RunLifecycleManager(
 	cfg *jitterbug.Config,
+	rancherUrl string,
 ) {
 	// min jitter 20 hours
 	jitterCheckin := jitterbug.NewJitterChecker(
@@ -44,7 +45,7 @@ func (h *handler) RunLifecycleManager(
 
 			checkInWasTriggered := false
 			for _, registrationObj := range registrationsCacheList {
-				registrationHandler := h.prepareHandler(registrationObj)
+				registrationHandler := h.prepareHandler(registrationObj, rancherUrl)
 
 				// Always skip offline mode registrations, or Registrations that haven't progressed to activation
 				if registrationObj.Spec.Mode == v1.RegistrationModeOffline ||

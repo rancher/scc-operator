@@ -28,8 +28,8 @@ func TestDefaultConnectionOptions(t *testing.T) {
 }
 
 func TestDefaultRancherConnection(t *testing.T) {
-	//options := DefaultConnectionOptions()
-	//expected := connection.New(options, connection.NoCredentials{})
+	//Options := DefaultConnectionOptions()
+	//expected := connection.New(Options, connection.NoCredentials{})
 
 	//assert.Equal(t, expected, DefaultRancherConnection(connection.NoCredentials{}))
 }
