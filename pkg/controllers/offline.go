@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/SUSE/connect-ng/pkg/registration"
+	"github.com/rancher/scc-operator/internal/suseconnect/offlinevalidator"
 	"github.com/rancher/scc-operator/internal/telemetry"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -13,11 +14,11 @@ import (
 	"github.com/rancher/scc-operator/internal/types"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/controllers/shared"
-	"github.com/rancher/scc-operator/pkg/systeminfo/offlinevalidator"
 )
 
 type sccOfflineMode struct {
 	rancherUrl     string
+	rancherUUID    string
 	options        *types.RunOptions
 	registration   *v1.Registration
 	log            rootLog.StructuredLogger
@@ -108,7 +109,7 @@ func (s *sccOfflineMode) Activate(_ *v1.Registration) error {
 		return fmt.Errorf("activate failed, cannot prepare offline certificate: %w", certErr)
 	}
 
-	offlineCertValidator := offlinevalidator.New(offlineCert, nil)
+	offlineCertValidator := offlinevalidator.New(offlineCert, s.rancherUUID)
 
 	return offlineCertValidator.ValidateCertificate()
 }
@@ -166,7 +167,7 @@ func (s *sccOfflineMode) Keepalive(registrationObj *v1.Registration) error {
 		return fmt.Errorf("activate failed, cannot prepare offline certificate: %w", certErr)
 	}
 
-	offlineCertValidator := offlinevalidator.New(offlineCert, nil)
+	offlineCertValidator := offlinevalidator.New(offlineCert, s.rancherUUID)
 	validateErr := offlineCertValidator.ValidateCertificate()
 	if validateErr != nil {
 		return fmt.Errorf("activate failed, cannot validate offline certificate: %w", validateErr)

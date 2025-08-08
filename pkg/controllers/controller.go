@@ -153,6 +153,7 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration, rancherUrl st
 		offlineCertSecretName := consts.OfflineCertificateSecretName(nameSuffixHash)
 		return &sccOfflineMode{
 			rancherUrl:   rancherUrl,
+			rancherUUID:  rancher.GetRancherInstallUUID(h.ctx, h.settings),
 			log:          h.log.WithField("regHandler", "offline"),
 			options:      h.options,
 			registration: registrationObj,
@@ -532,7 +533,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	// Fetch Rancher metrics for SCC
 	systemMetrics, metricsErr := h.secretRepo.FetchMetricsSecret()
 	if metricsErr != nil {
-		wrappedErr := fmt.Errorf("encoutnered additional error when preparing SCC handler: %v", metricsErr)
+		wrappedErr := fmt.Errorf("encountered additional error when preparing SCC handler: %v", metricsErr)
 		h.log.Error(wrappedErr)
 		return registrationObj, wrappedErr
 	}

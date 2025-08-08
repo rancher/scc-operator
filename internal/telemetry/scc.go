@@ -6,10 +6,10 @@ import (
 )
 
 type subscriptionInfo struct {
-	product string `json:"product"`
-	version string `json:"version"`
-	arch    string `json:"arch"`
-	git     string `json:"git"`
+	product string
+	version string
+	arch    string
+	git     string
 }
 
 type MetricsWrapper struct {
