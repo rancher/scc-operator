@@ -7,7 +7,6 @@ import (
 	"github.com/SUSE/connect-ng/pkg/registration"
 
 	rootLog "github.com/rancher/scc-operator/internal/log"
-	"github.com/rancher/scc-operator/pkg/systeminfo"
 )
 
 func offlineValidatorContextLogger() rootLog.StructuredLogger {
