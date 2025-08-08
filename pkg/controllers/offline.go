@@ -13,7 +13,7 @@ import (
 	"github.com/rancher/scc-operator/internal/types"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/controllers/shared"
-	"github.com/rancher/scc-operator/pkg/systeminfo/offline"
+	"github.com/rancher/scc-operator/pkg/systeminfo/offlinevalidator"
 )
 
 type sccOfflineMode struct {
@@ -108,7 +108,7 @@ func (s *sccOfflineMode) Activate(_ *v1.Registration) error {
 		return fmt.Errorf("activate failed, cannot prepare offline certificate: %w", certErr)
 	}
 
-	offlineCertValidator := offline.New(offlineCert, nil)
+	offlineCertValidator := offlinevalidator.New(offlineCert, nil)
 
 	return offlineCertValidator.ValidateCertificate()
 }
@@ -166,7 +166,7 @@ func (s *sccOfflineMode) Keepalive(registrationObj *v1.Registration) error {
 		return fmt.Errorf("activate failed, cannot prepare offline certificate: %w", certErr)
 	}
 
-	offlineCertValidator := offline.New(offlineCert, nil)
+	offlineCertValidator := offlinevalidator.New(offlineCert, nil)
 	validateErr := offlineCertValidator.ValidateCertificate()
 	if validateErr != nil {
 		return fmt.Errorf("activate failed, cannot validate offline certificate: %w", validateErr)

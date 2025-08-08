@@ -1,4 +1,4 @@
-package offline
+package offlinevalidator
 
 import (
 	"fmt"
