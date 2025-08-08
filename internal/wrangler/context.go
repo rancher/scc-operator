@@ -8,7 +8,8 @@ import (
 	lasso "github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/lasso/pkg/mapper"
-	managementv3api "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
+	"github.com/rancher/scc-operator/internal/rancher/settings"
+	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	v1core "github.com/rancher/wrangler/v3/pkg/generated/controllers/core"
 	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/rancher/wrangler/v3/pkg/generic"
@@ -25,17 +26,14 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
-	"github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io"
-	mgmtv3 "github.com/rancher/scc-operator/internal/generated/controllers/management.cattle.io/v3"
 	"github.com/rancher/scc-operator/internal/repos/secretrepo"
-	"github.com/rancher/scc-operator/internal/repos/settingrepo"
-	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
+	sccControllers "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
 	sccv1 "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 )
 
 var (
 	localSchemeBuilder = runtime.SchemeBuilder{
-		managementv3api.AddToScheme,
+		v1.AddToScheme,
 		scheme.AddToScheme,
 	}
 	AddToScheme = localSchemeBuilder.AddToScheme
@@ -58,12 +56,11 @@ type MiniContext struct {
 	Mapper            meta.RESTMapper
 	ClientSet         *clientset.Clientset
 
-	Mgmt mgmtv3.Interface
-	Core corev1.Interface
-	SCC  sccv1.Interface
+	Core    corev1.Interface
+	SCC     sccv1.Interface
+	Secrets *secretrepo.SecretRepository
 
-	Secrets  *secretrepo.SecretRepository
-	Settings *settingrepo.SettingRepository
+	Settings *settings.SettingReader
 
 	leadership     *leader.Manager
 	controllerLock *sync.Mutex
@@ -76,19 +73,10 @@ func enableProtobuf(cfg *rest.Config) *rest.Config {
 	return cpy
 }
 
-func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config) (MiniContext, error) {
+func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNamespace string) (MiniContext, error) {
 	controllerFactory, err := controller.NewSharedControllerFactoryFromConfig(enableProtobuf(restConfig), Scheme)
 	if err != nil {
 		return MiniContext{}, err
-	}
-
-	opts := &generic.FactoryOptions{
-		SharedControllerFactory: controllerFactory,
-	}
-
-	restmapper, err := mapper.New(restConfig)
-	if err != nil {
-		return MiniContext{}, fmt.Errorf("error building rest mapper: %s", err.Error())
 	}
 
 	clientSet, err := clientset.NewForConfig(restConfig)
@@ -96,18 +84,28 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config) (MiniCon
 		return MiniContext{}, fmt.Errorf("error getting clientSet: %s", err.Error())
 	}
 
-	k8sclient, err := kubernetes.NewForConfig(restConfig)
+	dynamicClient, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		return MiniContext{}, fmt.Errorf("error generating dynamic client: %s", err.Error())
+	}
+
+	k8sClient, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return MiniContext{}, fmt.Errorf("error getting kubernetes client: %s", err.Error())
 	}
 
-	dynamicInterface, err := dynamic.NewForConfig(restConfig)
+	restMapper, err := mapper.New(restConfig)
 	if err != nil {
-		return MiniContext{}, fmt.Errorf("error generating dynamic client: %s", err.Error())
+		return MiniContext{}, fmt.Errorf("error building rest mapper: %s", err.Error())
 	}
+
 	sharedClientFactory, err := lasso.NewSharedClientFactoryForConfig(restConfig)
 	if err != nil {
 		return MiniContext{}, fmt.Errorf("error generating shared client factory: %s", err.Error())
+	}
+
+	opts := &generic.FactoryOptions{
+		SharedControllerFactory: controllerFactory,
 	}
 
 	coreF, err := v1core.NewFactoryFromConfigWithOptions(restConfig, opts)
@@ -115,47 +113,38 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config) (MiniCon
 		return MiniContext{}, fmt.Errorf("error building core sample controllers: %s", err.Error())
 	}
 
-	sccFactory, err := scc.NewFactoryFromConfigWithOptions(restConfig, opts)
+	sccFactory, err := sccControllers.NewFactoryFromConfigWithOptions(restConfig, opts)
 	if err != nil {
 		return MiniContext{}, err
 	}
-
-	mgmtFactory, err := management.NewFactoryFromConfigWithOptions(restConfig, opts)
-	if err != nil {
-		return MiniContext{}, err
-	}
-
-	mgmtInterface := mgmtFactory.Management().V3()
 
 	coreInterface := coreF.Core().V1()
 	secretRepo := secretrepo.NewSecretRepository(coreInterface.Secret(), coreInterface.Secret().Cache())
-	settingRepo := settingrepo.NewSettingRepository(mgmtInterface.Setting(), mgmtInterface.Setting().Cache())
 
 	k8s, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return MiniContext{}, err
 	}
 
-	// TODO: in the future when there is more than just rancher SCC-operator, this will need to be changed
-	// Unless this is adjusted to be unique for each SCC operator, only one will have controller lease at a time
-	leadership := leader.NewManager("", "scc-controllers", k8s)
+	// By default, the `leaseNamespace` will be empty which defaults to `kube-system`.
+	// If there are multiple SCC operator instances, only one will have controller leases at a time.
+	leadership := leader.NewManager(leaseNamespace, "scc-controllers", k8s)
 
 	return MiniContext{
 		RESTConfig: restConfig,
 
-		Dynamic:           dynamicInterface,
-		ControllerFactory: controllerFactory,
-		SharedFactory:     sharedClientFactory,
-		K8sClient:         k8sclient,
-		Mapper:            restmapper,
 		ClientSet:         clientSet,
+		ControllerFactory: controllerFactory,
+		Dynamic:           dynamicClient,
+		K8sClient:         k8sClient,
+		Mapper:            restMapper,
+		SharedFactory:     sharedClientFactory,
 
-		Mgmt: mgmtInterface,
-		Core: coreInterface,
-		SCC:  sccFactory.Scc().V1(),
+		Core:    coreInterface,
+		SCC:     sccFactory.Scc().V1(),
+		Secrets: secretRepo,
 
-		Secrets:  secretRepo,
-		Settings: settingRepo,
+		Settings: settings.NewSettingReader(dynamicClient),
 
 		leadership:     leadership,
 		controllerLock: &sync.Mutex{},
@@ -166,7 +155,7 @@ func (c *MiniContext) Start(ctx context.Context) error {
 	c.controllerLock.Lock()
 	defer c.controllerLock.Unlock()
 
-	if err := c.ControllerFactory.Start(ctx, 50); err != nil {
+	if err := c.ControllerFactory.Start(ctx, 10); err != nil {
 		return err
 	}
 	c.leadership.Start(ctx)

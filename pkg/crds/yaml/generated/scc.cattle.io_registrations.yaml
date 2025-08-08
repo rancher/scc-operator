@@ -21,7 +21,7 @@ spec:
     - jsonPath: .status.activationStatus.activated
       name: Registration Active
       type: boolean
-    - jsonPath: .status.sccSystemId
+    - jsonPath: .status.sccSystemID
       name: System ID
       type: integer
     - jsonPath: .status.activationStatus.lastValidatedTS
@@ -123,7 +123,7 @@ spec:
                   lastValidatedTS:
                     format: date-time
                     type: string
-                  systemUrl:
+                  systemURL:
                     type: string
                 required:
                 - activated
@@ -182,7 +182,7 @@ spec:
               registrationProcessedTS:
                 format: date-time
                 type: string
-              sccSystemId:
+              sccSystemID:
                 type: integer
               systemCredentialsSecretRef:
                 description: |-

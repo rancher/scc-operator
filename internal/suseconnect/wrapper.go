@@ -6,10 +6,10 @@ import (
 	"github.com/SUSE/connect-ng/pkg/connection"
 	"github.com/SUSE/connect-ng/pkg/registration"
 	"github.com/pkg/errors"
+	"github.com/rancher/scc-operator/internal/telemetry"
 
 	rootLog "github.com/rancher/scc-operator/internal/log"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher/scc-operator/pkg/systeminfo"
 )
 
 func sccContextLogger() rootLog.StructuredLogger {
@@ -18,20 +18,31 @@ func sccContextLogger() rootLog.StructuredLogger {
 }
 
 type SccWrapper struct {
-	rancherHostname string
-	credentials     connection.Credentials
-	conn            *connection.ApiConnection
-	registered      *bool // only used by online mode
-	systemInfo      *systeminfo.InfoExporter
+	rancherURL     string
+	credentials    connection.Credentials
+	conn           *connection.ApiConnection
+	registered     *bool // only used by online mode
+	rancherMetrics telemetry.MetricsWrapper
 }
 
-func DefaultConnectionOptions() connection.Options {
+func DefaultConnectionOptions(appName, version string) connection.Options {
 	// So this doesn't necessarily mean these have to match Rancher on the cluster.
 	// Rather the details about the HTTP client talking to SCC
-	return connection.DefaultOptions("rancher-scc-integration", "0.0.1", "en_US")
+	// TODO: eventually add localization support?
+	return connection.DefaultOptions(appName, version, "en_US")
 }
 
-func OnlineRancherConnection(credentials connection.Credentials, systemInfo *systeminfo.InfoExporter, url string) SccWrapper {
+type OnlineConnectionParams struct {
+	RancherURL      string
+	RegistrationURL string
+	Options         connection.Options
+}
+
+func OnlineRancherConnection(
+	params OnlineConnectionParams,
+	credentials connection.Credentials,
+	rancherMetrics telemetry.MetricsWrapper,
+) SccWrapper {
 	if credentials == nil {
 		panic("credentials must be set")
 	}
@@ -41,25 +52,27 @@ func OnlineRancherConnection(credentials connection.Credentials, systemInfo *sys
 		registered = true
 	}
 
-	options := DefaultConnectionOptions()
-
-	if url != "" {
-		options.URL = url
+	if params.RegistrationURL != "" {
+		params.Options.URL = params.RegistrationURL
 	}
 
 	return SccWrapper{
-		rancherHostname: systemInfo.Provider().ServerHostname(),
-		credentials:     credentials,
-		conn:            connection.New(options, credentials),
-		registered:      &registered,
-		systemInfo:      systemInfo,
+		// TODO should use setting ServerURL lookup
+		rancherURL:     params.RancherURL,
+		credentials:    credentials,
+		conn:           connection.New(params.Options, credentials),
+		registered:     &registered,
+		rancherMetrics: rancherMetrics,
 	}
 }
 
-func OfflineRancherRegistration(systemInfo *systeminfo.InfoExporter) SccWrapper {
+func OfflineRancherRegistration(
+	rancherURL string,
+	rancherMetrics telemetry.MetricsWrapper,
+) SccWrapper {
 	return SccWrapper{
-		rancherHostname: systemInfo.Provider().ServerHostname(),
-		systemInfo:      systemInfo,
+		rancherURL:     rancherURL,
+		rancherMetrics: rancherMetrics,
 	}
 }
 
@@ -83,14 +96,7 @@ const (
 )
 
 func (sw *SccWrapper) SystemRegistration(regCode string) (RegistrationSystemID, error) {
-	// 1 collect system info
-	systemInfo := sw.systemInfo
-	preparedSystemInfo, err := systemInfo.PreparedForSCC()
-	if err != nil {
-		return EmptyRegistrationSystemID, err
-	}
-
-	id, regErr := registration.Register(sw.conn, regCode, sw.rancherHostname, preparedSystemInfo, registration.NoExtraData)
+	id, regErr := registration.Register(sw.conn, regCode, sw.rancherURL, sw.rancherMetrics.ToSystemInformation(), registration.NoExtraData)
 	if regErr != nil {
 		return ErrorRegistrationSystemID, errors.Wrap(regErr, "Cannot register system to SCC")
 	}
@@ -99,31 +105,18 @@ func (sw *SccWrapper) SystemRegistration(regCode string) (RegistrationSystemID, 
 }
 
 func (sw *SccWrapper) PrepareOfflineRegistrationRequest() (*registration.OfflineRequest, error) {
-	identifier, version, arch := sw.systemInfo.GetProductIdentifier()
-	rancherUUID := sw.systemInfo.RancherUuid()
-
-	// 1 collect system info
-	preparedSystemInfo, err := sw.systemInfo.PreparedForSCC()
-	if err != nil {
-		return nil, err
-	}
-
-	return registration.BuildOfflineRequest(identifier, version, arch, rancherUUID.String(), preparedSystemInfo), nil
+	identifier, version, arch := sw.rancherMetrics.GetProductIdentifier()
+	rancherUUID := sw.rancherMetrics.GetRancherUUID()
+	return registration.BuildOfflineRequest(identifier, version, arch, rancherUUID, sw.rancherMetrics.ToSystemInformation()), nil
 }
 
 func (sw *SccWrapper) KeepAlive() error {
-	// 1 collect system info
-	systemInfo := sw.systemInfo
-	preparedSystemInfo, err := systemInfo.PreparedForSCC()
-	if err != nil {
-		return err
-	}
-	// 2 call Status
-	status, statusErr := registration.Status(sw.conn, sw.rancherHostname, preparedSystemInfo, registration.NoExtraData)
+	// 1 call Status
+	status, statusErr := registration.Status(sw.conn, sw.rancherURL, sw.rancherMetrics.ToSystemInformation(), registration.NoExtraData)
 	if status != registration.Registered {
 		return fmt.Errorf("trying to send keepalive on a system that is not yet registered. register this system first: %v", statusErr)
 	}
-	// 3 verify response says we're registered still
+	// 2 verify response says we're registered still
 	return statusErr
 }
 
@@ -136,14 +129,11 @@ func (sw *SccWrapper) RegisterOrKeepAlive(regCode string) (RegistrationSystemID,
 }
 
 func (sw *SccWrapper) Activate(regCode string) (*registration.Metadata, *registration.Product, error) {
-	identifier, version, arch := sw.systemInfo.GetProductIdentifier()
+	identifier, version, arch := sw.rancherMetrics.GetProductIdentifier()
 	metaData, product, err := registration.Activate(sw.conn, identifier, version, arch, regCode)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	// After success, prepare info for SCC to update metrics secret
-	_, _ = sw.systemInfo.PreparedForSCC()
 
 	return metaData, product, err
 }
@@ -157,7 +147,7 @@ func (sw *SccWrapper) ActivationStatus() ([]*registration.Activation, error) {
 }
 
 func (sw *SccWrapper) ProductInfo() (*registration.Product, error) {
-	identifier, version, arch := sw.systemInfo.GetProductIdentifier()
+	identifier, version, arch := sw.rancherMetrics.GetProductIdentifier()
 	return registration.FetchProductInfo(sw.conn, identifier, version, arch)
 }
 

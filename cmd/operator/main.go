@@ -20,17 +20,15 @@ import (
 	"github.com/rancher/scc-operator/pkg/util/log"
 )
 
-// TODO: in the future when this isn't very specific to `rancher` (the product) drop the `rancher-` prefix
-const defaultOperatorName = "rancher-scc-operator"
-
 var (
-	KubeConfig   string
-	LogFormat    string
-	Debug        bool
-	Trace        bool
-	SCCNamespace string
-	OperatorName string
-	logger       rootLog.StructuredLogger
+	KubeConfig     string
+	LogFormat      string
+	Debug          bool
+	Trace          bool
+	SCCNamespace   string
+	LeaseNamespace string
+	OperatorName   string
+	logger         rootLog.StructuredLogger
 )
 
 func init() {
@@ -41,9 +39,9 @@ func init() {
 
 	operatorName := os.Getenv("SCC_OPERATOR_NAME")
 	if operatorName == "" {
-		operatorName = defaultOperatorName
+		operatorName = consts.DefaultOperatorName
 	}
-	operatorNameUsage := fmt.Sprintf("Name of the operator. Defaults to %s", defaultOperatorName)
+	operatorNameUsage := fmt.Sprintf("Name of the operator. Defaults to %s", consts.DefaultOperatorName)
 	flag.StringVar(&OperatorName, "operator-name", operatorName, operatorNameUsage)
 
 	flag.BoolVar(&Debug, "debug", false, "Enable debug logging.")
@@ -65,6 +63,8 @@ func init() {
 		SCCNamespace = consts.DefaultSCCNamespace
 	}
 
+	LeaseNamespace = os.Getenv("SCC_LEASE_NAMESPACE")
+
 	log.AddDefaultOpts(rootLog.WithOperatorName(OperatorName))
 	logger = log.NewLog()
 }
@@ -85,7 +85,14 @@ func main() {
 	runOptions := types.RunOptions{
 		Logger:       logger,
 		OperatorName: OperatorName,
-		SccNamespace: SCCNamespace,
+		DevMode:      initializer.DevMode.Get(),
+		OperatorMetadata: types.OperatorMetadata{
+			Version:   version.Version,
+			GitCommit: version.GitCommit,
+			BuildDate: version.Date,
+		},
+		SystemNamespace: SCCNamespace,
+		LeaseNamespace:  LeaseNamespace,
 	}
 
 	if err := run(ctx, restKubeConfig, runOptions); err != nil {
@@ -103,6 +110,12 @@ func run(ctx context.Context, restKubeConfig *rest.Config, runOptions types.RunO
 		return err
 	}
 
+	if metricErr := sccOperatorStarter.EnsureMetricsSecretRequest(ctx); metricErr != nil {
+		logger.Errorf("Error ensuring metrics secret request: %v", metricErr)
+		return metricErr
+	}
+
+	go sccOperatorStarter.StartMetricsAndHealthEndpoint()
 	if runErr := sccOperatorStarter.Run(); runErr != nil {
 		logger.Errorf("Error running operator: %v", runErr)
 		return runErr

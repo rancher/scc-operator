@@ -7,32 +7,33 @@ import (
 	"strings"
 )
 
+func baseControllerGenCmd() []string {
+	return []string{
+		"tool",
+		"-modfile",
+		"gotools/controller-gen/go.mod",
+		"controller-gen",
+	}
+}
+
 func main() {
 	// Define controller-gen command and arguments
-	cmdName := "go"
-	cmdArgs := []string{
-		"run",
-		"sigs.k8s.io/controller-tools/cmd/controller-gen",
+	cmdArgs := append(baseControllerGenCmd(), []string{
 		"crd:generateEmbeddedObjectMeta=true,allowDangerousTypes=false",
 		"paths=./pkg/apis/...",
 		"output:crd:dir=./pkg/crds/yaml/generated",
-	}
+	}...)
 
-	fmt.Printf("Executing command: %s %s\n", cmdName, strings.Join(cmdArgs, " "))
-
-	cmd := exec.Command(cmdName, cmdArgs...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "controller-gen command failed: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Println("controller-gen command executed successfully.")
+	fmt.Printf("Executing command: go %s\n", strings.Join(cmdArgs, " "))
+	runControllerGen(cmdArgs)
 
 	// Remove empty CRD
-	emptyCRDPath := "./pkg/crds/yaml/generated/_.yaml"
+	cleanEmptyCRD("./pkg/crds/yaml/generated/_.yaml")
+
+	fmt.Println("controller-gen command executed successfully.")
+}
+
+func cleanEmptyCRD(emptyCRDPath string) {
 	if _, err := os.Stat(emptyCRDPath); err == nil {
 		fmt.Printf("Removing empty CRD: %s\n", emptyCRDPath)
 		if err := os.Remove(emptyCRDPath); err != nil {
@@ -45,5 +46,16 @@ func main() {
 		os.Exit(1)
 	} else {
 		fmt.Println("No empty CRD found to remove.")
+	}
+}
+
+func runControllerGen(cmdArgs []string) {
+	cmd := exec.Command("go", cmdArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "controller-gen command failed: %v\n", err)
+		os.Exit(1)
 	}
 }

@@ -42,6 +42,7 @@ func New(
 		secretName:      name,
 		ownerRef:        ownerRef,
 		secretRepo:      secretRepo,
+		credentials:     *NewCredentials(),
 		labels:          labels,
 	}
 }

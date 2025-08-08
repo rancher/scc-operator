@@ -10,12 +10,10 @@ import (
 
 	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/rancher/scc-operator/internal/log"
-	"github.com/rancher/scc-operator/internal/telemetry"
 	"github.com/rancher/scc-operator/internal/types"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/crds"
 	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
-	"github.com/rancher/scc-operator/pkg/systeminfo"
 )
 
 type SccOperator struct {
@@ -23,7 +21,7 @@ type SccOperator struct {
 	log                log.StructuredLogger
 	sccResourceFactory *scc.Factory
 	secrets            corev1.SecretController
-	rancherTelemetry   telemetry.TelemetryGatherer
+	options            *types.RunOptions
 }
 
 func New(
@@ -37,11 +35,11 @@ func New(
 	if err := options.Validate(); err != nil {
 		return nil, err
 	}
-	initializer.SystemNamespace.Set(options.SccNamespace)
+	initializer.SystemNamespace.Set(options.SystemNamespace)
 	initializer.OperatorName.Set(options.OperatorName)
 
 	kubeconfig.RateLimiter = ratelimit.None
-	wContext, err := wrangler.NewWranglerMiniContext(ctx, kubeconfig)
+	wContext, err := wrangler.NewWranglerMiniContext(ctx, kubeconfig, options.LeaseNamespace)
 	if err != nil {
 		return nil, err
 	}
@@ -57,13 +55,11 @@ func New(
 		return nil, fmt.Errorf("failed to ensure required CRDs: %w", ensureCrdErr)
 	}
 
-	infoProvider := systeminfo.NewInfoProvider(wContext.Settings, wContext.Mgmt.Node().Cache())
-
 	return &SccStarter{
 		context:                 ctx,
+		options:                 options,
 		wrangler:                wContext,
 		log:                     operatorLogger.WithField("component", "scc-starter"),
-		systemInfoProvider:      infoProvider,
 		systemRegistrationReady: make(chan struct{}),
 	}, nil
 }

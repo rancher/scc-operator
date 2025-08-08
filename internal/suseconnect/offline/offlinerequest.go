@@ -23,6 +23,7 @@ func (o *SecretManager) SetRegistrationOfflineRegistrationRequestSecretRef(regis
 	return registrationObj
 }
 
+// TODO: is this needed still?
 func (o *SecretManager) loadRequestSecret() error {
 	offlineRequest, err := o.secretRepo.Cache.Get(o.secretNamespace, o.requestSecretName)
 	if err == nil && offlineRequest != nil {

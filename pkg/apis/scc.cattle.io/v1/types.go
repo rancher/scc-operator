@@ -44,7 +44,7 @@ const (
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Mode",type=string,JSONPath=`.spec.mode`
 // +kubebuilder:printcolumn:name="Registration Active",type=boolean,JSONPath=`.status.activationStatus.activated`
-// +kubebuilder:printcolumn:name="System ID",type=integer,JSONPath=`.status.sccSystemId`
+// +kubebuilder:printcolumn:name="System ID",type=integer,JSONPath=`.status.sccSystemID`
 // +kubebuilder:printcolumn:name="Last Sync",type="date",JSONPath=".status.activationStatus.lastValidatedTS"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

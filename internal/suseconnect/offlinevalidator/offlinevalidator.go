@@ -1,4 +1,4 @@
-package offline
+package offlinevalidator
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 	"github.com/SUSE/connect-ng/pkg/registration"
 
 	rootLog "github.com/rancher/scc-operator/internal/log"
-	"github.com/rancher/scc-operator/pkg/systeminfo"
 )
 
 func offlineValidatorContextLogger() rootLog.StructuredLogger {
@@ -44,14 +43,14 @@ func (e *offlineCertError) Unwrap() error {
 }
 
 type CertificateValidator struct {
-	offlineCert        *registration.OfflineCertificate
-	systemInfoExporter *systeminfo.InfoExporter
+	offlineCert *registration.OfflineCertificate
+	rancherUUID string
 }
 
-func New(offlineCert *registration.OfflineCertificate, systemInfoExporter *systeminfo.InfoExporter) *CertificateValidator {
+func New(offlineCert *registration.OfflineCertificate, rancherUUID string) *CertificateValidator {
 	return &CertificateValidator{
-		offlineCert:        offlineCert,
-		systemInfoExporter: systemInfoExporter,
+		offlineCert: offlineCert,
+		rancherUUID: rancherUUID,
 	}
 }
 
@@ -97,8 +96,7 @@ func (cv *CertificateValidator) ValidateCertificate() error {
 		return nil
 	}
 
-	rancherUUID := cv.systemInfoExporter.RancherUuid()
-	matchesRancherUUID, uidErr := cv.offlineCert.UUIDMatches(rancherUUID.String())
+	matchesRancherUUID, uidErr := cv.offlineCert.UUIDMatches(cv.rancherUUID)
 	if uidErr != nil {
 		return &offlineCertError{
 			Operation:  "VerifyInstallUUIDMatch",

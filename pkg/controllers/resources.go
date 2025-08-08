@@ -44,7 +44,7 @@ const (
 )
 
 func (h *handler) isRancherEntrypointSecret(secretObj *corev1.Secret) bool {
-	if secretObj.Name != consts.ResourceSCCEntrypointSecretName || secretObj.Namespace != h.systemNamespace {
+	if secretObj.Name != consts.ResourceSCCEntrypointSecretName || secretObj.Namespace != h.options.SystemNamespace {
 		return false
 	}
 	return true
@@ -173,7 +173,7 @@ func (r RegistrationParams) Labels() map[string]string {
 	return map[string]string{
 		consts.LabelNameSuffix:   r.nameID,
 		consts.LabelSccHash:      r.contentHash,
-		consts.LabelSccManagedBy: consts.ManagedBySecretBroker,
+		consts.LabelSccManagedBy: consts.ManagedByValueSecretBroker,
 		consts.LabelK8sManagedBy: r.managedByOperator,
 	}
 }
@@ -190,15 +190,15 @@ func (h *handler) registrationFromSecretEntrypoint(
 		)
 	}
 
-	genName := fmt.Sprintf("scc-registration-%s", params.nameID)
+	hashedName := fmt.Sprintf("scc-registration-%s", params.nameID)
 	var reg *v1.Registration
 	var err error
 
-	reg, err = h.registrationCache.Get(genName)
+	reg, err = h.registrationCache.Get(hashedName)
 	if err != nil && apierrors.IsNotFound(err) {
 		reg = &v1.Registration{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: genName,
+				Name: hashedName,
 			},
 		}
 	}
@@ -239,11 +239,11 @@ func paramsToRegSpec(params RegistrationParams) v1.RegistrationSpec {
 func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
 	secretName := params.regCodeSecretRef.Name
 
-	regcodeSecret, err := h.secretRepo.Cache.Get(h.systemNamespace, secretName)
+	regcodeSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace, secretName)
 	if err != nil && apierrors.IsNotFound(err) {
 		regcodeSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: h.systemNamespace,
+				Namespace: h.options.SystemNamespace,
 				Name:      secretName,
 			},
 			Data: map[string][]byte{
@@ -269,11 +269,11 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 func (h *handler) offlineCertFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
 	secretName := consts.OfflineCertificateSecretName(params.nameID)
 
-	offlineCertSecret, err := h.secretRepo.Cache.Get(h.systemNamespace, secretName)
+	offlineCertSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace, secretName)
 	if err != nil && apierrors.IsNotFound(err) {
 		offlineCertSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: h.systemNamespace,
+				Namespace: h.options.SystemNamespace,
 				Name:      secretName,
 			},
 			Data: map[string][]byte{
