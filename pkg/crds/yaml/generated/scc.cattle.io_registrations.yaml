@@ -21,7 +21,7 @@ spec:
     - jsonPath: .status.activationStatus.activated
       name: Registration Active
       type: boolean
-    - jsonPath: .status.sccSystemId
+    - jsonPath: .status.sccSystemID
       name: System ID
       type: integer
     - jsonPath: .status.activationStatus.lastValidatedTS

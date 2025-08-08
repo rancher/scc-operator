@@ -23,19 +23,5 @@ func run() error {
 		return err
 	}
 
-	if err := os.RemoveAll("./internal/rancher/client/generated"); err != nil {
-		return err
-	}
-	if err := os.RemoveAll("./internal/rancher/crds/yamls/generated"); err != nil {
-		return err
-	}
-	if err := os.RemoveAll("./internal/rancher/generated"); err != nil {
-		return err
-	}
-
-	if err := cleanup.Cleanup("./internal/rancher/apis"); err != nil {
-		return err
-	}
-
 	return cleanup.Cleanup("./pkg/apis")
 }
