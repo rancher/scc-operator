@@ -137,7 +137,7 @@ func Register(
 	go controller.RunLifecycleManager(cfg, rancher.GetServerURL(ctx, settings))
 }
 
-func (h *handler) prepareHandler(registrationObj *v1.Registration, rancherUrl string) SCCHandler {
+func (h *handler) prepareHandler(registrationObj *v1.Registration, rancherURL string) SCCHandler {
 	ref := registrationObj.ToOwnerRef()
 	nameSuffixHash := registrationObj.Labels[consts.LabelNameSuffix]
 
@@ -152,7 +152,7 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration, rancherUrl st
 		offlineRequestSecretName := consts.OfflineRequestSecretName(nameSuffixHash)
 		offlineCertSecretName := consts.OfflineCertificateSecretName(nameSuffixHash)
 		return &sccOfflineMode{
-			rancherUrl:   rancherUrl,
+			rancherURL:   rancherURL,
 			rancherUUID:  rancher.GetRancherInstallUUID(h.ctx, h.settings),
 			log:          h.log.WithField("regHandler", "offline"),
 			options:      h.options,
@@ -170,7 +170,7 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration, rancherUrl st
 
 	credsSecretName := consts.SCCCredentialsSecretName(nameSuffixHash)
 	return &sccOnlineMode{
-		rancherUrl:   rancherUrl,
+		rancherURL:   rancherURL,
 		log:          h.log.WithField("regHandler", "online"),
 		options:      h.options,
 		registration: registrationObj,
@@ -508,8 +508,8 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		return nil, nil
 	}
 
-	rancherUrl := rancher.GetServerURL(h.ctx, h.settings)
-	if rancherUrl == "" {
+	rancherURL := rancher.GetServerURL(h.ctx, h.settings)
+	if rancherURL == "" {
 		h.log.Info("Server URL not set")
 		return registrationObj, errors.New("no server url found in the system info")
 	}
@@ -518,7 +518,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		return registrationObj, errors.New("registration has failed status; create a new one to retry")
 	}
 
-	registrationHandler := h.prepareHandler(registrationObj, rancherUrl)
+	registrationHandler := h.prepareHandler(registrationObj, rancherURL)
 
 	// Skip keepalive for anything activated within the last 20 hours
 	if !registrationHandler.NeedsRegistration(registrationObj) &&
@@ -737,12 +737,12 @@ func (h *handler) OnRegistrationRemove(name string, registrationObj *v1.Registra
 		return nil, nil
 	}
 
-	rancherUrl := rancher.GetServerURL(h.ctx, h.settings)
-	if rancherUrl == "" {
+	rancherURL := rancher.GetServerURL(h.ctx, h.settings)
+	if rancherURL == "" {
 		h.log.Info("Server URL not set")
 		return registrationObj, errors.New("no server url found in the system info")
 	}
-	regHandler := h.prepareHandler(registrationObj, rancherUrl)
+	regHandler := h.prepareHandler(registrationObj, rancherURL)
 	deRegErr := regHandler.Deregister()
 	if deRegErr != nil {
 		h.log.Warn(deRegErr)

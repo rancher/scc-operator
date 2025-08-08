@@ -25,12 +25,11 @@ type SccStarter struct {
 }
 
 func (s *SccStarter) CanStartSccOperator() bool {
-	return s.isServerUrlReady() && s.hasSccMetricsSecretPopulated()
+	return s.isServerURLReady() && s.hasSccMetricsSecretPopulated()
 }
 
-func (s *SccStarter) isServerUrlReady() bool {
-	serverUrl := rancher.GetServerURL(s.context, s.wrangler.Settings)
-	return serverUrl != ""
+func (s *SccStarter) isServerURLReady() bool {
+	return rancher.GetServerURL(s.context, s.wrangler.Settings) != ""
 }
 
 func (s *SccStarter) hasSccMetricsSecretPopulated() bool {

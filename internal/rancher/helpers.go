@@ -14,14 +14,14 @@ func GetServerURL(ctx context.Context, settings *settings.SettingReader) string 
 		return ""
 	}
 
-	serverUrlSetting, err := settings.Get(ctx, consts.SettingNameServerURL)
+	serverURLSetting, err := settings.Get(ctx, consts.SettingNameServerURL)
 	if err != nil {
 		log.NewLog().Error(err, "Failed to get install uuid setting")
 		return ""
 	}
-	logrus.Debug(serverUrlSetting)
+	logrus.Debug(serverURLSetting)
 
-	return serverUrlSetting.Get()
+	return serverURLSetting.Get()
 }
 
 func GetRancherInstallUUID(ctx context.Context, settings *settings.SettingReader) string {

@@ -26,7 +26,7 @@ var (
 )
 
 type sccOnlineMode struct {
-	rancherUrl     string
+	rancherURL     string
 	options        *types.RunOptions
 	registration   *v1.Registration
 	log            log.StructuredLogger
@@ -41,12 +41,12 @@ func (s *sccOnlineMode) SetRancherMetrics(rancherMetrics telemetry.MetricsWrappe
 
 func (s *sccOnlineMode) prepareSCCOnlineConnection(
 	rancherMetrics telemetry.MetricsWrapper,
-	registrationUrl string,
+	registrationURL string,
 ) suseconnect.SccWrapper {
 	return suseconnect.OnlineRancherConnection(
 		suseconnect.OnlineConnectionParams{
-			RancherUrl:      registrationUrl,
-			RegistrationUrl: registrationUrl,
+			RancherURL:      registrationURL,
+			RegistrationURL: registrationURL,
 			Options:         suseconnect.DefaultConnectionOptions(s.options.OperatorName, s.options.OperatorMetadata.Version),
 		},
 		s.sccCredentials.SccCredentials(),

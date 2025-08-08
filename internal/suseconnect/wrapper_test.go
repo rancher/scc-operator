@@ -8,7 +8,7 @@ import (
 )
 
 func TestDefaultConnectionOptionsBasic(t *testing.T) {
-	defaultOptions := DefaultConnectionOptions()
+	defaultOptions := DefaultConnectionOptions("rancher-scc-integration", "0.0.1")
 	expected := connection.Options{
 		URL:              connection.DefaultBaseURL,
 		Secure:           true,
@@ -21,7 +21,7 @@ func TestDefaultConnectionOptionsBasic(t *testing.T) {
 }
 
 func TestDefaultConnectionOptions(t *testing.T) {
-	defaultOptions := DefaultConnectionOptions()
+	defaultOptions := DefaultConnectionOptions("rancher-scc-integration", "0.0.1")
 	assert.Equal(t, connection.DefaultBaseURL, defaultOptions.URL)
 	assert.Equal(t, "rancher-scc-integration", defaultOptions.AppName)
 	assert.Equal(t, "0.0.1", defaultOptions.Version)

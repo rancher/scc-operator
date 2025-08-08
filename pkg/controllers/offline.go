@@ -17,7 +17,7 @@ import (
 )
 
 type sccOfflineMode struct {
-	rancherUrl     string
+	rancherURL     string
 	rancherUUID    string
 	options        *types.RunOptions
 	registration   *v1.Registration
@@ -51,7 +51,7 @@ func (s *sccOfflineMode) PrepareForRegister(registrationObj *v1.Registration) (*
 
 func (s *sccOfflineMode) RefreshOfflineRequestSecret() error {
 	// TODO: sort out something other than nil
-	sccWrapper := suseconnect.OfflineRancherRegistration(s.rancherUrl, s.rancherMetrics)
+	sccWrapper := suseconnect.OfflineRancherRegistration(s.rancherURL, s.rancherMetrics)
 	generatedOfflineRegistrationRequest, err := sccWrapper.PrepareOfflineRegistrationRequest()
 	if err != nil {
 		return err
@@ -177,7 +177,7 @@ func (s *sccOfflineMode) Keepalive(registrationObj *v1.Registration) error {
 }
 
 func (s *sccOfflineMode) PrepareKeepaliveSucceeded(registrationObj *v1.Registration) (*v1.Registration, error) {
-	sccWrapper := suseconnect.OfflineRancherRegistration(s.rancherUrl, s.rancherMetrics)
+	sccWrapper := suseconnect.OfflineRancherRegistration(s.rancherURL, s.rancherMetrics)
 	generatedOfflineRegistrationRequest, err := sccWrapper.PrepareOfflineRegistrationRequest()
 	if err != nil {
 		return registrationObj, err

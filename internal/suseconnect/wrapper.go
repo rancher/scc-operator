@@ -18,7 +18,7 @@ func sccContextLogger() rootLog.StructuredLogger {
 }
 
 type SccWrapper struct {
-	rancherUrl     string
+	rancherURL     string
 	credentials    connection.Credentials
 	conn           *connection.ApiConnection
 	registered     *bool // only used by online mode
@@ -33,8 +33,8 @@ func DefaultConnectionOptions(appName, version string) connection.Options {
 }
 
 type OnlineConnectionParams struct {
-	RancherUrl      string
-	RegistrationUrl string
+	RancherURL      string
+	RegistrationURL string
 	Options         connection.Options
 }
 
@@ -52,13 +52,13 @@ func OnlineRancherConnection(
 		registered = true
 	}
 
-	if params.RegistrationUrl != "" {
-		params.Options.URL = params.RegistrationUrl
+	if params.RegistrationURL != "" {
+		params.Options.URL = params.RegistrationURL
 	}
 
 	return SccWrapper{
-		// TODO should use setting ServerUrl lookup
-		rancherUrl:     params.RancherUrl,
+		// TODO should use setting ServerURL lookup
+		rancherURL:     params.RancherURL,
 		credentials:    credentials,
 		conn:           connection.New(params.Options, credentials),
 		registered:     &registered,
@@ -67,11 +67,11 @@ func OnlineRancherConnection(
 }
 
 func OfflineRancherRegistration(
-	rancherUrl string,
+	rancherURL string,
 	rancherMetrics telemetry.MetricsWrapper,
 ) SccWrapper {
 	return SccWrapper{
-		rancherUrl:     rancherUrl,
+		rancherURL:     rancherURL,
 		rancherMetrics: rancherMetrics,
 	}
 }
@@ -96,7 +96,7 @@ const (
 )
 
 func (sw *SccWrapper) SystemRegistration(regCode string) (RegistrationSystemID, error) {
-	id, regErr := registration.Register(sw.conn, regCode, sw.rancherUrl, sw.rancherMetrics.ToSystemInformation(), registration.NoExtraData)
+	id, regErr := registration.Register(sw.conn, regCode, sw.rancherURL, sw.rancherMetrics.ToSystemInformation(), registration.NoExtraData)
 	if regErr != nil {
 		return ErrorRegistrationSystemID, errors.Wrap(regErr, "Cannot register system to SCC")
 	}
@@ -122,7 +122,7 @@ func (sw *SccWrapper) PrepareOfflineRegistrationRequest() (*registration.Offline
 
 func (sw *SccWrapper) KeepAlive() error {
 	// 1 call Status
-	status, statusErr := registration.Status(sw.conn, sw.rancherUrl, sw.rancherMetrics.ToSystemInformation(), registration.NoExtraData)
+	status, statusErr := registration.Status(sw.conn, sw.rancherURL, sw.rancherMetrics.ToSystemInformation(), registration.NoExtraData)
 	if status != registration.Registered {
 		return fmt.Errorf("trying to send keepalive on a system that is not yet registered. register this system first: %v", statusErr)
 	}
