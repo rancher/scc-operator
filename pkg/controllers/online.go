@@ -357,7 +357,7 @@ func (s *sccOnlineMode) Deregister() error {
 	}
 
 	regCodeSecretRef := s.registration.Spec.RegistrationRequest.RegistrationCodeSecretRef
-	regCodeSecret, regCodeErr := s.secretRepo.Cache.Get(regCodeSecretRef.Namespace, regCodeSecretRef.Name)
+	regCodeSecret, regCodeErr := s.secretRepo.Get(regCodeSecretRef.Namespace, regCodeSecretRef.Name)
 	if regCodeErr != nil && !apierrors.IsNotFound(regCodeErr) {
 		return regCodeErr
 	}
