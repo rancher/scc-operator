@@ -45,7 +45,7 @@ func (s *sccOnlineMode) prepareSCCOnlineConnection(
 ) suseconnect.SccWrapper {
 	return suseconnect.OnlineRancherConnection(
 		suseconnect.OnlineConnectionParams{
-			RancherURL:      registrationURL,
+			RancherURL:      s.rancherURL,
 			RegistrationURL: registrationURL,
 			Options:         suseconnect.DefaultConnectionOptions(s.options.OperatorName, s.options.OperatorMetadata.Version),
 		},

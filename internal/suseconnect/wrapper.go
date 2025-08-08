@@ -57,7 +57,6 @@ func OnlineRancherConnection(
 	}
 
 	return SccWrapper{
-		// TODO should use setting ServerURL lookup
 		rancherURL:     params.RancherURL,
 		credentials:    credentials,
 		conn:           connection.New(params.Options, credentials),
