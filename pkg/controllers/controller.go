@@ -458,7 +458,7 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 					continue
 				}
 
-				if reg.DeletionTimestamp == nil {
+				if reg.DeletionTimestamp == nil && reg.Status.ActivationStatus.Activated {
 					danglingRefs++
 				} else {
 					// TODO(alex): verify this logic when you are back
