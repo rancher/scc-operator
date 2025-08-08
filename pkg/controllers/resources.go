@@ -190,15 +190,15 @@ func (h *handler) registrationFromSecretEntrypoint(
 		)
 	}
 
-	genName := fmt.Sprintf("scc-registration-%s", params.nameID)
+	hashedName := fmt.Sprintf("scc-registration-%s", params.nameID)
 	var reg *v1.Registration
 	var err error
 
-	reg, err = h.registrationCache.Get(genName)
+	reg, err = h.registrationCache.Get(hashedName)
 	if err != nil && apierrors.IsNotFound(err) {
 		reg = &v1.Registration{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: genName,
+				Name: hashedName,
 			},
 		}
 	}
