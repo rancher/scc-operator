@@ -6,10 +6,11 @@ import (
 )
 
 type subscriptionInfo struct {
-	product string
-	version string
-	arch    string
-	git     string
+	rancherUUID string
+	product     string
+	version     string
+	arch        string
+	git         string
 }
 
 type MetricsWrapper struct {
@@ -20,6 +21,7 @@ type MetricsWrapper struct {
 func NewMetricsWrapper(data map[string]any) MetricsWrapper {
 	var subInfo subscriptionInfo
 	subscriptionData := data["subscription"].(map[string]interface{})
+	subInfo.rancherUUID = subscriptionData["installuuid"].(string)
 	subInfo.product = subscriptionData["product"].(string)
 	subInfo.version = subscriptionData["version"].(string)
 	subInfo.arch = subscriptionData["arch"].(string)
@@ -31,12 +33,16 @@ func NewMetricsWrapper(data map[string]any) MetricsWrapper {
 	}
 }
 
-func (w *MetricsWrapper) ToSystemInformation() registration.SystemInformation {
-	return w.Data
+func (mw *MetricsWrapper) GetRancherUUID() string {
+	return mw.subscriptionInfo.rancherUUID
+}
+
+func (mw *MetricsWrapper) ToSystemInformation() registration.SystemInformation {
+	return mw.Data
 }
 
 // GetProductIdentifier must return the SCC Product ID, the Product version, and product arch
-func (w *MetricsWrapper) GetProductIdentifier() (string, string, string) {
-	rancherVersion := rancher.Version(w.subscriptionInfo.version)
-	return w.subscriptionInfo.product, rancherVersion.SCCSafeVersion(), w.subscriptionInfo.arch
+func (mw *MetricsWrapper) GetProductIdentifier() (string, string, string) {
+	rancherVersion := rancher.Version(mw.subscriptionInfo.version)
+	return mw.subscriptionInfo.product, rancherVersion.SCCSafeVersion(), mw.subscriptionInfo.arch
 }
