@@ -113,8 +113,8 @@ func Register(
 	controller.initIndexers()
 	controller.initResolvers(ctx)
 
-	withinExpectedNamespaceCondition := func(_ string, obj runtime.Object) (bool, error) {
-		if !wranglerPolyfill.InExpectedNamespace(obj, controller.options.SystemNamespace) {
+	withinExpectedNamespaceCondition := func(name string, obj runtime.Object) (bool, error) {
+		if !wranglerPolyfill.InExpectedNamespace(name, obj, controller.options.SystemNamespace) {
 			return false, nil
 		}
 		return true, nil
@@ -125,6 +125,9 @@ func Register(
 	// TODO: pull out registration controllers to register only when system is ready
 	// TODO: also add a watcher to trigger enqueue on related resource changes
 	withinOperatorScopeCondition := func(_ string, obj runtime.Object) (bool, error) {
+		if obj == nil {
+			return false, nil
+		}
 		metaObj, err := meta.Accessor(obj)
 		if err != nil {
 			return false, err
