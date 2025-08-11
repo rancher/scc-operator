@@ -83,6 +83,8 @@ type RegistrationRequest struct {
 }
 
 type RegistrationStatus struct {
+	CurrentCondition *genericcondition.GenericCondition `json:"currentCondition,omitempty"`
+
 	// +optional
 	// +patchMergeKey=type
 	// +patchStrategy=merge

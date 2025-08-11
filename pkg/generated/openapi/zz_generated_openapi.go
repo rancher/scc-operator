@@ -257,6 +257,11 @@ func schema_pkg_apis_scccattleio_v1_RegistrationStatus(ref common.ReferenceCallb
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
+					"currentCondition": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/rancher/wrangler/v3/pkg/genericcondition.GenericCondition"),
+						},
+					},
 					"conditions": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
