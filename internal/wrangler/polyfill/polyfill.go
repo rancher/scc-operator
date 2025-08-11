@@ -2,22 +2,25 @@ package polyfill
 
 import (
 	"context"
+	"strings"
 
 	"github.com/rancher/wrangler/v3/pkg/generic"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // ScopeFunc is a function that determines whether a scoped handler should trigger
 type ScopeFunc func(key string, obj runtime.Object) (bool, error)
 
-func InExpectedNamespace(obj runtime.Object, namespace string) bool {
-	metadata, err := meta.Accessor(obj)
-	if err != nil {
-		return false
+func InExpectedNamespace(nameIn string, _ runtime.Object, namespace string) bool {
+	var namespaceIn string
+	if strings.Contains(nameIn, "/") {
+		parts := strings.Split(nameIn, "/")
+		namespaceIn = parts[0]
+	} else {
+		namespaceIn = nameIn
 	}
 
-	return metadata.GetNamespace() == namespace
+	return namespaceIn == namespace
 }
 
 func ScopedOnChange[T generic.RuntimeMetaObject](ctx context.Context, name string, inScopeFunc ScopeFunc, c generic.ControllerMeta, sync generic.ObjectHandler[T]) {
