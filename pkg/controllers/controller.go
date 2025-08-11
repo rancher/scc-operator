@@ -553,6 +553,8 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 			progressingUpdateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				var err error
 				v1.ResourceConditionProgressing.True(progressingObj)
+				// Set ResourceConditionProgressing as the CurrentCondition since we're starting the registration process
+				progressingObj.SetCurrentCondition(v1.ResourceConditionProgressing)
 				progressingObj, err = h.registrations.UpdateStatus(progressingObj)
 				return err
 			})
@@ -677,6 +679,8 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		v1.ResourceConditionReady.False(updated)
 		v1.ResourceConditionDone.False(updated)
 		v1.RegistrationConditionActivated.False(updated)
+		// Set ResourceConditionProgressing as the CurrentCondition since we're resetting the registration process
+		updated.SetCurrentCondition(v1.ResourceConditionProgressing)
 
 		var err error
 		updated, err = h.registrations.UpdateStatus(updated)

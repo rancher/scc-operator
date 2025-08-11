@@ -23,5 +23,8 @@ func PrepareSuccessfulActivation(regIn *v1.Registration) *v1.Registration {
 	regIn.Status.ActivationStatus.LastValidatedTS = &now
 	regIn.Status.ActivationStatus.Activated = true
 
+	// Set ResourceConditionDone as the CurrentCondition since it represents the final successful state
+	regIn.SetCurrentCondition(v1.ResourceConditionDone)
+
 	return regIn
 }
