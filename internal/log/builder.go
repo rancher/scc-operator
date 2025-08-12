@@ -76,11 +76,11 @@ func (lb *StructuredLoggerBuilder) ToLogger() StructuredLogger {
 	}
 
 	if lb.Controller != nil && *lb.Controller != "" {
-		baseLogEntry = baseLogEntry.WithField("controller", lb.Controller)
+		baseLogEntry = baseLogEntry.WithField("controller", *lb.Controller)
 	}
 
 	if lb.SubComponent != nil && *lb.SubComponent != "" {
-		baseLogEntry = baseLogEntry.WithField("subcomponent", lb.SubComponent)
+		baseLogEntry = baseLogEntry.WithField("subcomponent", *lb.SubComponent)
 	}
 
 	return baseLogEntry
