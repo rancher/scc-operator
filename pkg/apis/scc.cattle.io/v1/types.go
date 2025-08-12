@@ -83,6 +83,8 @@ type RegistrationRequest struct {
 }
 
 type RegistrationStatus struct {
+	CurrentCondition *genericcondition.GenericCondition `json:"currentCondition,omitempty"`
+
 	// +optional
 	// +patchMergeKey=type
 	// +patchStrategy=merge
@@ -145,5 +147,18 @@ func (r *Registration) ToOwnerRef() *metav1.OwnerReference {
 		Kind:       r.TypeMeta.Kind,
 		UID:        r.GetUID(),
 		Name:       r.GetName(),
+	}
+}
+
+// SetCurrentCondition sets the CurrentCondition field to reference a condition from the Conditions slice by name.
+// This ensures that the CurrentCondition value is always derived from what's already in the Conditions list.
+// If no condition with the given name is found, CurrentCondition remains unchanged.
+func (r *Registration) SetCurrentCondition(condName condition.Cond) {
+	for i, cond := range r.Status.Conditions {
+		if cond.Type == string(condName) {
+			// Use a reference to the existing condition
+			r.Status.CurrentCondition = &r.Status.Conditions[i]
+			return
+		}
 	}
 }

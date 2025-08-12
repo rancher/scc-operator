@@ -159,6 +159,32 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              currentCondition:
+                properties:
+                  lastTransitionTime:
+                    description: Last time the condition transitioned from one status
+                      to another.
+                    type: string
+                  lastUpdateTime:
+                    description: The last time this condition was updated.
+                    type: string
+                  message:
+                    description: Human-readable message indicating details about last
+                      transition
+                    type: string
+                  reason:
+                    description: The reason for the condition's last transition.
+                    type: string
+                  status:
+                    description: Status of the condition, one of True, False, Unknown.
+                    type: string
+                  type:
+                    description: Type of cluster condition.
+                    type: string
+                required:
+                - status
+                - type
+                type: object
               offlineRegistrationRequest:
                 description: |-
                   SecretReference represents a Secret Reference. It has enough information to retrieve secret

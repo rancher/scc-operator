@@ -14,8 +14,11 @@ var (
 func PrepareFailed(regIn *v1.Registration, err error) *v1.Registration {
 	v1.ResourceConditionProgressing.False(regIn)
 	v1.ResourceConditionReady.False(regIn)
-	v1.ResourceConditionFailure.True(regIn)
 	v1.ResourceConditionFailure.SetError(regIn, "could not complete registration", err)
+	v1.ResourceConditionFailure.True(regIn)
+
+	// Set ResourceConditionFailure as the CurrentCondition since it represents the failure state
+	regIn.SetCurrentCondition(v1.ResourceConditionFailure)
 
 	return regIn
 }

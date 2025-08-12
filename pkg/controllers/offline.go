@@ -85,6 +85,7 @@ func (s *sccOfflineMode) ReconcileRegisterError(registrationObj *v1.Registration
 	if phase == types.RegistrationMain {
 		v1.RegistrationConditionOfflineRequestReady.SetError(registrationObj, "Failed to update Offline Request secret", registerErr)
 	}
+	registrationObj.SetCurrentCondition(v1.RegistrationConditionOfflineRequestReady)
 	return registrationObj
 }
 
@@ -140,6 +141,7 @@ func (s *sccOfflineMode) ReconcileActivateError(registrationObj *v1.Registration
 	v1.RegistrationConditionActivated.False(registrationObj)
 	v1.RegistrationConditionActivated.Reason(registrationObj, "offline activation failed")
 	v1.RegistrationConditionOfflineCertificateReady.SetError(registrationObj, "cannot validate offline certificate", activationErr)
+	registrationObj.SetCurrentCondition(v1.RegistrationConditionOfflineCertificateReady)
 
 	// Cannot recover from this error so must set failure
 	registrationObj.Status.ActivationStatus.Activated = false

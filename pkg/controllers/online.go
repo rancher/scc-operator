@@ -178,6 +178,7 @@ func (s *sccOnlineMode) ReconcileRegisterError(registrationObj *v1.Registration,
 				v1.RegistrationConditionAnnounced.SetError(regApplierIn, preparedErrorReasonCondition, registerErr)
 				v1.RegistrationConditionSccURLReady.False(regApplierIn)
 				v1.RegistrationConditionActivated.False(regApplierIn)
+				regApplierIn.SetCurrentCondition(v1.RegistrationConditionAnnounced)
 
 				// Cannot recover from this error so must set failure
 				regApplierIn.Status.ActivationStatus.Activated = false
@@ -265,6 +266,7 @@ func (s *sccOnlineMode) ReconcileActivateError(registration *v1.Registration, ac
 			func(regApplierIn *v1.Registration, httpCode *int) *v1.Registration {
 				preparedErrorReasonCondition := fmt.Sprintf("Error: SCC sync returned %s (%d) status", http.StatusText(*httpCode), httpCode)
 				v1.RegistrationConditionActivated.SetError(regApplierIn, preparedErrorReasonCondition, activationErr)
+				regApplierIn.SetCurrentCondition(v1.RegistrationConditionActivated)
 
 				// Cannot recover from this error so must set failure
 				regApplierIn.Status.ActivationStatus.Activated = false
@@ -323,6 +325,7 @@ func (s *sccOnlineMode) ReconcileKeepaliveError(registration *v1.Registration, k
 			func(regApplierIn *v1.Registration, httpCode *int) *v1.Registration {
 				preparedErrorReasonCondition := fmt.Sprintf("Error: SCC sync returned %s (%d) status", http.StatusText(*httpCode), httpCode)
 				v1.RegistrationConditionKeepalive.SetError(regApplierIn, preparedErrorReasonCondition, keepaliveErr)
+				regApplierIn.SetCurrentCondition(v1.RegistrationConditionKeepalive)
 
 				// Cannot recover from this error so must set failure
 				regApplierIn.Status.ActivationStatus.Activated = false
