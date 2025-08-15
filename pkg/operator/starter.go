@@ -40,7 +40,7 @@ func (s *SccStarter) hasSccMetricsSecretPopulated() bool {
 
 func (s *SccStarter) EnsureMetricsSecretRequest(ctx context.Context) error {
 	labels := map[string]string{
-		consts.LabelK8sManagedBy: consts.DefaultOperatorName,
+		consts.LabelK8sManagedBy: s.options.OperatorName,
 	}
 	metricsRequester := telemetry.NewSecretRequester(
 		labels,
