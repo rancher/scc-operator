@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +56,7 @@ func (s *SecretRequester) prepareSecretRequestUnstructured() *unstructured.Unstr
 			"spec": map[string]interface{}{
 				"secretType": "scc",
 				"targetSecretRef": map[string]interface{}{
-					"namespace": consts.DefaultSCCNamespace,
+					"namespace": initializer.SystemNamespace.Get(),
 					"name":      consts.SCCMetricsOutputSecretName,
 				},
 			},
