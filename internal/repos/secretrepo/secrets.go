@@ -6,6 +6,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/rancher/scc-operator/internal/telemetry"
 	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -103,11 +104,11 @@ func (r *SecretRepository) CreateOrUpdateSecret(secret *v1.Secret) (*v1.Secret, 
 }
 
 func (r *SecretRepository) HasMetricsSecret() bool {
-	return r.HasSecret(consts.DefaultSCCNamespace, consts.SCCMetricsOutputSecretName)
+	return r.HasSecret(initializer.SystemNamespace.Get(), consts.SCCMetricsOutputSecretName)
 }
 
 func (r *SecretRepository) FetchMetricsSecret() (telemetry.MetricsWrapper, error) {
-	metricsSecret, err := r.Get(consts.DefaultSCCNamespace, consts.SCCMetricsOutputSecretName)
+	metricsSecret, err := r.Get(initializer.SystemNamespace.Get(), consts.SCCMetricsOutputSecretName)
 	if err != nil {
 		return telemetry.MetricsWrapper{}, err
 	}
