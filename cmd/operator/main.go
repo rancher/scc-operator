@@ -47,6 +47,8 @@ func init() {
 	flag.BoolVar(&Debug, "debug", false, "Enable debug logging.")
 	flag.BoolVar(&Trace, "trace", false, "Enable trace logging.")
 
+	flag.Parse()
+
 	rootLog.ParseAndSetLogFormatFromString(LogFormat)
 	if Debug {
 		rootLog.SetLogLevel(logrus.DebugLevel)
@@ -57,7 +59,6 @@ func init() {
 		logrus.Tracef("Loglevel set to [%v]", logrus.TraceLevel)
 	}
 
-	flag.Parse()
 	SCCNamespace = os.Getenv("SCC_SYSTEM_NAMESPACE")
 	if SCCNamespace == "" {
 		SCCNamespace = consts.DefaultSCCNamespace
@@ -82,6 +83,8 @@ func main() {
 
 	dm := os.Getenv("CATTLE_DEV_MODE")
 	initializer.DevMode.Set(dm != "")
+	logger.Debugf("Launching scc-operator with debug mode set to `%v`", initializer.DevMode.Get())
+
 	runOptions := types.RunOptions{
 		Logger:       logger,
 		OperatorName: OperatorName,
