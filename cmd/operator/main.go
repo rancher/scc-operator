@@ -8,7 +8,6 @@ import (
 
 	"github.com/rancher/wrangler/v3/pkg/kubeconfig"
 	"github.com/rancher/wrangler/v3/pkg/signals"
-	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/rest"
 
 	"github.com/rancher/scc-operator/cmd/operator/version"
@@ -50,14 +49,7 @@ func init() {
 	flag.Parse()
 
 	rootLog.ParseAndSetLogFormatFromString(LogFormat)
-	if Debug {
-		rootLog.SetLogLevel(logrus.DebugLevel)
-		logrus.Debugf("Loglevel set to [%v]", logrus.DebugLevel)
-	}
-	if Trace {
-		rootLog.SetLogLevel(logrus.TraceLevel)
-		logrus.Tracef("Loglevel set to [%v]", logrus.TraceLevel)
-	}
+	rootLog.SetLevelFromEnvironment(Trace, Debug)
 
 	SCCNamespace = os.Getenv("SCC_SYSTEM_NAMESPACE")
 	if SCCNamespace == "" {
