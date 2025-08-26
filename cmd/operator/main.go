@@ -83,7 +83,7 @@ func main() {
 
 	dm := os.Getenv("CATTLE_DEV_MODE")
 	initializer.DevMode.Set(dm != "")
-	logger.Debugf("Launching scc-operator with debug mode set to `%v`", initializer.DevMode.Get())
+	logger.Debugf("Launching scc-operator with DevMode set to `%v`", initializer.DevMode.Get())
 
 	runOptions := types.RunOptions{
 		Logger:       logger,
