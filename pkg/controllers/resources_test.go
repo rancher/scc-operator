@@ -3,6 +3,7 @@ package controllers
 import (
 	"testing"
 
+	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,6 +13,8 @@ import (
 )
 
 func TestRegistrationFromSecret(t *testing.T) {
+	initializer.DevMode.Set(true)
+
 	sec := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{},
 		Data: map[string][]byte{

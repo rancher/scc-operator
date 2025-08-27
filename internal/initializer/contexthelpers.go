@@ -21,7 +21,3 @@ var (
 	SystemNamespace = valueInitializer[string]{}
 	OperatorName    = valueInitializer[string]{}
 )
-
-func init() {
-	DevMode.Set(true)
-}

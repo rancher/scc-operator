@@ -104,10 +104,10 @@ func ParseAndSetLogFormatFromString(formatStr string) {
 	SetLogFormat(logFormat) // Directly call SetLogFormat as it already handles validation
 }
 
-func SetLevelFromEnvironment() {
-	if os.Getenv("CATTLE_TRACE") == "true" || os.Getenv("RANCHER_TRACE") == "true" {
+func SetLevelFromEnvironment(trace, debug bool) {
+	if trace || os.Getenv("CATTLE_TRACE") == "true" || os.Getenv("RANCHER_TRACE") == "true" {
 		SetLogLevel(logrus.TraceLevel)
-	} else if os.Getenv("CATTLE_DEBUG") == "true" || os.Getenv("RANCHER_DEBUG") == "true" {
+	} else if debug || os.Getenv("CATTLE_DEBUG") == "true" || os.Getenv("RANCHER_DEBUG") == "true" {
 		SetLogLevel(logrus.DebugLevel)
 	}
 }
