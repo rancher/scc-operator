@@ -1,6 +1,8 @@
 package telemetry
 
 import (
+	"os"
+
 	"github.com/SUSE/connect-ng/pkg/registration"
 	"github.com/rancher/scc-operator/internal/rancher"
 )
@@ -26,6 +28,11 @@ func NewMetricsWrapper(data map[string]any) MetricsWrapper {
 	subInfo.version = subscriptionData["version"].(string)
 	subInfo.arch = subscriptionData["arch"].(string)
 	subInfo.git = subscriptionData["git"].(string)
+
+	rancherVersionOverride := os.Getenv("SCC_RANCHER_VERSION_OVERRIDE")
+	if rancherVersionOverride != "" {
+		subInfo.version = rancherVersionOverride
+	}
 
 	return MetricsWrapper{
 		Data:             data,
