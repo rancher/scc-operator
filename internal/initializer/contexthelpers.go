@@ -1,5 +1,7 @@
 package initializer
 
+import "context"
+
 type valueInitializer[T any] struct {
 	value T
 	init  Initializer
@@ -16,8 +18,17 @@ func (v *valueInitializer[T]) Get() T {
 	return v.value
 }
 
+func (v *valueInitializer[T]) GetWithContext(ctx context.Context) (T, error) {
+	err := v.init.WaitForInitContext(ctx)
+	if err != nil {
+		var zeroVal T
+		return zeroVal, err
+	}
+	return v.value, err
+}
+
 var (
-	DevMode         = valueInitializer[bool]{}
-	SystemNamespace = valueInitializer[string]{}
-	OperatorName    = valueInitializer[string]{}
+	DevMode         = valueInitializer[bool]{init: &InitHandler{}}
+	SystemNamespace = valueInitializer[string]{init: &InitHandler{}}
+	OperatorName    = valueInitializer[string]{init: &InitHandler{}}
 )
