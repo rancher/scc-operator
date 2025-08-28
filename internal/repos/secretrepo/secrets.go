@@ -19,6 +19,9 @@ import (
 	"github.com/rancher/scc-operator/internal/repos/generic"
 )
 
+// jsonMarshal is a hookable alias to json.Marshal for testing error paths.
+var jsonMarshal = json.Marshal
+
 var rootSecretRepo *SecretRepository
 
 type SecretRepository generic.RuntimeObjectRepo[*v1.Secret, *v1.SecretList]
@@ -52,11 +55,11 @@ func (r *SecretRepository) Get(namespace, name string) (*v1.Secret, error) {
 }
 
 func (r *SecretRepository) PatchUpdate(incoming, desired *v1.Secret) (*v1.Secret, error) {
-	incomingJSON, err := json.Marshal(incoming)
+	incomingJSON, err := jsonMarshal(incoming)
 	if err != nil {
 		return incoming, err
 	}
-	newJSON, err := json.Marshal(desired)
+	newJSON, err := jsonMarshal(desired)
 	if err != nil {
 		return incoming, err
 	}
