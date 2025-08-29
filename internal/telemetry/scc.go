@@ -1,8 +1,6 @@
 package telemetry
 
 import (
-	"strings"
-
 	"github.com/SUSE/connect-ng/pkg/registration"
 	"github.com/rancher/scc-operator/internal/rancher"
 )
@@ -18,7 +16,6 @@ type subscriptionInfo struct {
 type MetricsWrapper struct {
 	Data             map[string]any
 	subscriptionInfo subscriptionInfo
-	rancherVersion   string
 }
 
 func NewMetricsWrapper(data map[string]any) MetricsWrapper {
@@ -33,7 +30,6 @@ func NewMetricsWrapper(data map[string]any) MetricsWrapper {
 	return MetricsWrapper{
 		Data:             data,
 		subscriptionInfo: subInfo,
-		rancherVersion:   strings.TrimPrefix(subInfo.version, "v"),
 	}
 }
 
@@ -47,6 +43,6 @@ func (mw *MetricsWrapper) ToSystemInformation() registration.SystemInformation {
 
 // GetProductIdentifier must return the SCC Product ID, the Product version, and product arch
 func (mw *MetricsWrapper) GetProductIdentifier() (string, string, string) {
-	rancherVersion := rancher.Version(mw.rancherVersion)
+	rancherVersion := rancher.Version(mw.subscriptionInfo.version)
 	return mw.subscriptionInfo.product, rancherVersion.SCCSafeVersion(), mw.subscriptionInfo.arch
 }
