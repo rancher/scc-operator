@@ -5,13 +5,20 @@ import (
 	"sync"
 )
 
-type Initializer struct {
+type Initializer interface {
+	InitOnce(f func())
+	Initialized() bool
+	WaitForInit()
+	WaitForInitContext(ctx context.Context) error
+}
+
+type InitHandler struct {
 	setupCondOnce sync.Once
 	initCond      *sync.Cond
 	initialized   bool
 }
 
-func (i *Initializer) InitOnce(f func()) {
+func (i *InitHandler) InitOnce(f func()) {
 	i.checkInitCond()
 	i.initCond.L.Lock()
 	defer i.initCond.L.Unlock()
@@ -23,14 +30,14 @@ func (i *Initializer) InitOnce(f func()) {
 	i.initCond.Broadcast()
 }
 
-func (i *Initializer) Initialized() bool {
+func (i *InitHandler) Initialized() bool {
 	i.checkInitCond()
 	i.initCond.L.Lock()
 	defer i.initCond.L.Unlock()
 	return i.initialized
 }
 
-func (i *Initializer) WaitForInit() {
+func (i *InitHandler) WaitForInit() {
 	i.checkInitCond()
 	i.initCond.L.Lock()
 	for !i.initialized {
@@ -39,7 +46,7 @@ func (i *Initializer) WaitForInit() {
 	i.initCond.L.Unlock()
 }
 
-func (i *Initializer) WaitForInitContext(ctx context.Context) error {
+func (i *InitHandler) WaitForInitContext(ctx context.Context) error {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -53,8 +60,10 @@ func (i *Initializer) WaitForInitContext(ctx context.Context) error {
 	}
 }
 
-func (i *Initializer) checkInitCond() {
+func (i *InitHandler) checkInitCond() {
 	i.setupCondOnce.Do(func() {
 		i.initCond = sync.NewCond(&sync.Mutex{})
 	})
 }
+
+var _ Initializer = (*InitHandler)(nil)
