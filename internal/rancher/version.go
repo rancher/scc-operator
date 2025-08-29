@@ -2,6 +2,7 @@ package rancher
 
 import (
 	"regexp"
+	"strings"
 )
 
 // semverRegex matches on regular SemVer as well as Rancher's dev versions
@@ -26,6 +27,9 @@ func (rv Version) versionIsDevBuild() bool {
 func (rv Version) SCCSafeVersion() string {
 	if rv.versionIsDevBuild() {
 		return "other"
+	}
+	if strings.HasPrefix(string(rv), "v") {
+		return strings.TrimPrefix(string(rv), "v")
 	}
 	return string(rv)
 }
