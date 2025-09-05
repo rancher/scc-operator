@@ -73,6 +73,7 @@ func (s *sccOfflineMode) PrepareRegisteredForActivation(registrationObj *v1.Regi
 	v1.RegistrationConditionOfflineRequestReady.True(registrationObj)
 	v1.RegistrationConditionOfflineCertificateReady.False(registrationObj)
 	v1.RegistrationConditionOfflineCertificateReady.SetMessageIfBlank(registrationObj, "Awaiting registration certificate secret")
+	registrationObj.SetCurrentCondition(v1.RegistrationConditionOfflineCertificateReady)
 
 	return registrationObj, nil
 }
@@ -97,6 +98,26 @@ func (s *sccOfflineMode) NeedsActivation(registrationObj *v1.Registration) bool 
 func (s *sccOfflineMode) ReadyForActivation(registrationObj *v1.Registration) bool {
 	return registrationObj.Status.OfflineRegistrationRequest != nil &&
 		registrationObj.Spec.OfflineRegistrationCertificateSecretRef != nil
+}
+
+func (s *sccOfflineMode) ResetToRegisteredForActivation(registrationObj *v1.Registration) (*v1.Registration, error) {
+	registrationObj.RemoveCondition(v1.RegistrationConditionActivated)
+	registrationObj.RemoveCondition(v1.RegistrationConditionOfflineCertificateReady)
+	registrationObj.RemoveCondition(v1.ResourceConditionFailure)
+	registrationObj.RemoveCondition(v1.ResourceConditionReady)
+
+	v1.ResourceConditionProgressing.True(registrationObj)
+	registrationObj, prepErr := s.PrepareRegisteredForActivation(registrationObj)
+	if prepErr != nil {
+		return nil, fmt.Errorf("failed resetting Registration back to RegisteredForActivation, setting conditions failed: %w", prepErr)
+	}
+
+	certErr := s.RemoveOfflineCertificate()
+	if certErr != nil {
+		return nil, fmt.Errorf("failed resetting Registration back to RegisteredForActivation, removing certificate failed: %w", certErr)
+	}
+
+	return registrationObj, nil
 }
 
 func (s *sccOfflineMode) Activate(_ *v1.Registration) error {
@@ -134,6 +155,16 @@ func (s *sccOfflineMode) PrepareActivatedForKeepalive(registrationObj *v1.Regist
 	v1.RegistrationConditionOfflineCertificateReady.True(registrationObj)
 	v1.ActivationConditionOfflineDone.True(registrationObj)
 	return registrationObj, nil
+}
+
+func (s *sccOfflineMode) RemoveOfflineCertificate() error {
+	certErr := s.offlineSecrets.RemoveOfflineCertificate()
+
+	if certErr != nil {
+		return fmt.Errorf("failed removing offline certificate: %w", certErr)
+	}
+
+	return nil
 }
 
 func (s *sccOfflineMode) ReconcileActivateError(registrationObj *v1.Registration, activationErr error, _ types.ActivationPhase) *v1.Registration {
