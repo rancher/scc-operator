@@ -205,6 +205,11 @@ func (s *sccOnlineMode) NeedsActivation(registrationObj *v1.Registration) bool {
 	return shared.RegistrationNeedsActivation(registrationObj)
 }
 
+func (s *sccOnlineMode) ResetToRegisteredForActivation(_ *v1.Registration) (*v1.Registration, error) {
+	// TODO: Implement this function equivalent for online mode
+	return nil, nil
+}
+
 func (s *sccOnlineMode) ReadyForActivation(registrationObj *v1.Registration) bool {
 	return v1.RegistrationConditionAnnounced.IsTrue(registrationObj)
 }

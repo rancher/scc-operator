@@ -43,7 +43,7 @@ const (
 	dataKeyRegistrationType = "registrationType"
 )
 
-func (h *handler) isRancherEntrypointSecret(secretObj *corev1.Secret) bool {
+func (h *handler) isSCCEntrypointSecret(secretObj *corev1.Secret) bool {
 	if secretObj.Name != consts.ResourceSCCEntrypointSecretName || secretObj.Namespace != h.options.SystemNamespace {
 		return false
 	}
@@ -270,15 +270,17 @@ func (h *handler) offlineCertFromSecretEntrypoint(params RegistrationParams) (*c
 	secretName := consts.OfflineCertificateSecretName(params.nameID)
 
 	offlineCertSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace, secretName)
-	if err != nil && apierrors.IsNotFound(err) {
-		offlineCertSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: h.options.SystemNamespace,
-				Name:      secretName,
-			},
-			Data: map[string][]byte{
-				consts.SecretKeyOfflineRegCert: *params.offlineCertData,
-			},
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			offlineCertSecret = &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: h.options.SystemNamespace,
+					Name:      secretName,
+				},
+				Data: map[string][]byte{
+					consts.SecretKeyOfflineRegCert: *params.offlineCertData,
+				},
+			}
 		}
 	}
 
