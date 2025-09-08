@@ -55,6 +55,8 @@ type SCCHandler interface {
 	NeedsActivation(*v1.Registration) bool
 	// ReadyForActivation checks if the system is ready for activation.
 	ReadyForActivation(*v1.Registration) bool
+	// ResetToRegisteredForActivation will clean up the registration back to the ReadyForActivation state
+	ResetToRegisteredForActivation(*v1.Registration) (*v1.Registration, error)
 
 	// PrepareForRegister preforms pre-registration steps
 	PrepareForRegister(*v1.Registration) (*v1.Registration, error)
@@ -195,7 +197,7 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 		return incomingObj, nil
 	}
 
-	if h.isRancherEntrypointSecret(incomingObj) {
+	if h.isSCCEntrypointSecret(incomingObj) {
 		// TODO(alex): sync on this to validate logic
 		// TODO: something to handle adopting new
 		if !helpers.ShouldManage(incomingObj, h.options.OperatorName) {
@@ -431,7 +433,7 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 		return incomingObj, nil
 	}
 
-	if h.isRancherEntrypointSecret(incomingObj) {
+	if h.isSCCEntrypointSecret(incomingObj) {
 		hash, ok := incomingObj.Labels[consts.LabelSccHash]
 		if !ok {
 			return incomingObj, nil
@@ -521,11 +523,34 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		return registrationObj, errors.New("no server url found in the system info")
 	}
 
+	registrationHandler := h.prepareHandler(registrationObj, rancherURL)
+
+	if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
+		if v1.ResourceConditionFailure.IsTrue(registrationObj) && v1.RegistrationConditionOfflineCertificateReady.IsFalse(registrationObj) && v1.RegistrationConditionOfflineCertificateReady.GetMessage(registrationObj) != InitialOfflineCertificateReadyMessage && registrationObj.Spec.OfflineRegistrationCertificateSecretRef == nil {
+			h.log.Info("registration is failed but user removed certificate. Resetting registration status back to ReadyForActivation")
+
+			resetUpdateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				reset := registrationObj.DeepCopy()
+
+				reset, resetErr := registrationHandler.ResetToRegisteredForActivation(reset)
+				if resetErr != nil {
+					return resetErr
+				}
+
+				_, updateErr := h.registrations.UpdateStatus(reset)
+				return updateErr
+			})
+			if resetUpdateErr != nil {
+				return registrationObj, resetUpdateErr
+			}
+
+			return registrationObj, nil
+		}
+	}
+
 	if shared.RegistrationIsFailed(registrationObj) {
 		return registrationObj, errors.New("registration has failed status; create a new one to retry")
 	}
-
-	registrationHandler := h.prepareHandler(registrationObj, rancherURL)
 
 	// Skip keepalive for anything activated within the last 20 hours
 	if !registrationHandler.NeedsRegistration(registrationObj) &&
