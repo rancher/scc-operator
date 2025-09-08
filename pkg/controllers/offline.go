@@ -26,6 +26,8 @@ type sccOfflineMode struct {
 	rancherMetrics telemetry.MetricsWrapper
 }
 
+const InitialOfflineCertificateReadyMessage = "Awaiting registration certificate secret"
+
 func (s *sccOfflineMode) SetRancherMetrics(rancherMetrics telemetry.MetricsWrapper) {
 	s.rancherMetrics = rancherMetrics
 }
@@ -72,7 +74,7 @@ func (s *sccOfflineMode) PrepareRegisteredForActivation(registrationObj *v1.Regi
 
 	v1.RegistrationConditionOfflineRequestReady.True(registrationObj)
 	v1.RegistrationConditionOfflineCertificateReady.False(registrationObj)
-	v1.RegistrationConditionOfflineCertificateReady.SetMessageIfBlank(registrationObj, "Awaiting registration certificate secret")
+	v1.RegistrationConditionOfflineCertificateReady.SetMessageIfBlank(registrationObj, InitialOfflineCertificateReadyMessage)
 	registrationObj.SetCurrentCondition(v1.RegistrationConditionOfflineCertificateReady)
 
 	return registrationObj, nil

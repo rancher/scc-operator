@@ -526,8 +526,8 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	registrationHandler := h.prepareHandler(registrationObj, rancherURL)
 
 	if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
-		if v1.ResourceConditionFailure.IsTrue(registrationObj) && v1.RegistrationConditionOfflineCertificateReady.IsFalse(registrationObj) && v1.RegistrationConditionOfflineCertificateReady.GetReason(registrationObj) != "Awaiting registration certificate secret" && registrationObj.Spec.OfflineRegistrationCertificateSecretRef == nil {
-			h.log.Info("Registration is failed but user removed certificate. Resetting status back to RedyForActivation")
+		if v1.ResourceConditionFailure.IsTrue(registrationObj) && v1.RegistrationConditionOfflineCertificateReady.IsFalse(registrationObj) && v1.RegistrationConditionOfflineCertificateReady.GetMessage(registrationObj) != InitialOfflineCertificateReadyMessage && registrationObj.Spec.OfflineRegistrationCertificateSecretRef == nil {
+			h.log.Info("registration is failed but user removed certificate. Resetting registration status back to ReadyForActivation")
 
 			resetUpdateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				reset := registrationObj.DeepCopy()
