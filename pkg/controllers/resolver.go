@@ -10,34 +10,36 @@ import (
 	"github.com/rancher/scc-operator/internal/consts"
 )
 
+// initResolvers creates a secret watcher to check for SCC entrypoint secrets
 func (h *handler) initResolvers(ctx context.Context) {
-	relatedresource.WatchClusterScoped(
+	relatedresource.Watch(
 		ctx,
 		"watch-scc-secret-entrypoint",
 		h.resolveEntrypointSecret,
-		h.registrations,
 		h.secretRepo.Controller,
 	)
 }
 
 func (h *handler) resolveEntrypointSecret(namespace, name string, obj runtime.Object) ([]relatedresource.Key, error) {
-	var ret []relatedresource.Key
+	var relatedKeys []relatedresource.Key
 	if namespace != h.options.SystemNamespace {
-		return ret, nil
+		return relatedKeys, nil
 	}
 	if name != consts.ResourceSCCEntrypointSecretName {
-		return ret, nil
+		return relatedKeys, nil
 	}
 
+	// Only handle secrets - objects of other types ignored by this watcher.
 	secret, ok := obj.(*corev1.Secret)
 	if !ok {
-		return ret, nil
+		return relatedKeys, nil
 	}
 
 	curHash, ok := secret.GetLabels()[consts.LabelSccHash]
 	if !ok {
+		// TODO: is this a chance to better handle new/modified registrations?
 		h.log.Warnf("failed to find hash for secret %s/%s", namespace, name)
-		return ret, nil
+		return relatedKeys, nil
 	}
 	// TODO: rework indexers / resolvers and potentially remove that pattern
 	defer func() {
@@ -47,16 +49,17 @@ func (h *handler) resolveEntrypointSecret(namespace, name string, obj runtime.Ob
 	}()
 	regs, err := h.registrationCache.GetByIndex(IndexRegistrationsBySccHash, curHash)
 	if err != nil {
-		return ret, err
+		return relatedKeys, err
 	}
+
 	h.log.Infof("resolved entrypoint secret to : %d registrations", len(regs))
 	for _, reg := range regs {
 		if reg == nil {
 			continue
 		}
-		ret = append(ret, relatedresource.Key{
+		relatedKeys = append(relatedKeys, relatedresource.Key{
 			Name: reg.GetName(),
 		})
 	}
-	return ret, nil
+	return relatedKeys, nil
 }
