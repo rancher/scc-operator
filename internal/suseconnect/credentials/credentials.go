@@ -111,7 +111,7 @@ func (c *SccCredentials) SetLogin(newLogin string, newPassword string) error {
 			}
 			errorMessage += "newPassword is empty"
 		}
-		credsContextLogger().Warnf("updating systemLogin to empty value(s); %v", errorMessage)
+		credsContextLogger().Debugf("SetLogin called with empty value(s), normal to see with deregistration; %v.", errorMessage)
 	}
 
 	c.systemLogin = newLogin
