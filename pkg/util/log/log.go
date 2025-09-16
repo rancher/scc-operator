@@ -24,3 +24,9 @@ func NewControllerLogger(controllerName string) log.StructuredLogger {
 
 	return builder.ToLogger()
 }
+
+func NewComponentLogger(componentName string) log.StructuredLogger {
+	builder := NewSccLogBuilder(log.WithSubComponent(componentName))
+
+	return builder.ToLogger()
+}

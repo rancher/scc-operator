@@ -204,8 +204,9 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 	// TODO(dan): sort out this to validate logic more
 	// TODO: needs something to handle adopting new and unowned instances?
 	if !helpers.ShouldManage(incomingObj, h.options.OperatorName) {
-		// When the secret has no managed by label, we should assume ownership I guess?
+		// When the secret has no managedBy label, we should assume ownership I guess?
 		if !helpers.HasManagedByLabel(incomingObj) {
+			h.log.Debugf("taking ownership of the unowned entrypoint secret")
 			prepared := incomingObj.DeepCopy()
 			prepared = helpers.TakeOwnership(prepared, h.options.OperatorName)
 			_, updateErr := h.secretRepo.RetryingPatchUpdate(incomingObj, prepared)
@@ -235,7 +236,7 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 	}
 
 	if incomingContentHash == "" {
-		h.log.Info("incoming hash empty, prepare it")
+		h.log.Debugf("incoming content hash empty, preparing secret %s/%s", incomingObj.Namespace, incomingObj.Name)
 		// update secret with useful annotations & labels
 		newSecret := incomingObj.DeepCopy()
 		if newSecret.Annotations == nil {
