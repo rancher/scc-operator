@@ -45,7 +45,9 @@ func init() {
 
 	flag.BoolVar(&Debug, "debug", false, "Enable debug logging.")
 	flag.BoolVar(&Trace, "trace", false, "Enable trace logging.")
+}
 
+func setupCli() {
 	flag.Parse()
 
 	rootLog.ParseAndSetLogFormatFromString(LogFormat)
@@ -63,6 +65,8 @@ func init() {
 }
 
 func main() {
+	setupCli()
+
 	logger.Infof("Starting %s version %s (%s) [built at %s]", consts.AppName, version.Version, version.GitCommit, version.Date)
 	ctx := signals.SetupSignalContext()
 	restKubeConfig, err := kubeconfig.GetNonInteractiveClientConfig(KubeConfig).ClientConfig()

@@ -197,131 +197,134 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 		return incomingObj, nil
 	}
 
-	if h.isSCCEntrypointSecret(incomingObj) {
-		// TODO(alex): sync on this to validate logic
-		// TODO: something to handle adopting new
-		if !helpers.ShouldManage(incomingObj, h.options.OperatorName) {
-			// When the secret has no managed by label, we should assume ownership I guess?
-			if !helpers.HasManagedByLabel(incomingObj) {
-				prepared := incomingObj.DeepCopy()
-				prepared = helpers.TakeOwnership(prepared, h.options.OperatorName)
-				_, updateErr := h.secretRepo.RetryingPatchUpdate(incomingObj, prepared)
-				if updateErr != nil {
-					h.log.Errorf("failed to take ownership of secret %s/%s: %v", incomingObj.Namespace, incomingObj.Name, updateErr)
-					return incomingObj, updateErr
-				}
+	if !h.isSCCEntrypointSecret(incomingObj) {
+		return incomingObj, nil
+	}
 
-				h.log.Debugf("Secret %s/%s is now managed by %s", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
-
-				return incomingObj, nil
-			}
-
-			h.log.Debugf("Secret %s/%s is not managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
-			return incomingObj, nil
-		}
-
-		if _, saltOk := incomingObj.GetLabels()[consts.LabelObjectSalt]; !saltOk {
-			return h.prepareSecretSalt(incomingObj)
-		}
-
-		incomingNameHash := incomingObj.GetLabels()[consts.LabelNameSuffix]
-		incomingContentHash := incomingObj.GetLabels()[consts.LabelSccHash]
-		params, err := extractRegistrationParamsFromSecret(incomingObj, h.options.OperatorName)
-		if err != nil {
-			return incomingObj, fmt.Errorf("failed to extract registration params from secret %s/%s: %w", incomingObj.Namespace, incomingObj.Name, err)
-		}
-
-		if incomingContentHash == "" {
-			h.log.Info("incoming hash empty, prepare it")
-			// update secret with useful annotations & labels
-			newSecret := incomingObj.DeepCopy()
-			if newSecret.Annotations == nil {
-				newSecret.Annotations = map[string]string{}
-			}
-			newSecret.Annotations[consts.LabelSccLastProcessed] = time.Now().Format(time.RFC3339)
-			maps.Copy(newSecret.Labels, params.Labels())
-
-			_, updateErr := h.secretRepo.RetryingPatchUpdate(incomingObj, newSecret)
+	// TODO(dan): sort out this to validate logic more
+	// TODO: needs something to handle adopting new and unowned instances?
+	if !helpers.ShouldManage(incomingObj, h.options.OperatorName) {
+		// When the secret has no managed by label, we should assume ownership I guess?
+		if !helpers.HasManagedByLabel(incomingObj) {
+			prepared := incomingObj.DeepCopy()
+			prepared = helpers.TakeOwnership(prepared, h.options.OperatorName)
+			_, updateErr := h.secretRepo.RetryingPatchUpdate(incomingObj, prepared)
 			if updateErr != nil {
-				h.log.Error("error applying metadata updates to default SCC registration secret")
-				return nil, updateErr
+				h.log.Errorf("failed to take ownership of secret %s/%s: %v", incomingObj.Namespace, incomingObj.Name, updateErr)
+				return incomingObj, updateErr
 			}
+
+			h.log.Debugf("Secret %s/%s is now managed by %s", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
 
 			return incomingObj, nil
 		}
 
-		// If secret hash has changed make sure that we submit objects that correspond to that hash
-		// are cleaned up
-		// TODO: make it so that changes to the incoming Salt (which changes the nameID) are correctly handled
-		// Note that change would affect both name and content hashes - however something seems to not.
-		if incomingNameHash != params.nameID {
-			h.log.Info("must cleanup existing registration managed by secret")
-			if cleanUpErr := h.cleanupRegistrationByHash(hashCleanupRequest{
-				incomingNameHash,
-				NameHash,
-			}); cleanUpErr != nil {
-				h.log.Errorf("failed to cleanup registrations for hash %s: %v", incomingNameHash, cleanUpErr)
-				return incomingObj, cleanUpErr
-			}
-		}
+		h.log.Debugf("Secret %s/%s is not managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
+		return incomingObj, nil
+	}
 
-		if incomingContentHash != params.contentHash {
-			h.log.Info("must cleanup existing registration managed by secret")
-			if cleanUpErr := h.cleanupRelatedSecretsByHash(incomingContentHash); cleanUpErr != nil {
-				h.log.Errorf("failed to cleanup registrations for hash %s: %v", incomingNameHash, cleanUpErr)
-				return incomingObj, cleanUpErr
-			}
-		}
+	if _, saltOk := incomingObj.GetLabels()[consts.LabelObjectSalt]; !saltOk {
+		return h.prepareSecretSalt(incomingObj)
+	}
 
-		h.log.Info("create or update registration managed by secret")
+	incomingNameHash := incomingObj.GetLabels()[consts.LabelNameSuffix]
+	incomingContentHash := incomingObj.GetLabels()[consts.LabelSccHash]
+	params, err := extractRegistrationParamsFromSecret(incomingObj, h.options.OperatorName)
+	if err != nil {
+		return incomingObj, fmt.Errorf("failed to extract registration params from secret %s/%s: %w", incomingObj.Namespace, incomingObj.Name, err)
+	}
 
+	if incomingContentHash == "" {
+		h.log.Info("incoming hash empty, prepare it")
 		// update secret with useful annotations & labels
 		newSecret := incomingObj.DeepCopy()
 		if newSecret.Annotations == nil {
 			newSecret.Annotations = map[string]string{}
 		}
 		newSecret.Annotations[consts.LabelSccLastProcessed] = time.Now().Format(time.RFC3339)
+		maps.Copy(newSecret.Labels, params.Labels())
 
-		labels := incomingObj.Labels
-		maps.Copy(labels, params.Labels())
-		newSecret.Labels = labels
+		_, updateErr := h.secretRepo.RetryingPatchUpdate(incomingObj, newSecret)
+		if updateErr != nil {
+			h.log.Error("error applying metadata updates to default SCC registration secret")
+			return nil, updateErr
+		}
 
-		if _, err := h.secretRepo.RetryingPatchUpdate(incomingObj, newSecret); err != nil {
+		return incomingObj, nil
+	}
+
+	// If secret hash has changed make sure that we submit objects that correspond to that hash
+	// are cleaned up
+	// TODO: make it so that changes to the incoming Salt (which changes the nameID) are correctly handled
+	// Note that change would affect both name and content hashes - however something seems to not.
+	if incomingNameHash != params.nameID {
+		h.log.Info("must cleanup existing registration managed by secret")
+		if cleanUpErr := h.cleanupRegistrationByHash(hashCleanupRequest{
+			incomingNameHash,
+			NameHash,
+		}); cleanUpErr != nil {
+			h.log.Errorf("failed to cleanup registrations for hash %s: %v", incomingNameHash, cleanUpErr)
+			return incomingObj, cleanUpErr
+		}
+	}
+
+	// TODO: rework stuff around this as this shouldn't be necessary
+	if incomingContentHash != params.contentHash {
+		h.log.Info("must cleanup existing registration managed by secret")
+		if cleanUpErr := h.cleanupRelatedSecretsByHash(incomingContentHash); cleanUpErr != nil {
+			h.log.Errorf("failed to cleanup registrations for hash %s: %v", incomingNameHash, cleanUpErr)
+			return incomingObj, cleanUpErr
+		}
+	}
+
+	h.log.Info("create or update registration managed by secret")
+
+	// update secret with useful annotations & labels
+	newSecret := incomingObj.DeepCopy()
+	if newSecret.Annotations == nil {
+		newSecret.Annotations = map[string]string{}
+	}
+	newSecret.Annotations[consts.LabelSccLastProcessed] = time.Now().Format(time.RFC3339)
+
+	labels := incomingObj.Labels
+	maps.Copy(labels, params.Labels())
+	newSecret.Labels = labels
+
+	if _, err := h.secretRepo.RetryingPatchUpdate(incomingObj, newSecret); err != nil {
+		return incomingObj, err
+	}
+
+	if params.regType == v1.RegistrationModeOffline && params.hasOfflineCertData {
+		offlineCertSecret, err := h.offlineCertFromSecretEntrypoint(params)
+		if err != nil {
 			return incomingObj, err
 		}
 
-		if params.regType == v1.RegistrationModeOffline && params.hasOfflineCertData {
-			offlineCertSecret, err := h.offlineCertFromSecretEntrypoint(params)
-			if err != nil {
-				return incomingObj, err
-			}
-
-			if _, err := h.secretRepo.CreateOrUpdateSecret(offlineCertSecret); err != nil {
-				return incomingObj, err
-			}
+		if _, err := h.secretRepo.CreateOrUpdateSecret(offlineCertSecret); err != nil {
+			return incomingObj, err
 		}
+	}
 
-		if params.regType == v1.RegistrationModeOnline {
-			regCodeSecret, err := h.regCodeFromSecretEntrypoint(params)
-			if err != nil {
-				return incomingObj, err
-			}
-
-			if _, err := h.secretRepo.CreateOrUpdateSecret(regCodeSecret); err != nil {
-				return incomingObj, err
-			}
-		}
-
-		// construct associated registration CRs
-		registration, err := h.registrationFromSecretEntrypoint(params)
+	if params.regType == v1.RegistrationModeOnline {
+		regCodeSecret, err := h.regCodeFromSecretEntrypoint(params)
 		if err != nil {
-			return incomingObj, fmt.Errorf("failed to create registration from secret %s/%s: %w", incomingObj.Namespace, incomingObj.Name, err)
+			return incomingObj, err
 		}
 
-		if createOrUpdateErr := h.createOrUpdateRegistration(registration); createOrUpdateErr != nil {
-			h.log.Errorf("failed to create or update registration %s: %v", registration.Name, createOrUpdateErr)
-			return incomingObj, fmt.Errorf("failed to create or update registration %s: %w", registration.Name, createOrUpdateErr)
+		if _, err := h.secretRepo.CreateOrUpdateSecret(regCodeSecret); err != nil {
+			return incomingObj, err
 		}
+	}
+
+	// construct associated registration CRs
+	registration, err := h.registrationFromSecretEntrypoint(params)
+	if err != nil {
+		return incomingObj, fmt.Errorf("failed to create registration from secret %s/%s: %w", incomingObj.Namespace, incomingObj.Name, err)
+	}
+
+	if createOrUpdateErr := h.createOrUpdateRegistration(registration); createOrUpdateErr != nil {
+		h.log.Errorf("failed to create or update registration %s: %v", registration.Name, createOrUpdateErr)
+		return incomingObj, fmt.Errorf("failed to create or update registration %s: %w", registration.Name, createOrUpdateErr)
 	}
 
 	return incomingObj, nil
