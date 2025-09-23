@@ -7,14 +7,10 @@ import (
 	"time"
 
 	rootLog "github.com/rancher/scc-operator/internal/log"
+	"github.com/rancher/scc-operator/pkg/util/log"
 )
 
 type JitterFunction func(nextTrigger, strictDeadline time.Duration) (bool, error)
-
-func jitterbugContextLogger() rootLog.StructuredLogger {
-	logBuilder := rootLog.NewStructuredLoggerBuilder("jitterbug")
-	return logBuilder.ToLogger()
-}
 
 // JitterChecker is not go-routine safe
 type JitterChecker struct {
@@ -36,7 +32,7 @@ func NewJitterChecker(config *Config, callable JitterFunction) *JitterChecker {
 // NewJitterCheckerFromCalculator will complete initialization of optional Config fields and return a jitter checker
 func NewJitterCheckerFromCalculator(calculator JitterCalculator, callable JitterFunction) *JitterChecker {
 	return &JitterChecker{
-		log:        jitterbugContextLogger(),
+		log:        log.NewComponentLogger("jitterbug"),
 		config:     calculator.config,
 		calculator: &calculator,
 		callable:   callable,
