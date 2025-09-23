@@ -7,11 +7,12 @@ import (
 type StructuredLogger = *logrus.Entry
 
 type StructuredLoggerBuilder struct {
-	devMode      bool
-	Component    string
-	Controller   *string
-	SubComponent *string
-	OperatorName *string
+	devMode           bool
+	Component         string
+	Controller        *string
+	SubComponent      *string
+	OperatorName      *string
+	OperatorNamespace *string
 }
 
 type Optional func(*StructuredLoggerBuilder)
@@ -36,6 +37,12 @@ func NewStructuredLoggerBuilder(component string, optional ...Optional) *Structu
 func WithOperatorName(operatorName string) Optional {
 	return func(logger *StructuredLoggerBuilder) {
 		logger.OperatorName = &operatorName
+	}
+}
+
+func WithOperatorNamespace(operatorNamespace string) Optional {
+	return func(logger *StructuredLoggerBuilder) {
+		logger.OperatorNamespace = &operatorNamespace
 	}
 }
 

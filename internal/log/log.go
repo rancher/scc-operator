@@ -76,15 +76,15 @@ func SetLogFormat(format Format) {
 		})
 		rootLogger.Debugf("Log format set to: %s", FormatJSON)
 	case FormatSimple:
-		rootLogger.Warnf("Invalid log format '%s' provided. Defaulting to '%s'.", format, DefaultFormat)
 		rootLogger.SetFormatter(&simplelog.StandardFormatter{})
 	case FormatText:
+		fallthrough
 	default:
 		currentLogFormat = DefaultFormat
 		rootLogger.SetFormatter(&logrus.TextFormatter{
 			FullTimestamp: true,
 		})
-		rootLogger.Debugf("Log format set to: %s", FormatText)
+		rootLogger.Debugf("Log format set to: %s", currentLogFormat)
 	}
 }
 
@@ -93,21 +93,8 @@ func GetLogFormat() Format {
 	return currentLogFormat
 }
 
-// ParseAndSetLogFormatFromString parses a string and sets the logging format
-func ParseAndSetLogFormatFromString(formatStr string) {
-	logFormat := Format(strings.ToLower(formatStr))
-	if !logFormat.IsValid() {
-		rootLogger.Warnf("Invalid log format '%s' provided. Defaulting to '%s'.", formatStr, DefaultFormat)
-		logFormat = DefaultFormat
-	}
-
-	SetLogFormat(logFormat) // Directly call SetLogFormat as it already handles validation
-}
-
-func SetLevelFromEnvironment(trace, debug bool) {
-	if trace || os.Getenv("CATTLE_TRACE") == "true" || os.Getenv("RANCHER_TRACE") == "true" {
-		SetLogLevel(logrus.TraceLevel)
-	} else if debug || os.Getenv("CATTLE_DEBUG") == "true" || os.Getenv("RANCHER_DEBUG") == "true" {
-		SetLogLevel(logrus.DebugLevel)
-	}
+// SetupLogging configures both logging level and format delegating to SetLogLevel & SetLogFormat
+func SetupLogging(level logrus.Level, format Format) {
+	SetLogLevel(level)
+	SetLogFormat(format)
 }
