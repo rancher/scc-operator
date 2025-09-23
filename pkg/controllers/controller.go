@@ -428,7 +428,7 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 		return nil, nil
 	}
 	if incomingObj.Namespace != h.options.SystemNamespace() {
-		h.log.Debugf("Secret %s/%s is not in SCC system namespace %s, skipping cleanup", incomingObj.Namespace, incomingObj.Name, h.options.SystemNamespace)
+		h.log.Debugf("Secret %s/%s is not in SCC system namespace %s, skipping cleanup", incomingObj.Namespace, incomingObj.Name, h.options.SystemNamespace())
 		return incomingObj, nil
 	}
 
