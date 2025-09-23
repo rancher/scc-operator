@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/rancher/scc-operator/internal/consts"
-	"github.com/rancher/scc-operator/internal/initializer"
 )
 
 // test helper to create a basic secret
@@ -35,7 +34,6 @@ func TestNewSecretRepository(t *testing.T) {
 	asserts := assert.New(t)
 	// Ensure we start with a clean singleton for this test
 	rootSecretRepo = nil
-	initializer.SystemNamespace.Set("testing-namespace")
 
 	ctrl := gomock.NewController(t)
 	mockController := fake.NewMockControllerInterface[*corev1.Secret, *corev1.SecretList](ctrl)
@@ -43,7 +41,7 @@ func TestNewSecretRepository(t *testing.T) {
 	// Expect indexers to be added during initialization
 	mockCache.EXPECT().AddIndexer(IndexSecretsByPath, gomock.Any()).Times(1)
 	mockCache.EXPECT().AddIndexer(IndexSecretsBySccHash, gomock.Any()).Times(1)
-	repo1 := NewSecretRepository(mockController, mockCache)
+	repo1 := NewSecretRepository("testing-namespace", mockController, mockCache)
 	// Should initialize singleton and set fields
 	asserts.NotNil(repo1)
 	asserts.Equal(mockController, repo1.Controller)
@@ -53,7 +51,7 @@ func TestNewSecretRepository(t *testing.T) {
 	ctrl2 := gomock.NewController(t)
 	otherController := fake.NewMockControllerInterface[*corev1.Secret, *corev1.SecretList](ctrl2)
 	otherCache := fake.NewMockCacheInterface[*corev1.Secret](ctrl2)
-	repo2 := NewSecretRepository(otherController, otherCache)
+	repo2 := NewSecretRepository("testing-namespace", otherController, otherCache)
 	asserts.Same(repo1, repo2)
 	asserts.Equal(mockController, repo2.Controller)
 	asserts.Equal(mockCache, repo2.Cache)
@@ -247,9 +245,8 @@ func TestHasMetricsSecret_And_FetchMetricsSecret(t *testing.T) {
 	mockCache := fake.NewMockCacheInterface[*corev1.Secret](ctrl)
 
 	repo := &SecretRepository{Controller: mockController, Cache: mockCache}
-
-	initializer.SystemNamespace.Set("debug-namespace")
-	ns := initializer.SystemNamespace.Get()
+	ns := "debug-namespace"
+	systemIndexNamespace = ns
 	name := consts.SCCMetricsOutputSecretName
 
 	payload := []byte(`{"hello":"world","count":5,"subscription":{"installuuid":"5","product":"ranchdressing","version":"42","arch":"unknown","git":"no thanks"}}`)
