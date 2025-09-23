@@ -44,7 +44,7 @@ const (
 )
 
 func (h *handler) isSCCEntrypointSecret(secretObj *corev1.Secret) bool {
-	if secretObj.Name != consts.ResourceSCCEntrypointSecretName || secretObj.Namespace != h.options.SystemNamespace {
+	if secretObj.Name != consts.ResourceSCCEntrypointSecretName || secretObj.Namespace != h.options.SystemNamespace() {
 		return false
 	}
 	return true
@@ -251,11 +251,11 @@ func paramsToRegSpec(params RegistrationParams) v1.RegistrationSpec {
 func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
 	secretName := params.regCodeSecretRef.Name
 
-	regcodeSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace, secretName)
+	regcodeSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), secretName)
 	if err != nil && apierrors.IsNotFound(err) {
 		regcodeSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: h.options.SystemNamespace,
+				Namespace: h.options.SystemNamespace(),
 				Name:      secretName,
 			},
 			Data: map[string][]byte{
@@ -282,12 +282,12 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 func (h *handler) offlineCertFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
 	secretName := consts.OfflineCertificateSecretName(params.nameID)
 
-	offlineCertSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace, secretName)
+	offlineCertSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), secretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			offlineCertSecret = &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: h.options.SystemNamespace,
+					Namespace: h.options.SystemNamespace(),
 					Name:      secretName,
 				},
 				Data: map[string][]byte{
