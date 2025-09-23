@@ -29,8 +29,8 @@ func New(
 	kubeconfig *rest.Config,
 	options types.RunOptions,
 ) (*SccStarter, error) {
-	operatorLogger := options.Logger
-	operatorLogger.Debug("Preparing to setup SCC operator")
+	starterLog := options.Logger.WithField("component", "scc-starter")
+	starterLog.Debug("Preparing to setup SCC operator")
 
 	if err := options.Validate(); err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func New(
 		return nil, err
 	}
 
-	operatorLogger.Debug("Setting up CRD Manager")
+	starterLog.Debug("Setting up CRD Manager")
 	crdManager := crds.NewCRDManager(
 		options,
 		wContext.ClientSet.ApiextensionsV1().CustomResourceDefinitions(),
@@ -59,7 +59,7 @@ func New(
 		context:                 ctx,
 		options:                 options,
 		wrangler:                wContext,
-		log:                     operatorLogger.WithField("component", "scc-starter"),
+		log:                     starterLog,
 		systemRegistrationReady: make(chan struct{}),
 	}, nil
 }
