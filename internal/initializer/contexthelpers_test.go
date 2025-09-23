@@ -12,16 +12,12 @@ import (
 // Override globals to use testingInitializer instead of InitHandler for test control.
 func init() {
 	DevMode = valueInitializer[bool]{init: &testingInitializer{}}
-	SystemNamespace = valueInitializer[string]{init: &testingInitializer{}}
 	OperatorName = valueInitializer[string]{init: &testingInitializer{}}
 }
 
 // resetAll ensures the underlying initializers are reset for each test.
 func resetAll() {
 	if ti, ok := DevMode.init.(*testingInitializer); ok {
-		ti.Reset()
-	}
-	if ti, ok := SystemNamespace.init.(*testingInitializer); ok {
 		ti.Reset()
 	}
 	if ti, ok := OperatorName.init.(*testingInitializer); ok {
@@ -35,7 +31,7 @@ func TestValueInitializer_GetWithContextTimeout(t *testing.T) {
 	resetAll()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
 	defer cancel()
-	val, err := SystemNamespace.GetWithContext(ctx)
+	val, err := OperatorName.GetWithContext(ctx)
 	asserts.Error(err, "expected error on timeout, got nil (val=%q)", val)
 }
 
@@ -43,8 +39,8 @@ func TestValueInitializer_SetThenGet(t *testing.T) {
 	asserts := assert.New(t)
 
 	resetAll()
-	SystemNamespace.Set("cattle-system")
-	asserts.Equal("cattle-system", SystemNamespace.Get())
+	OperatorName.Set("silly-test-name")
+	asserts.Equal("silly-test-name", OperatorName.Get())
 }
 
 func TestValueInitializer_SetOnlyOnce(t *testing.T) {
@@ -68,12 +64,12 @@ func TestValueInitializer_ConcurrentGetUnblocksAfterSet(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			defer wg.Done()
-			results <- SystemNamespace.Get()
+			results <- OperatorName.Get()
 		}()
 	}
 	// Give goroutines time to start and block
 	time.Sleep(20 * time.Millisecond)
-	SystemNamespace.Set("ns")
+	OperatorName.Set("silly-test-operator")
 
 	done := make(chan struct{})
 	go func() { wg.Wait(); close(done) }()
@@ -83,7 +79,7 @@ func TestValueInitializer_ConcurrentGetUnblocksAfterSet(t *testing.T) {
 		// consume results and verify
 		close(results)
 		for r := range results {
-			asserts.Equal("ns", r)
+			asserts.Equal("silly-test-operator", r)
 		}
 	case <-time.After(500 * time.Millisecond):
 		t.Fatalf("timeout waiting for Get goroutines to unblock after Set")

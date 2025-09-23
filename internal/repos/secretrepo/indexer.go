@@ -4,7 +4,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/rancher/scc-operator/internal/consts"
-	"github.com/rancher/scc-operator/internal/initializer"
 )
 
 const (
@@ -12,10 +11,7 @@ const (
 	IndexSecretsBySccHash = "scc.io/secret-refs-by-scc-hash"
 )
 
-var systemNamespace string
-
 func (r *SecretRepository) InitIndexers() {
-	systemNamespace = initializer.SystemNamespace.Get()
 	r.Cache.AddIndexer(
 		IndexSecretsByPath,
 		secretByPath,
@@ -29,7 +25,7 @@ func (r *SecretRepository) InitIndexers() {
 }
 
 func secretByPath(obj *corev1.Secret) ([]string, error) {
-	if obj.GetNamespace() != systemNamespace {
+	if obj.GetNamespace() != systemIndexNamespace {
 		return nil, nil
 	}
 
