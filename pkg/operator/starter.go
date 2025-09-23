@@ -38,11 +38,12 @@ func (s *SccStarter) hasSccMetricsSecretPopulated() bool {
 	return s.wrangler.Secrets.HasMetricsSecret()
 }
 
-func (s *SccStarter) EnsureMetricsSecretRequest(ctx context.Context) error {
+func (s *SccStarter) EnsureMetricsSecretRequest(ctx context.Context, namespace string) error {
 	labels := map[string]string{
 		consts.LabelK8sManagedBy: s.options.OperatorName,
 	}
 	metricsRequester := telemetry.NewSecretRequester(
+		namespace,
 		labels,
 		s.wrangler.Dynamic,
 	)
