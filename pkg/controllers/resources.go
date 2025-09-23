@@ -52,6 +52,7 @@ func (h *handler) isSCCEntrypointSecret(secretObj *corev1.Secret) bool {
 
 // prepareSecretSalt applies an instance salt onto an entrypoint secret used to create randomness in hashes
 func (h *handler) prepareSecretSalt(secret *corev1.Secret) (*corev1.Secret, error) {
+	h.log.Debugf("Preparing salt for secret %s/%s", secret.Namespace, secret.Name)
 	preparedSecret := secret.DeepCopy()
 	generatedSalt := salt.NewSaltGen(nil, nil).GenerateSalt()
 
@@ -62,11 +63,13 @@ func (h *handler) prepareSecretSalt(secret *corev1.Secret) (*corev1.Secret, erro
 	existingLabels[consts.LabelObjectSalt] = generatedSalt
 	preparedSecret.SetLabels(existingLabels)
 
+	h.log.Debugf("Prepared salt for secret %s/%s", secret.Namespace, secret.Name)
 	_, updateErr := h.secretRepo.RetryingPatchUpdate(secret, preparedSecret)
 	if updateErr != nil {
 		h.log.Error("error applying metadata updates to default SCC registration secret; cannot initialize secret salt value")
 		return nil, updateErr
 	}
+	h.log.Debugf("Added salt to secret %s/%s", secret.Namespace, secret.Name)
 
 	return secret, nil
 }
@@ -86,20 +89,23 @@ func getCurrentRegURL(secret *corev1.Secret) (regURL []byte) {
 	return []byte{}
 }
 
+// extractRegistrationParamsFromSecret will extract secret data and prepare it into a RegistrationParams
 func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedBy string) (RegistrationParams, error) {
+	extractParamsLog := log.NewComponentLogger("params-extractor")
 	incomingSalt := []byte(secret.GetLabels()[consts.LabelObjectSalt])
+	extractParamsLog.Debugf("extracting registration params from secret %s/%s - with salt %s", secret.Namespace, secret.Name, incomingSalt)
 
 	regMode := v1.RegistrationModeOnline
 	regType, ok := secret.Data[dataKeyRegistrationType]
 	if !ok || len(regType) == 0 {
-		// TODO: consider using an existing logger
-		log.NewLog().Warnf("secret does not have the `%s` field, defaulting to %s", dataKeyRegistrationType, regMode)
+		extractParamsLog.Warnf("secret does not have the `%s` field, defaulting to %s", dataKeyRegistrationType, regMode)
 	} else {
 		regMode = v1.RegistrationMode(regType)
 		if !regMode.Valid() {
 			return RegistrationParams{}, fmt.Errorf("invalid registration mode %s", string(regMode))
 		}
 	}
+	extractParamsLog.Debugf("incoming %s/%s secret params mode: %s", secret.Namespace, secret.Name, string(regMode))
 
 	regCode, ok := secret.Data[consts.SecretKeyRegistrationCode]
 	if !ok || len(regCode) == 0 {
@@ -111,6 +117,7 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedBy string
 	offlineRegCertData, certOk := secret.Data[consts.SecretKeyOfflineRegCert]
 	hasOfflineCert := certOk && len(offlineRegCertData) > 0
 
+	// TODO: when RMT needs to be supported eventually we need to accept Reg URL and Reg Server Cert.
 	var regURLBytes []byte
 	regURLString := ""
 	if regMode == v1.RegistrationModeOnline {
@@ -135,6 +142,7 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedBy string
 		return RegistrationParams{}, fmt.Errorf("failed to hash data: %v", err)
 	}
 	contentsID := hex.EncodeToString(hasher.Sum(nil))
+	extractParamsLog.Debugf("incoming %s/%s secret hashes; name hash: %s, content hash: %s", secret.Namespace, secret.Name, nameID, contentsID)
 
 	return RegistrationParams{
 		managedByOperator: managedBy,
@@ -169,6 +177,7 @@ type RegistrationParams struct {
 	offlineCertSecretRef *corev1.SecretReference
 }
 
+// Labels produces the labels to apply to related resources
 func (r RegistrationParams) Labels() map[string]string {
 	return map[string]string{
 		consts.LabelNameSuffix:   r.nameID,
@@ -178,6 +187,7 @@ func (r RegistrationParams) Labels() map[string]string {
 	}
 }
 
+// registrationFromSecretEntrypoint will produce a valid Registration object desired state based on Entrypoint secret
 func (h *handler) registrationFromSecretEntrypoint(
 	params RegistrationParams,
 ) (*v1.Registration, error) {
@@ -215,6 +225,7 @@ func (h *handler) registrationFromSecretEntrypoint(
 	return reg, nil
 }
 
+// paramsToRegSpec transforms our configured params into a valid Registration Spec
 func paramsToRegSpec(params RegistrationParams) v1.RegistrationSpec {
 	regSpec := v1.RegistrationSpec{
 		Mode: params.regType,
@@ -236,6 +247,7 @@ func paramsToRegSpec(params RegistrationParams) v1.RegistrationSpec {
 	return regSpec
 }
 
+// regCodeFromSecretEntrypoint fetches the registration code provided by an entrypoint secret
 func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
 	secretName := params.regCodeSecretRef.Name
 
@@ -266,6 +278,7 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 	return regcodeSecret, nil
 }
 
+// offlineCertFromSecretEntrypoint helps to extract and prepare the Offline Cert secret for creation based on entrypoint secret
 func (h *handler) offlineCertFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
 	secretName := consts.OfflineCertificateSecretName(params.nameID)
 
