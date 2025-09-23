@@ -75,7 +75,7 @@ func (s *SccStarter) waitForSystemReady(onSystemReady func()) {
 func (s *SccStarter) SetupControllers() error {
 	go s.waitForSystemReady(func() {
 		s.log.Debug("Setting up SCC Operator")
-		initOperator, err := setup(s.context, s.log, &s.options, &s.wrangler)
+		initOperator, err := setup(s.context, s.options.Logger, &s.options, &s.wrangler)
 		if err != nil {
 			s.log.Errorf("error setting up scc operator: %s", err.Error())
 		}
