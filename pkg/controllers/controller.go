@@ -437,7 +437,7 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 	}
 
 	if h.isSCCEntrypointSecret(incomingObj) {
-		hash, ok := incomingObj.Labels[consts.LabelSccHash]
+		hash, ok := incomingObj.Labels[consts.LabelNameSuffix]
 		if !ok {
 			return incomingObj, nil
 		}
@@ -446,12 +446,16 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 		// here based on the control flow changes in OnChange
 		if err := h.cleanupRegistrationByHash(hashCleanupRequest{
 			hash,
-			ContentHash,
+			NameHash,
 		}); err != nil {
 			h.log.Errorf("failed to cleanup registrations for hash %s: %v", hash, err)
 			return nil, err
 		}
-		if cleanUpErr := h.cleanupRelatedSecretsByHash(hash); cleanUpErr != nil {
+		contentHash, ok := incomingObj.Labels[consts.LabelSccHash]
+		if !ok {
+			return incomingObj, nil
+		}
+		if cleanUpErr := h.cleanupRelatedSecretsByHash(contentHash); cleanUpErr != nil {
 			h.log.Errorf("failed to cleanup registrations for hash %s: %v", hash, cleanUpErr)
 			return incomingObj, cleanUpErr
 		}
