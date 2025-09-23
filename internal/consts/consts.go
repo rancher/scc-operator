@@ -1,9 +1,10 @@
 package consts
 
 const (
-	// DefaultOperatorName TODO: in the future when this isn't very specific to `rancher` (the product) drop the `rancher-` prefix
-	DefaultOperatorName = "rancher-scc-operator"
-	DefaultSCCNamespace = "cattle-scc-system"
+	DefaultOperatorName      = "rancher-scc-operator" // TODO: in the future when this isn't very specific to `rancher` (the product) drop the `rancher-` prefix
+	DefaultSCCNamespace      = "cattle-scc-system"
+	DefaultLeaseNamespace    = "kube-system"
+	SCCOperatorConfigMapName = "operator-config"
 )
 
 const (
@@ -31,6 +32,7 @@ const (
 	ManagedByValueSecretBroker = "secret-broker"
 )
 
+// These are consts for Rancher setting names we may need to lookup
 const (
 	SettingNameInstallUUID   = "install-uuid"
 	SettingNameServerURL     = "server-url"
