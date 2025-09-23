@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/rancher/scc-operator/internal/consts"
-	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/rancher/wrangler/v3/pkg/generic/fake"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -15,7 +14,6 @@ func TestInternal_secretByPath(t *testing.T) {
 	asserts := assert.New(t)
 	// Ensure we start with a clean singleton for this test
 	rootSecretRepo = nil
-	initializer.SystemNamespace.Set("testing-system-ns")
 
 	ctrl := gomock.NewController(t)
 	mockController := fake.NewMockControllerInterface[*corev1.Secret, *corev1.SecretList](ctrl)
@@ -23,7 +21,7 @@ func TestInternal_secretByPath(t *testing.T) {
 	// Expect indexers to be added during initialization
 	mockCache.EXPECT().AddIndexer(IndexSecretsByPath, gomock.Any()).Times(1)
 	mockCache.EXPECT().AddIndexer(IndexSecretsBySccHash, gomock.Any()).Times(1)
-	_ = NewSecretRepository(mockController, mockCache)
+	_ = NewSecretRepository("testing-system-ns", mockController, mockCache)
 
 	testSecret := newSecret("testing-system-ns", "some-secret", nil)
 
