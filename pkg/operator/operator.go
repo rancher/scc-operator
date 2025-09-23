@@ -35,11 +35,11 @@ func New(
 	if err := options.Validate(); err != nil {
 		return nil, err
 	}
-	initializer.SystemNamespace.Set(options.SystemNamespace)
+	initializer.SystemNamespace.Set(options.SystemNamespace())
 	initializer.OperatorName.Set(options.OperatorName)
 
 	kubeconfig.RateLimiter = ratelimit.None
-	wContext, err := wrangler.NewWranglerMiniContext(ctx, kubeconfig, options.LeaseNamespace)
+	wContext, err := wrangler.NewWranglerMiniContext(ctx, kubeconfig, options.OperatorSettings.LeaseNamespace)
 	if err != nil {
 		return nil, err
 	}

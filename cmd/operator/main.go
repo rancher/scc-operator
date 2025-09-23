@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/rancher/scc-operator/internal/config"
 	"github.com/rancher/wrangler/v3/pkg/kubeconfig"
 	"github.com/rancher/wrangler/v3/pkg/signals"
+	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/rest"
 
 	"github.com/rancher/scc-operator/cmd/operator/version"
@@ -20,58 +22,68 @@ import (
 )
 
 var (
-	KubeConfig     string
-	LogFormat      string
-	Debug          bool
-	Trace          bool
-	SCCNamespace   string
-	LeaseNamespace string
-	OperatorName   string
-	logger         rootLog.StructuredLogger
+	logger rootLog.StructuredLogger
 )
 
-func init() {
-	flag.StringVar(&LogFormat, "log-format", string(rootLog.DefaultFormat), "Set the log format")
-
-	kubeConfigEnv := os.Getenv("KUBECONFIG")
-	flag.StringVar(&KubeConfig, "kubeconfig", kubeConfigEnv, "Path to a kubeconfig. Only required if out-of-cluster.")
-
-	operatorName := os.Getenv("SCC_OPERATOR_NAME")
-	if operatorName == "" {
-		operatorName = consts.DefaultOperatorName
+func initialEnvValues() config.EnvVarsMap {
+	return config.EnvVarsMap{
+		config.KubeconfigEnv:         config.KubeconfigEnv.Get(),
+		config.LogLevelEnv:           config.LogLevelEnv.Get(),
+		config.LogFormatEnv:          config.LogFormatEnv.Get(),
+		config.SCCOperatorNameEnv:    config.SCCOperatorNameEnv.Get(),
+		config.SCCSystemNamespaceEnv: config.SCCSystemNamespaceEnv.Get(),
+		config.SCCLeaseNamespaceEnv:  config.SCCLeaseNamespaceEnv.Get(),
+		config.DebugEnv:              config.GetDebugEnv(),
+		config.TraceEnv:              config.GetTraceEnv(),
 	}
-	operatorNameUsage := fmt.Sprintf("Name of the operator. Defaults to %s", consts.DefaultOperatorName)
-	flag.StringVar(&OperatorName, "operator-name", operatorName, operatorNameUsage)
-
-	flag.BoolVar(&Debug, "debug", false, "Enable debug logging.")
-	flag.BoolVar(&Trace, "trace", false, "Enable trace logging.")
 }
 
-func setupCli() {
+func getOperatorMetadata() *types.OperatorMetadata {
+	return &types.OperatorMetadata{
+		Version:   version.Version,
+		GitCommit: version.GitCommit,
+		BuildDate: version.Date,
+	}
+}
+
+func setupCli(ctx context.Context) *config.OperatorSettings {
+	var flags config.FlagValues
+	flag.StringVar(&flags.LogFormat, "log-format", "", "Set the log format.")
+	flag.StringVar(&flags.LogLevel, "log-level", "", "Set the logging level.")
+	flag.StringVar(&flags.KubeconfigPath, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
+	operatorNameUsage := fmt.Sprintf("Name of the operator. Defaults to %s when unset.", consts.DefaultOperatorName)
+	flag.StringVar(&flags.OperatorName, "operator-name", "", operatorNameUsage)
+	flag.StringVar(&flags.OperatorNamespace, "operator-namespace", "", "The namespace where the operator is deployed.")
+	flag.StringVar(&flags.LeaseNamespace, "lease-namespace", "", "The namespace where the operator lease lives.")
+	flag.BoolVar(&flags.Debug, "debug", false, "Enable debug logging.")
+	flag.BoolVar(&flags.Trace, "trace", false, "Enable trace logging.")
 	flag.Parse()
 
-	rootLog.ParseAndSetLogFormatFromString(LogFormat)
-	rootLog.SetLevelFromEnvironment(Trace, Debug)
+	envValues := initialEnvValues()
 
-	SCCNamespace = os.Getenv("SCC_SYSTEM_NAMESPACE")
-	if SCCNamespace == "" {
-		SCCNamespace = consts.DefaultSCCNamespace
+	appConfig, err := config.LoadInitialConfig(ctx, &flags, envValues)
+	if err != nil {
+		logrus.Fatal(err)
 	}
 
-	LeaseNamespace = os.Getenv("SCC_LEASE_NAMESPACE")
-
-	log.AddDefaultOpts(rootLog.WithOperatorName(OperatorName))
+	rootLog.SetupLogging(appConfig.LogLevel, appConfig.LogFormat)
+	log.AddDefaultOpts(
+		rootLog.WithOperatorName(flags.OperatorName),
+		rootLog.WithOperatorNamespace(appConfig.SystemNamespace),
+	)
 	logger = log.NewLog()
+
+	return appConfig
 }
 
 func main() {
-	setupCli()
+	ctx := signals.SetupSignalContext()
+	operatorSettings := setupCli(ctx)
 
 	logger.Infof("Starting %s version %s (%s) [built at %s]", consts.AppName, version.Version, version.GitCommit, version.Date)
-	ctx := signals.SetupSignalContext()
-	restKubeConfig, err := kubeconfig.GetNonInteractiveClientConfig(KubeConfig).ClientConfig()
+	restKubeConfig, err := kubeconfig.GetNonInteractiveClientConfig(operatorSettings.Kubeconfig).ClientConfig()
 	if err != nil {
-		if KubeConfig == "" {
+		if operatorSettings.Kubeconfig == "" {
 			logger.Warn("If outside of cluster --kubeconfig is required")
 		}
 		logger.Fatalf("failed to find kubeconfig: %v", err)
@@ -82,16 +94,11 @@ func main() {
 	logger.Debugf("Launching scc-operator with DevMode set to `%v`", initializer.DevMode.Get())
 
 	runOptions := types.RunOptions{
-		Logger:       logger,
-		OperatorName: OperatorName,
-		DevMode:      initializer.DevMode.Get(),
-		OperatorMetadata: types.OperatorMetadata{
-			Version:   version.Version,
-			GitCommit: version.GitCommit,
-			BuildDate: version.Date,
-		},
-		SystemNamespace: SCCNamespace,
-		LeaseNamespace:  LeaseNamespace,
+		Logger:           logger,
+		OperatorSettings: config.GetCurrentConfig(),
+		OperatorName:     operatorSettings.OperatorName,
+		DevMode:          initializer.DevMode.Get(),
+		OperatorMetadata: *getOperatorMetadata(),
 	}
 
 	if err := run(ctx, restKubeConfig, runOptions); err != nil {
@@ -100,7 +107,7 @@ func main() {
 }
 
 func run(ctx context.Context, restKubeConfig *rest.Config, runOptions types.RunOptions) error {
-	logger.Debugf("Setting up client for %s...", SCCNamespace)
+	logger.Debugf("Setting up `%s` client for '%s' namespace", runOptions.OperatorSettings.OperatorName, runOptions.OperatorSettings.SystemNamespace)
 	logger.Debugf("Run options: %v", runOptions)
 
 	sccOperatorStarter, err := operator.New(ctx, restKubeConfig, runOptions)

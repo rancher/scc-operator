@@ -116,7 +116,7 @@ func Register(
 	controller.initResolvers(ctx)
 
 	withinExpectedNamespaceCondition := func(name string, obj runtime.Object) (bool, error) {
-		if !wranglerPolyfill.InExpectedNamespace(name, obj, controller.options.SystemNamespace) {
+		if !wranglerPolyfill.InExpectedNamespace(name, obj, controller.options.SystemNamespace()) {
 			return false, nil
 		}
 		return true, nil
@@ -165,7 +165,7 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration, rancherURL st
 			options:      h.options,
 			registration: registrationObj,
 			offlineSecrets: offline.New(
-				h.options.SystemNamespace,
+				h.options.SystemNamespace(),
 				offlineRequestSecretName,
 				offlineCertSecretName,
 				ref,
@@ -182,7 +182,7 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration, rancherURL st
 		options:      h.options,
 		registration: registrationObj,
 		sccCredentials: credentials.New(
-			h.options.SystemNamespace,
+			h.options.SystemNamespace(),
 			credsSecretName,
 			ref,
 			h.secretRepo,
@@ -427,7 +427,7 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 	if incomingObj == nil {
 		return nil, nil
 	}
-	if incomingObj.Namespace != h.options.SystemNamespace {
+	if incomingObj.Namespace != h.options.SystemNamespace() {
 		h.log.Debugf("Secret %s/%s is not in SCC system namespace %s, skipping cleanup", incomingObj.Namespace, incomingObj.Name, h.options.SystemNamespace)
 		return incomingObj, nil
 	}
