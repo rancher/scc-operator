@@ -5,15 +5,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rancher/scc-operator/pkg/util/log"
 	"github.com/stretchr/testify/assert"
-
-	rootLog "github.com/rancher/scc-operator/internal/log"
 )
 
-func utilTestsContextLogger() rootLog.StructuredLogger {
-	logBuilder := rootLog.NewStructuredLoggerBuilder("jitterbug-tests")
-	return logBuilder.ToLogger()
-}
+var testLogs = log.NewComponentLogger("jitterbug-tests")
 
 func TestNewJitterChecker(t *testing.T) {
 	t.Parallel()
@@ -27,7 +23,7 @@ func TestNewJitterChecker(t *testing.T) {
 		func(dailyTriggerTime, maxTriggerTime time.Duration) (bool, error) {
 			timeDiff := time.Since(lastCheck)
 			if timeDiff > dailyTriggerTime {
-				utilTestsContextLogger().Infof("Hi IAN!")
+				testLogs.Infof("Hi IAN!")
 				lastCheck = time.Now()
 				return true, nil
 			}
@@ -55,7 +51,7 @@ func TestNewJitterCheckerFromCalculator(t *testing.T) {
 		func(dailyTriggerTime, maxTriggerTime time.Duration) (bool, error) {
 			timeDiff := time.Since(lastCheck)
 			if timeDiff > dailyTriggerTime {
-				utilTestsContextLogger().Infof("Hi IAN!")
+				testLogs.Infof("Hi IAN!")
 				lastCheck = time.Now()
 				return true, nil
 			}
