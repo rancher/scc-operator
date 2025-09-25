@@ -18,6 +18,7 @@ import (
 	"github.com/rancher/scc-operator/pkg/controllers"
 )
 
+// TODO(rancher-bias): maybe we need product variant starters in the future
 type SccStarter struct {
 	context                 context.Context
 	wrangler                wrangler.MiniContext
@@ -30,10 +31,12 @@ func (s *SccStarter) CanStartSccOperator() bool {
 	return s.isServerURLReady() && s.hasSccMetricsSecretPopulated()
 }
 
+// TODO(rancher-bias): Will other SCC Operator consumers have a Server URL?
 func (s *SccStarter) isServerURLReady() bool {
 	return rancher.GetServerURL(s.context, s.wrangler.Settings) != ""
 }
 
+// TODO(rancher-bias): Metrics Secret (for now) is just a Rancher thing - but maybe we should make it product universal?
 func (s *SccStarter) hasSccMetricsSecretPopulated() bool {
 	return s.wrangler.Secrets.HasMetricsSecret()
 }
