@@ -5,17 +5,17 @@ import "github.com/rancher/scc-operator/internal/initializer"
 type SCCEnvironment int
 
 const (
-	Production SCCEnvironment = iota
-	Staging
-	PayAsYouGo
-	RGS
+	ProductionSCC SCCEnvironment = iota
+	StagingSCC
+	PayAsYouGo //Disabled for now
+	RGS        // Shouldn't matter for now until RGS supported
 )
 
 func (s SCCEnvironment) String() string {
 	switch s {
-	case Production:
+	case ProductionSCC:
 		return "production"
-	case Staging:
+	case StagingSCC:
 		return "staging"
 	case PayAsYouGo:
 		return "payAsYouGo"
@@ -26,38 +26,43 @@ func (s SCCEnvironment) String() string {
 	}
 }
 
-func GetSCCEnvironment() SCCEnvironment {
-	if !initializer.DevMode.Get() {
-		return Production
-	}
-	return Staging
-}
-
-type AlternativeSccURLs string
-
-const (
-	ProdSccURL    AlternativeSccURLs = "https://scc.suse.com"
-	StagingSccURL AlternativeSccURLs = "https://stgscc.suse.com"
-)
-
-// TODO in the future we can store the PAYG and other urls too
-
-func (s AlternativeSccURLs) Ptr() *string {
-	stringVal := string(s)
-	return &stringVal
-}
-
-func BaseURLForSCC() string {
+// BaseURLForSCC returns an environment's default SCC URL (or empty string if SCC not used)
+func (s SCCEnvironment) BaseURLForSCC() string {
 	var baseURL string
-	switch GetSCCEnvironment() {
-	case Production:
+	switch s {
+	case ProductionSCC:
 		baseURL = string(ProdSccURL)
-	case Staging:
+	case StagingSCC:
 		baseURL = string(StagingSccURL)
-	case RGS: // explicitly return empty for RGS
+	case RGS, PayAsYouGo:
+		fallthrough
 	default:
 		// intentionally do nothing and return empty string
 	}
 
 	return baseURL
+}
+
+func GetSCCEnvironment() SCCEnvironment {
+	if !initializer.DevMode.Get() {
+		return ProductionSCC
+	}
+	return StagingSCC
+}
+
+type SccURLs string
+
+const (
+	ProdSccURL    SccURLs = "https://scc.suse.com"
+	StagingSccURL SccURLs = "https://stgscc.suse.com"
+)
+
+func (s SccURLs) Ptr() *string {
+	stringVal := string(s)
+	return &stringVal
+}
+
+// BaseURLForSCC returns the SCC URL (or empty string) for the detected environment
+func BaseURLForSCC() string {
+	return GetSCCEnvironment().BaseURLForSCC()
 }
