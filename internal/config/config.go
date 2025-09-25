@@ -71,9 +71,10 @@ func (s *OperatorSettings) initSCCProductConfigs(valueResolver *ValueResolver) {
 	// For product, maybe we use `/rancherversion` URL? Need to add new field for product tho.
 	// In the future, other product specific "version URL lookup" contracts could be setup.
 	productVal := valueResolver.Get(Product, "unknown")
-	_ = valueResolver.Get(ProductVersion, "other")
+	productVersionVal := valueResolver.Get(ProductVersion, "other")
 
 	s.Product = products.ParseProductName(productVal).ProductName()
+	s.ProductVersion = productVersionVal
 	// For SCC Environment decide based on version found in `/rancherversion` URL
 	// TODO use productVersionVal to pick Staging or Prod
 	s.DefaultSCCEnvironment = consts.StagingSCC
