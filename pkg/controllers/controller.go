@@ -563,7 +563,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 
 		errorFixHint := fmt.Sprintf("delete this registration `%s` and then create a new one to try again.", registrationObj.Name)
 		if shared.RegistrationHasManagedFinalizer(registrationObj) {
-			errorFixHint = fmt.Sprintf("delete the entrypoint secret `%s/%s`, give it time to clean up, and then create a new one to try again.", consts.DefaultSCCNamespace, consts.ResourceSCCEntrypointSecretName)
+			errorFixHint = fmt.Sprintf("delete the entrypoint secret `%s/%s`, give it time to clean up, and then create a new one to try again.", h.options.SystemNamespace, consts.ResourceSCCEntrypointSecretName)
 		}
 		h.log.Warn("after resolving the issue(s), " + errorFixHint)
 		return registrationObj, nil
