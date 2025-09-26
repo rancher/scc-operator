@@ -558,7 +558,11 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 
 	if shared.RegistrationIsFailed(registrationObj) {
 		failedCondition := registrationObj.Status.CurrentCondition
-		h.log.Errorf("registration `%s` has the Failure status condition from: %v", registrationObj.Name, failedCondition)
+		if failedCondition != nil {
+			h.log.Errorf("registration `%s` has the Failure status condition from: %v", registrationObj.Name, failedCondition)
+		} else {
+			h.log.Errorf("registration `%s` has the Failure status condition active", registrationObj.Name)
+		}
 		h.log.Warnf("reviewing the registration `%s` for other errors is advised before retrying", registrationObj.Name)
 
 		errorFixHint := fmt.Sprintf("delete this registration `%s` and then create a new one to try again.", registrationObj.Name)
