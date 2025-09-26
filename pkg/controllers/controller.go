@@ -557,7 +557,20 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	}
 
 	if shared.RegistrationIsFailed(registrationObj) {
-		return registrationObj, errors.New("registration has failed status; create a new one to retry")
+		failedCondition := registrationObj.Status.CurrentCondition
+		if failedCondition != nil {
+			h.log.Errorf("registration `%s` has the Failure status condition from: %v", registrationObj.Name, failedCondition)
+		} else {
+			h.log.Errorf("registration `%s` has the Failure status condition active", registrationObj.Name)
+		}
+		h.log.Warnf("reviewing the registration `%s` for other errors is advised before retrying", registrationObj.Name)
+
+		errorFixHint := fmt.Sprintf("delete this registration `%s` and then create a new one to try again.", registrationObj.Name)
+		if shared.RegistrationHasManagedFinalizer(registrationObj) {
+			errorFixHint = fmt.Sprintf("delete the entrypoint secret `%s/%s`, give it time to clean up, and then create a new one to try again.", h.options.SystemNamespace, consts.ResourceSCCEntrypointSecretName)
+		}
+		h.log.Warn("after resolving the issue(s), " + errorFixHint)
+		return registrationObj, nil
 	}
 
 	// Skip keepalive for anything activated within the last 20 hours
