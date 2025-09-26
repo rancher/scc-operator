@@ -32,12 +32,12 @@ func TestSCCEnvironment_String(t *testing.T) {
 	}
 }
 
-func TestAlternativeSccURLs_Ptr(t *testing.T) {
+func TestSccURLs_Ptr(t *testing.T) {
 	asserts := assert.New(t)
 
 	var tests = []struct {
 		name  string
-		input AlternativeSccURLs
+		input SccURLs
 		want  string
 	}{
 		{"Prod URL", ProdSccURL, "https://scc.suse.com"},
