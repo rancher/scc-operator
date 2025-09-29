@@ -45,8 +45,8 @@ func setupCli(ctx context.Context) *config.OperatorSettings {
 	// SCC Product Config flags
 	// TODO: These are temporary workaround for a better product universal mechanism
 	// The future system must be one that allows one SCC operator to do many products via multiple registrations
-	flag.StringVar(&config.Product.FlagValue, "product", "", "The product name that the operator is managing.")
-	flag.StringVar(&config.ProductVersion.FlagValue, "product-version", "", "The version of the product to use.")
+	flag.StringVar(&config.ProductOverride.FlagValue, "product", "", "[Dev] The product name that the operator is managing. Using this forces Dev mode, cannot use in production.")
+	flag.StringVar(&config.ProductVersionOverride.FlagValue, "product-version", "", "[Dev] The version of the product to use. Using this forces Dev mode, cannot use in production.")
 
 	flag.Parse()
 
