@@ -163,10 +163,10 @@ var WithoutFlag OptionalValue = func(s RegisteredOption) {
 
 // NewOption will create and store a new operation.
 // The `name` input should be a a kebab case string
-func NewOption[T any](name string, def T, opts ...OptionalValue) *Option[T] {
+func NewOption[T any](name string, defaultValue T, opts ...OptionalValue) *Option[T] {
 	o := &Option[T]{
 		Name:               name,
-		Default:            def,
+		Default:            defaultValue,
 		AllowFromEnv:       true,
 		AllowFromFlag:      true,
 		AllowFromConfigMap: false,
