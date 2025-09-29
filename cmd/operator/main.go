@@ -46,7 +46,7 @@ func setupCli(ctx context.Context) *config.OperatorSettings {
 
 	appConfig, err := config.LoadInitialConfig(ctx)
 	if err != nil {
-		logrus.Fatal(err)
+		logrus.Fatal(fmt.Errorf("error loading scc-operator config: %w", err))
 	}
 
 	rootLog.SetupLogging(appConfig.LogLevel, appConfig.LogFormat)
