@@ -112,21 +112,21 @@ func (r *SecretRepository) HasMetricsSecret() bool {
 	return r.HasSecret(systemIndexNamespace, consts.SCCMetricsOutputSecretName)
 }
 
-func (r *SecretRepository) FetchMetricsSecret() (telemetry.MetricsWrapper, error) {
+func (r *SecretRepository) FetchMetricsSecret() (telemetry.RancherMetricsWrapper, error) {
 	metricsSecret, err := r.Get(systemIndexNamespace, consts.SCCMetricsOutputSecretName)
 	if err != nil {
-		return telemetry.MetricsWrapper{}, err
+		return telemetry.RancherMetricsWrapper{}, err
 	}
 
 	payloadData, ok := metricsSecret.Data[consts.SecretKeyMetricsData]
 	if !ok {
-		return telemetry.MetricsWrapper{}, errors.New("metrics secret does not contain metrics data; missing the expected key")
+		return telemetry.RancherMetricsWrapper{}, errors.New("metrics secret does not contain metrics data; missing the expected key")
 	}
 
 	secretData := make(map[string]any)
 	jsonErr := json.Unmarshal(payloadData, &secretData)
 	if jsonErr != nil {
-		return telemetry.MetricsWrapper{}, fmt.Errorf("failed to unmarshal metrics secret data: %v", jsonErr)
+		return telemetry.RancherMetricsWrapper{}, fmt.Errorf("failed to unmarshal metrics secret data: %v", jsonErr)
 	}
 
 	return telemetry.NewMetricsWrapper(secretData), nil

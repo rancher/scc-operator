@@ -6,6 +6,7 @@ import (
 	"github.com/SUSE/connect-ng/pkg/connection"
 	"github.com/SUSE/connect-ng/pkg/registration"
 	"github.com/pkg/errors"
+	"github.com/rancher/scc-operator/internal/suseconnect/products"
 	"github.com/rancher/scc-operator/internal/telemetry"
 
 	rootLog "github.com/rancher/scc-operator/internal/log"
@@ -22,7 +23,7 @@ type SccWrapper struct {
 	credentials    connection.Credentials
 	conn           *connection.ApiConnection
 	registered     *bool // only used by online mode
-	rancherMetrics telemetry.MetricsWrapper
+	productMetrics telemetry.MetricsWrapper
 }
 
 func DefaultConnectionOptions(appName, version string) connection.Options {
@@ -41,7 +42,7 @@ type OnlineConnectionParams struct {
 func OnlineRancherConnection(
 	params OnlineConnectionParams,
 	credentials connection.Credentials,
-	rancherMetrics telemetry.MetricsWrapper,
+	productMetrics telemetry.MetricsWrapper,
 ) SccWrapper {
 	if credentials == nil {
 		panic("credentials must be set")
@@ -61,17 +62,17 @@ func OnlineRancherConnection(
 		credentials:    credentials,
 		conn:           connection.New(params.Options, credentials),
 		registered:     &registered,
-		rancherMetrics: rancherMetrics,
+		productMetrics: productMetrics,
 	}
 }
 
 func OfflineRancherRegistration(
 	rancherURL string,
-	rancherMetrics telemetry.MetricsWrapper,
+	productMetrics telemetry.MetricsWrapper,
 ) SccWrapper {
 	return SccWrapper{
 		rancherURL:     rancherURL,
-		rancherMetrics: rancherMetrics,
+		productMetrics: productMetrics,
 	}
 }
 
@@ -95,7 +96,7 @@ const (
 )
 
 func (sw *SccWrapper) SystemRegistration(regCode string) (RegistrationSystemID, error) {
-	id, regErr := registration.Register(sw.conn, regCode, sw.rancherURL, sw.rancherMetrics.ToSystemInformation(), registration.NoExtraData)
+	id, regErr := registration.Register(sw.conn, regCode, sw.rancherURL, sw.productMetrics.MetricsToSystemInformation(), registration.NoExtraData)
 	if regErr != nil {
 		return ErrorRegistrationSystemID, errors.Wrap(regErr, "Cannot register system to SCC")
 	}
@@ -104,13 +105,13 @@ func (sw *SccWrapper) SystemRegistration(regCode string) (RegistrationSystemID, 
 }
 
 func (sw *SccWrapper) PrepareOfflineRegistrationRequest() (*registration.OfflineRequest, error) {
-	identifier, version, arch := sw.rancherMetrics.GetProductIdentifier()
-	return registration.BuildOfflineRequest(identifier, version, arch, sw.rancherMetrics.ToSystemInformation()), nil
+	identifier, version, arch := sw.productMetrics.GetProductTripletValues()
+	return registration.BuildOfflineRequest(identifier, version, arch, sw.productMetrics.MetricsToSystemInformation()), nil
 }
 
 func (sw *SccWrapper) KeepAlive() error {
 	// 1 call Status
-	status, statusErr := registration.Status(sw.conn, sw.rancherURL, sw.rancherMetrics.ToSystemInformation(), registration.NoExtraData)
+	status, statusErr := registration.Status(sw.conn, sw.rancherURL, sw.productMetrics.MetricsToSystemInformation(), registration.NoExtraData)
 	if status != registration.Registered {
 		return fmt.Errorf("trying to send keepalive on a system that is not yet registered. register this system first: %v", statusErr)
 	}
@@ -127,7 +128,7 @@ func (sw *SccWrapper) RegisterOrKeepAlive(regCode string) (RegistrationSystemID,
 }
 
 func (sw *SccWrapper) Activate(regCode string) (*registration.Metadata, *registration.Product, error) {
-	identifier, version, arch := sw.rancherMetrics.GetProductIdentifier()
+	identifier, version, arch := sw.productMetrics.GetProductTripletValues()
 	metaData, product, err := registration.Activate(sw.conn, identifier, version, arch, regCode)
 	if err != nil {
 		return nil, nil, err
@@ -144,8 +145,14 @@ func (sw *SccWrapper) ActivationStatus() ([]*registration.Activation, error) {
 	return activations, nil
 }
 
+// Deprecated: ProductInfo is deprecated. Use FetchProductInfo instead.
 func (sw *SccWrapper) ProductInfo() (*registration.Product, error) {
-	identifier, version, arch := sw.rancherMetrics.GetProductIdentifier()
+	identifier, version, arch := sw.productMetrics.GetProductTripletValues()
+	return registration.FetchProductInfo(sw.conn, identifier, version, arch)
+}
+
+func (sw *SccWrapper) FetchProductInfo(product products.OperatorProduct) (*registration.Product, error) {
+	identifier, version, arch := product.GetTripletValues()
 	return registration.FetchProductInfo(sw.conn, identifier, version, arch)
 }
 

@@ -3,46 +3,62 @@ package telemetry
 import (
 	"github.com/SUSE/connect-ng/pkg/registration"
 	"github.com/rancher/scc-operator/internal/semver"
+	"github.com/rancher/scc-operator/internal/suseconnect/products"
 )
 
-type subscriptionInfo struct {
-	rancherUUID string
-	product     string
-	version     string
-	arch        string
-	git         string
+type MetricsWrapper interface {
+	// GetSystemUUID returns the UUID of the system/cluster the product is installed to (for k8s clusters this should be `kube-system` ns UID)
+	GetSystemUUID() string
+	// GetProductUUID returns a product install UUID related to that specific installation of the product (e.g Ranchers per install unique `installuuid`).
+	GetProductUUID() string
+	GetProduct() products.OperatorProduct
+	GetProductTripletValues() (string, string, string)
+	MetricsToSystemInformation() registration.SystemInformation
 }
 
-type MetricsWrapper struct {
-	Data             map[string]any
-	subscriptionInfo subscriptionInfo
+type RancherMetricsWrapper struct {
+	Product        products.OperatorProduct
+	Data           map[string]any
+	clusterUUID    string
+	installUUID    string
+	ProductVersion semver.Version
 }
 
-func NewMetricsWrapper(data map[string]any) MetricsWrapper {
-	var subInfo subscriptionInfo
+var _ MetricsWrapper = &RancherMetricsWrapper{}
+
+func NewMetricsWrapper(data map[string]any) RancherMetricsWrapper {
 	subscriptionData := data["subscription"].(map[string]interface{})
-	subInfo.rancherUUID = subscriptionData["installuuid"].(string)
-	subInfo.product = subscriptionData["product"].(string)
-	subInfo.version = subscriptionData["version"].(string)
-	subInfo.arch = subscriptionData["arch"].(string)
-	subInfo.git = subscriptionData["git"].(string)
 
-	return MetricsWrapper{
-		Data:             data,
-		subscriptionInfo: subInfo,
+	rancherVersion := semver.Version(subscriptionData["version"].(string))
+	return RancherMetricsWrapper{
+		ProductVersion: rancherVersion,
+		Product: products.OperatorProduct{
+			Identifier: subscriptionData["product"].(string),
+			Version:    rancherVersion.SCCSafeVersion(),
+			Arch:       subscriptionData["arch"].(string),
+		},
+		Data:        data,
+		clusterUUID: subscriptionData["clusteruuid"].(string),
+		installUUID: subscriptionData["installuuid"].(string),
 	}
 }
 
-func (mw *MetricsWrapper) GetRancherUUID() string {
-	return mw.subscriptionInfo.rancherUUID
+func (mw *RancherMetricsWrapper) GetSystemUUID() string {
+	return mw.clusterUUID
 }
 
-func (mw *MetricsWrapper) ToSystemInformation() registration.SystemInformation {
+func (mw *RancherMetricsWrapper) GetProductUUID() string {
+	return mw.installUUID
+}
+
+func (mw *RancherMetricsWrapper) GetProduct() products.OperatorProduct {
+	return mw.Product
+}
+
+func (mw *RancherMetricsWrapper) GetProductTripletValues() (string, string, string) {
+	return mw.Product.GetTripletValues()
+}
+
+func (mw *RancherMetricsWrapper) MetricsToSystemInformation() registration.SystemInformation {
 	return mw.Data
-}
-
-// GetProductIdentifier must return the SCC Product ID, the Product version, and product arch
-func (mw *MetricsWrapper) GetProductIdentifier() (string, string, string) {
-	rancherVersion := semver.Version(mw.subscriptionInfo.version)
-	return mw.subscriptionInfo.product, rancherVersion.SCCSafeVersion(), mw.subscriptionInfo.arch
 }
