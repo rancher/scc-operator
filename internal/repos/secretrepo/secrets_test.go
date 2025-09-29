@@ -249,7 +249,7 @@ func TestHasMetricsSecret_And_FetchMetricsSecret(t *testing.T) {
 	systemIndexNamespace = ns
 	name := consts.SCCMetricsOutputSecretName
 
-	payload := []byte(`{"hello":"world","count":5,"subscription":{"installuuid":"5","product":"ranchdressing","version":"42","arch":"unknown","git":"no thanks"}}`)
+	payload := []byte(`{"hello":"world","count":5,"subscription":{"clusteruuid":"42","installuuid":"5","product":"ranchdressing","version":"42","arch":"unknown","git":"no thanks"}}`)
 	sec := newSecret(ns, name, map[string][]byte{consts.SecretKeyMetricsData: payload})
 
 	// HasMetricsSecret uses Cache.Get
