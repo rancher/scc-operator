@@ -90,7 +90,7 @@ var (
 func LoadInitialConfig(ctx context.Context) (*OperatorSettings, error) {
 	valueResolver := NewValueResolver()
 
-	kubeconfigPath := valueResolver.Get(OperatorNamespace, consts.DefaultSCCNamespace)
+	kubeconfigPath := valueResolver.Get(Kubeconfig, "")
 
 	restKubeConfig, err := kubeconfig.GetNonInteractiveClientConfig(kubeconfigPath).ClientConfig()
 	if err != nil {
