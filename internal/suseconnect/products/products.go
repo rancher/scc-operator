@@ -1,6 +1,14 @@
 package products
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/rancher/scc-operator/pkg/util/log"
+)
+
+// This package implements helpers for SCC Operator supported products
+
+var logger = log.NewComponentLogger("suseconnect.products")
 
 type SCCProduct int
 
@@ -10,16 +18,18 @@ const (
 )
 
 var (
-	productNames = map[SCCProduct]string{
-		ProductNone:    "",
-		ProductRancher: "rancher",
+	productNamesPairs = map[SCCProduct][]string{
+		ProductNone:    []string{"unknown"},
+		ProductRancher: []string{"rancher", "rancher-prime"},
 	}
 	productLookup = map[string]SCCProduct{}
 )
 
 func init() {
-	for product, productName := range productNames {
-		productLookup[productName] = product
+	for product, productNames := range productNamesPairs {
+		for _, productName := range productNames {
+			productLookup[productName] = product
+		}
 	}
 }
 
@@ -34,14 +44,18 @@ func ParseProductName(productName string) SCCProduct {
 type ProductName string
 
 func (s SCCProduct) ProductName() ProductName {
-	name, ok := productNames[s]
+	name, ok := productNamesPairs[s]
 	if !ok {
 		return ProductName("unknown")
 	}
 
-	return ProductName(name)
+	return ProductName(name[0])
 }
 
 func (s SCCProduct) String() string {
-	return productNames[s]
+	return string(s.ProductName())
+}
+func (s SCCProduct) IsValid() bool {
+	_, ok := productNamesPairs[s]
+	return ok
 }
