@@ -46,9 +46,9 @@ const (
 // SCCHandler Defines a common interface for online and offline operations
 // IMPORTANT: All the `Reconcile*` methods modifies the object in memory but does NOT save it. The caller is responsible for saving the state.
 type SCCHandler interface {
-	// SetRancherMetrics adds the current Rancher metrics to the SCCHandler for processing
+	// SetProductMetrics adds the current products metrics to the SCCHandler for processing
 	// This must be added after initialization so that we only fetch metrics if we need to sync.
-	SetRancherMetrics(rancherMetrics telemetry.MetricsWrapper)
+	SetProductMetrics(productMetrics telemetry.MetricsWrapper)
 	// NeedsRegistration determines if the system requires initial SCC registration.
 	NeedsRegistration(*v1.Registration) bool
 	// NeedsActivation checks if the system requires activation with SCC.
@@ -594,7 +594,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		return registrationObj, wrappedErr
 	}
 	// TODO: parse out the secret data
-	registrationHandler.SetRancherMetrics(systemMetrics)
+	registrationHandler.SetProductMetrics(&systemMetrics)
 
 	// Only on the first time an object passes through here should it need to be registered
 	// The logical default condition should always be to try activation, unless we know it's not registered.
