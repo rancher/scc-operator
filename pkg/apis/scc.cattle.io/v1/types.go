@@ -64,6 +64,14 @@ type RegistrationSpec struct {
 	RegistrationRequest                     *RegistrationRequest    `json:"registrationRequest,omitempty"`
 	OfflineRegistrationCertificateSecretRef *corev1.SecretReference `json:"offlineRegistrationCertificateSecretRef,omitempty"`
 	SyncNow                                 *bool                   `json:"syncNow,omitempty"`
+
+	/*
+			TODO: eventually add this as a way to support multiple products.
+			The operator and products will coordinate to create product specific "entrypoint secrets".
+		// Product being registered to the SCC; when unset should default to `rancher` for legacy reasons
+		// +optional
+		Product *string `json:"product,omitempty"`
+	*/
 }
 
 func (rs *RegistrationSpec) WithoutSyncNow() *RegistrationSpec {
