@@ -113,6 +113,7 @@ func run(ctx context.Context, restKubeConfig *rest.Config, runOptions types.RunO
 		return err
 	}
 
+	// TODO(rancher-bias): this is rancher specific logic
 	if metricErr := sccOperatorStarter.EnsureMetricsSecretRequest(ctx, runOptions.SystemNamespace()); metricErr != nil {
 		logger.Errorf("Error ensuring metrics secret request: %v", metricErr)
 		return metricErr

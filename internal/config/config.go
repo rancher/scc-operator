@@ -22,13 +22,14 @@ var logger = log.NewComponentLogger("int/config")
 // These values are either set by: 1. Reading EnvKey vars, or 2. the ConfigMap used by deployers
 // This ensures that SCC Operator execution remains more uniform regardless of execution context.
 type OperatorSettings struct {
-	OperatorName          string
-	Kubeconfig            string
-	SystemNamespace       string
-	LeaseNamespace        string
-	LogFormat             rootLog.Format
-	LogLevel              logrus.Level
-	CattleDevMode         bool
+	OperatorName    string
+	Kubeconfig      string
+	SystemNamespace string
+	LeaseNamespace  string
+	LogFormat       rootLog.Format
+	LogLevel        logrus.Level
+	CattleDevMode   bool
+
 	// DevMode tracks the operators "dev mode" status, when enabled many features will be configured for better dev feedback
 	DevMode               bool
 	DefaultSCCEnvironment consts.SCCEnvironment
