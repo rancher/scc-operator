@@ -85,6 +85,7 @@ func LoadInitialConfig(ctx context.Context) (*OperatorSettings, error) {
 	loggingLevel := valueResolver.Get(LogLevel, "")
 	trace, _ := strconv.ParseBool(valueResolver.Get(Trace, "false"))
 	debug, _ := strconv.ParseBool(valueResolver.Get(Debug, "false"))
+	devMode, _ := strconv.ParseBool(valueResolver.Get(DevMode, "false"))
 
 	loadedConfig := &OperatorSettings{
 		Kubeconfig:      kubeconfigPath,
@@ -93,9 +94,8 @@ func LoadInitialConfig(ctx context.Context) (*OperatorSettings, error) {
 		LeaseNamespace:  valueResolver.Get(LeaseNamespace, consts.DefaultLeaseNamespace),
 		LogFormat:       decideLogFormat(valueResolver.Get(LogFormat, "")),
 		LogLevel:        decideLogLevel(loggingLevel, trace, debug),
-		// TODO: this is where we eventually add Dev mode and SCC mode settings too
-		CattleDevMode: valueResolver.Get(RancherDevMode, "") != "",
-		DevMode:       false,
+		CattleDevMode:   valueResolver.Get(RancherDevMode, "") != "",
+		DevMode:         devMode,
 	}
 
 	// Set the global config and start the watcher.

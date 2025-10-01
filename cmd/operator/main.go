@@ -74,9 +74,11 @@ func main() {
 	}
 
 	initializer.DevMode.Set(operatorSettings.DevMode)
+	initializer.RancherDevMode.Set(operatorSettings.CattleDevMode)
 	logger.Debugf(
-		"Launching scc-operator; SCC Dev Mode: `%v`",
+		"Launching scc-operator; SCC Dev Mode: `%v`, Cattle Dev Mode: `%v`",
 		initializer.DevMode.Get(),
+		initializer.RancherDevMode.Get(),
 	)
 
 	if operatorSettings.DevMode {
