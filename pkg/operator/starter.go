@@ -18,7 +18,7 @@ import (
 	"github.com/rancher/scc-operator/pkg/controllers"
 )
 
-// TODO(rancher-bias): maybe we need product variant starters in the future
+// TODO(rancher-bias): all of the SCC starter/setup needs to not depend on product specific logic
 type SccStarter struct {
 	context                 context.Context
 	wrangler                wrangler.MiniContext
@@ -74,8 +74,11 @@ func (s *SccStarter) waitForSystemReady(onSystemReady func()) {
 }
 
 func (s *SccStarter) SetupControllers() error {
+	// TODO(rancher-bias): The controller should start when the operator believes it is stable
+	// Product specific bias must be applied only to specific Registration processing
 	go s.waitForSystemReady(func() {
 		s.log.Debug("Setting up SCC Operator")
+		// TODO: remove rancher bias from operator startup
 		initOperator, err := setup(s.context, s.options.Logger, &s.options, &s.wrangler)
 		if err != nil {
 			s.log.Errorf("error setting up scc operator: %s", err.Error())
@@ -115,6 +118,7 @@ func (s *SccStarter) Run() error {
 }
 
 func (s *SccStarter) StartMetricsAndHealthEndpoint() {
+	// TODO(rancher-bias): this shouldn't be dependant on Rancher logic
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		// TODO: utilize more complex logic for ready condition & expose more info?
 		if s.systemRegistrationReady != nil {
