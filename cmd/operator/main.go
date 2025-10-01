@@ -79,9 +79,22 @@ func main() {
 		logger.Fatalf("failed to find kubeconfig: %v", err)
 	}
 
-	// TODO: consider how SCC DevMode vs Rancher Dev mode should work with new system
-	initializer.DevMode.Set(operatorSettings.CattleDevMode)
-	logger.Debugf("Launching scc-operator with DevMode set to `%v`", initializer.DevMode.Get())
+	initializer.DevMode.Set(operatorSettings.DevMode)
+	initializer.RancherDevMode.Set(operatorSettings.CattleDevMode)
+	logger.Debugf(
+		"Launching scc-operator; SCC Dev Mode: `%v`, Cattle Dev Mode: `%v`",
+		initializer.DevMode.Get(),
+		initializer.RancherDevMode.Get(),
+	)
+
+	if operatorSettings.DevMode {
+		logger.Warn("with DevMode enabled log level will be forced to at least debug.")
+		currentLevel := rootLog.GetLogLevel()
+		if currentLevel != logrus.DebugLevel || currentLevel != logrus.TraceLevel {
+			rootLog.SetLogLevel(logrus.DebugLevel)
+			logger = log.NewLog()
+		}
+	}
 
 	runOptions := types.RunOptions{
 		Logger:           logger,
