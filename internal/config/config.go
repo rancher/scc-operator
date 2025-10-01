@@ -33,7 +33,7 @@ type OperatorSettings struct {
 	DefaultSCCEnvironment consts.SCCEnvironment
 
 	// These are both considered deprecated by default - eventually they must become CRD level not Operator level
-	Product        products.ProductName
+	Product        string
 	ProductVersion string
 }
 
@@ -51,12 +51,12 @@ func (s *OperatorSettings) Validate() error {
 	return nil
 }
 
-func (s *OperatorSettings) initSCCProductConfigs(valueResolver *ValueResolver) {
+func (s *OperatorSettings) initSCCProductOverrides(valueResolver *ValueResolver) {
 	// Product override flags/envs should only be used in DevMode so lets force DevMode to be set when observed
 	productOverride := valueResolver.Get(ProductOverride, "")
 	productVersionOverride := valueResolver.Get(ProductVersionOverride, "")
 	if productOverride != "" && productVersionOverride != "" {
-		s.Product = products.ProductName(productOverride)
+		s.Product = productOverride
 		s.ProductVersion = productVersionOverride
 		s.DevMode = true
 		// Restricting access to Prod SCC in dev mode makes sense
@@ -65,17 +65,6 @@ func (s *OperatorSettings) initSCCProductConfigs(valueResolver *ValueResolver) {
 		// Important: These overrides are just override the values used in product triplets for SCC - not the metrics values.
 		return
 	}
-
-	// TODO: do some actual logic to identify the Product and SCC EnvKey
-	// For product, maybe we use `/rancherversion` URL? Need to add new field for product tho.
-	// In the future, other product specific "version URL lookup" contracts could be setup.
-	productVal := valueResolver.Get(Product, "unknown")
-	_ = valueResolver.Get(ProductVersion, "other")
-
-	s.Product = products.ParseProductName(productVal).ProductName()
-	// For SCC Environment decide based on version found in `/rancherversion` URL
-	// TODO use productVersionVal to pick Staging or Prod
-	s.DefaultSCCEnvironment = consts.StagingSCC
 }
 
 // Global variable for live configuration.
@@ -115,6 +104,7 @@ func LoadInitialConfig(ctx context.Context) (*OperatorSettings, error) {
 	loggingLevel := valueResolver.Get(LogLevel, "")
 	trace, _ := strconv.ParseBool(valueResolver.Get(Trace, "false"))
 	debug, _ := strconv.ParseBool(valueResolver.Get(Debug, "false"))
+	devMode, _ := strconv.ParseBool(valueResolver.Get(DevMode, "false"))
 
 	loadedConfig := &OperatorSettings{
 		Kubeconfig:      kubeconfigPath,
@@ -123,13 +113,11 @@ func LoadInitialConfig(ctx context.Context) (*OperatorSettings, error) {
 		LeaseNamespace:  valueResolver.Get(LeaseNamespace, consts.DefaultLeaseNamespace),
 		LogFormat:       decideLogFormat(valueResolver.Get(LogFormat, "")),
 		LogLevel:        decideLogLevel(loggingLevel, trace, debug),
-		// TODO: this is where we eventually add Dev mode and SCC mode settings too
-		CattleDevMode: valueResolver.Get(RancherDevMode, "") != "",
-		DevMode:       false,
+		CattleDevMode:   valueResolver.Get(RancherDevMode, "") != "",
+		DevMode:         devMode,
 	}
 
-	// TODO: In the future we may have better mechanics for this
-	loadedConfig.initSCCProductConfigs(valueResolver)
+	loadedConfig.initSCCProductOverrides(valueResolver)
 
 	// Set the global config and start the watcher.
 	mu.Lock()

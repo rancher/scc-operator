@@ -28,6 +28,7 @@ func (v *valueInitializer[T]) GetWithContext(ctx context.Context) (T, error) {
 }
 
 var (
-	DevMode      = valueInitializer[bool]{init: &InitHandler{}}
-	OperatorName = valueInitializer[string]{init: &InitHandler{}}
+	DevMode        = valueInitializer[bool]{init: &InitHandler{}}
+	RancherDevMode = valueInitializer[bool]{init: &InitHandler{}}
+	OperatorName   = valueInitializer[string]{init: &InitHandler{}}
 )
