@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	"github.com/rancher/scc-operator/internal/consts"
-	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,15 +15,18 @@ import (
 )
 
 type SecretRequester struct {
+	namespace                  string
 	labels                     map[string]string
 	secretRequestDynamicClient dynamic.NamespaceableResourceInterface
 }
 
 func NewSecretRequester(
+	namespace string,
 	labels map[string]string,
 	dynamicClient dynamic.Interface,
 ) *SecretRequester {
 	return &SecretRequester{
+		namespace:                  namespace,
 		labels:                     labels,
 		secretRequestDynamicClient: dynamicClient.Resource(telemetrySecretRequestGVR()),
 	}
@@ -56,7 +58,7 @@ func (s *SecretRequester) prepareSecretRequestUnstructured() *unstructured.Unstr
 			"spec": map[string]interface{}{
 				"secretType": "scc",
 				"targetSecretRef": map[string]interface{}{
-					"namespace": initializer.SystemNamespace.Get(),
+					"namespace": s.namespace,
 					"name":      consts.SCCMetricsOutputSecretName,
 				},
 			},

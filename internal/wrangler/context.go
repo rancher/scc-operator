@@ -73,7 +73,7 @@ func enableProtobuf(cfg *rest.Config) *rest.Config {
 	return cpy
 }
 
-func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNamespace string) (MiniContext, error) {
+func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, systemNamespace, leaseNamespace string) (MiniContext, error) {
 	controllerFactory, err := controller.NewSharedControllerFactoryFromConfig(enableProtobuf(restConfig), Scheme)
 	if err != nil {
 		return MiniContext{}, err
@@ -119,7 +119,7 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, leaseNam
 	}
 
 	coreInterface := coreF.Core().V1()
-	secretRepo := secretrepo.NewSecretRepository(coreInterface.Secret(), coreInterface.Secret().Cache())
+	secretRepo := secretrepo.NewSecretRepository(systemNamespace, coreInterface.Secret(), coreInterface.Secret().Cache())
 
 	k8s, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {

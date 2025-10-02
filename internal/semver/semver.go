@@ -1,4 +1,4 @@
-package rancher
+package semver
 
 import (
 	"regexp"
@@ -11,12 +11,12 @@ var semverRegex = regexp.MustCompile(`(?m)^v?(?P<major>0|[1-9]\d*)\.(?P<minor>0|
 type Version string
 
 // versionIsDevBuild this should only ever be used for SCC systeminfo module
-func (rv Version) versionIsDevBuild() bool {
-	if rv == "dev" {
+func (v Version) versionIsDevBuild() bool {
+	if v == "dev" {
 		return true
 	}
 
-	matches := semverRegex.FindStringSubmatch(string(rv))
+	matches := semverRegex.FindStringSubmatch(string(v))
 	return matches == nil || // When version is not SemVer it is dev
 		matches[3] == "" || // When the version is just Major.Minor assume dev
 		matches[4] != "" // When the version includes pre-release assume dev
@@ -24,12 +24,12 @@ func (rv Version) versionIsDevBuild() bool {
 
 // SCCSafeVersion returns the version to be used when submitting product registration info to SCC
 // Notably this is necessary for product information specifically, other metrics may report "true" rancher version if allowed
-func (rv Version) SCCSafeVersion() string {
-	if rv.versionIsDevBuild() {
+func (v Version) SCCSafeVersion() string {
+	if v.versionIsDevBuild() {
 		return "other"
 	}
-	if strings.HasPrefix(string(rv), "v") {
-		return strings.TrimPrefix(string(rv), "v")
+	if strings.HasPrefix(string(v), "v") {
+		return strings.TrimPrefix(string(v), "v")
 	}
-	return string(rv)
+	return string(v)
 }

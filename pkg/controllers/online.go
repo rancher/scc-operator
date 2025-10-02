@@ -32,15 +32,15 @@ type sccOnlineMode struct {
 	log            log.StructuredLogger
 	sccCredentials *credentials.CredentialSecretsAdapter
 	secretRepo     *secretrepo.SecretRepository
-	rancherMetrics telemetry.MetricsWrapper
+	productMetrics telemetry.MetricsWrapper
 }
 
-func (s *sccOnlineMode) SetRancherMetrics(rancherMetrics telemetry.MetricsWrapper) {
-	s.rancherMetrics = rancherMetrics
+func (s *sccOnlineMode) SetProductMetrics(productMetrics telemetry.MetricsWrapper) {
+	s.productMetrics = productMetrics
 }
 
 func (s *sccOnlineMode) prepareSCCOnlineConnection(
-	rancherMetrics telemetry.MetricsWrapper,
+	productMetrics telemetry.MetricsWrapper,
 	registrationURL string,
 ) suseconnect.SccWrapper {
 	return suseconnect.OnlineRancherConnection(
@@ -50,7 +50,7 @@ func (s *sccOnlineMode) prepareSCCOnlineConnection(
 			Options:         suseconnect.DefaultConnectionOptions(s.options.OperatorName, s.options.OperatorMetadata.Version),
 		},
 		s.sccCredentials.SccCredentials(),
-		rancherMetrics,
+		productMetrics,
 	)
 }
 
@@ -87,7 +87,7 @@ func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.
 	registrationCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
 
 	// Initiate connection to SCC & verify reg code is for Rancher
-	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
+	sccConnection := s.prepareSCCOnlineConnection(s.productMetrics, suseconnect.PrepareSccURL(registrationObj))
 
 	// Register this Rancher cluster to SCC
 	id, regErr := sccConnection.RegisterOrKeepAlive(registrationCode)
@@ -224,7 +224,7 @@ func (s *sccOnlineMode) Activate(registrationObj *v1.Registration) error {
 	}
 
 	registrationCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
-	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
+	sccConnection := s.prepareSCCOnlineConnection(s.productMetrics, suseconnect.PrepareSccURL(registrationObj))
 
 	metaData, product, err := sccConnection.Activate(registrationCode)
 	if err != nil {
@@ -245,7 +245,7 @@ func (s *sccOnlineMode) PrepareActivatedForKeepalive(registrationObj *v1.Registr
 	if credentialsErr != nil {
 		return nil, fmt.Errorf("cannot load scc credentials: %w", credentialsErr)
 	}
-	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
+	sccConnection := s.prepareSCCOnlineConnection(s.productMetrics, suseconnect.PrepareSccURL(registrationObj))
 
 	activations, err := sccConnection.ActivationStatus()
 	if err != nil {
@@ -294,7 +294,7 @@ func (s *sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 	}
 
 	regCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
-	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
+	sccConnection := s.prepareSCCOnlineConnection(s.productMetrics, suseconnect.PrepareSccURL(registrationObj))
 
 	metaData, product, err := sccConnection.Activate(regCode)
 	if err != nil {
@@ -347,7 +347,7 @@ func (s *sccOnlineMode) ReconcileKeepaliveError(registration *v1.Registration, k
 
 func (s *sccOnlineMode) Deregister() error {
 	_ = s.sccCredentials.Refresh()
-	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(s.registration))
+	sccConnection := s.prepareSCCOnlineConnection(s.productMetrics, suseconnect.PrepareSccURL(s.registration))
 	// TODO : this causes deletion to fail if the credentials are invalid. I think we
 	// need to do a best effort check to see if it was ever registered before
 	// we want to fail to delete if deregister fails, but the system is registered in SCC

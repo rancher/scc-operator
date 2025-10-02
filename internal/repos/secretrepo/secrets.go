@@ -6,7 +6,6 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/rancher/scc-operator/internal/consts"
-	"github.com/rancher/scc-operator/internal/initializer"
 	"github.com/rancher/scc-operator/internal/telemetry"
 	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -23,10 +22,12 @@ import (
 var jsonMarshal = json.Marshal
 
 var rootSecretRepo *SecretRepository
+var systemIndexNamespace string
 
 type SecretRepository generic.RuntimeObjectRepo[*v1.Secret, *v1.SecretList]
 
 func NewSecretRepository(
+	namespace string,
 	secrets corev1.SecretController,
 	secretsCache corev1.SecretCache,
 ) *SecretRepository {
@@ -35,6 +36,7 @@ func NewSecretRepository(
 			Controller: secrets,
 			Cache:      secretsCache,
 		}
+		systemIndexNamespace = namespace
 		rootSecretRepo.InitIndexers()
 	}
 
@@ -107,24 +109,24 @@ func (r *SecretRepository) CreateOrUpdateSecret(secret *v1.Secret) (*v1.Secret, 
 }
 
 func (r *SecretRepository) HasMetricsSecret() bool {
-	return r.HasSecret(initializer.SystemNamespace.Get(), consts.SCCMetricsOutputSecretName)
+	return r.HasSecret(systemIndexNamespace, consts.SCCMetricsOutputSecretName)
 }
 
-func (r *SecretRepository) FetchMetricsSecret() (telemetry.MetricsWrapper, error) {
-	metricsSecret, err := r.Get(initializer.SystemNamespace.Get(), consts.SCCMetricsOutputSecretName)
+func (r *SecretRepository) FetchMetricsSecret() (telemetry.RancherMetricsWrapper, error) {
+	metricsSecret, err := r.Get(systemIndexNamespace, consts.SCCMetricsOutputSecretName)
 	if err != nil {
-		return telemetry.MetricsWrapper{}, err
+		return telemetry.RancherMetricsWrapper{}, err
 	}
 
 	payloadData, ok := metricsSecret.Data[consts.SecretKeyMetricsData]
 	if !ok {
-		return telemetry.MetricsWrapper{}, errors.New("metrics secret does not contain metrics data; missing the expected key")
+		return telemetry.RancherMetricsWrapper{}, errors.New("metrics secret does not contain metrics data; missing the expected key")
 	}
 
 	secretData := make(map[string]any)
 	jsonErr := json.Unmarshal(payloadData, &secretData)
 	if jsonErr != nil {
-		return telemetry.MetricsWrapper{}, fmt.Errorf("failed to unmarshal metrics secret data: %v", jsonErr)
+		return telemetry.RancherMetricsWrapper{}, fmt.Errorf("failed to unmarshal metrics secret data: %v", jsonErr)
 	}
 
 	return telemetry.NewMetricsWrapper(secretData), nil

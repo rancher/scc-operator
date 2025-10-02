@@ -1,4 +1,4 @@
-package rancher
+package semver
 
 import (
 	"testing"

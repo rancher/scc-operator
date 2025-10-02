@@ -23,13 +23,13 @@ type sccOfflineMode struct {
 	registration   *v1.Registration
 	log            rootLog.StructuredLogger
 	offlineSecrets *offlineSecrets.SecretManager
-	rancherMetrics telemetry.MetricsWrapper
+	productMetrics telemetry.MetricsWrapper
 }
 
 const InitialOfflineCertificateReadyMessage = "Awaiting registration certificate secret"
 
-func (s *sccOfflineMode) SetRancherMetrics(rancherMetrics telemetry.MetricsWrapper) {
-	s.rancherMetrics = rancherMetrics
+func (s *sccOfflineMode) SetProductMetrics(productMetrics telemetry.MetricsWrapper) {
+	s.productMetrics = productMetrics
 }
 
 func (s *sccOfflineMode) NeedsRegistration(registrationObj *v1.Registration) bool {
@@ -53,7 +53,7 @@ func (s *sccOfflineMode) PrepareForRegister(registrationObj *v1.Registration) (*
 
 func (s *sccOfflineMode) RefreshOfflineRequestSecret() error {
 	// TODO: sort out something other than nil
-	sccWrapper := suseconnect.OfflineRancherRegistration(s.rancherURL, s.rancherMetrics)
+	sccWrapper := suseconnect.OfflineRancherRegistration(s.rancherURL, s.productMetrics)
 	generatedOfflineRegistrationRequest, err := sccWrapper.PrepareOfflineRegistrationRequest()
 	if err != nil {
 		return err
@@ -212,7 +212,7 @@ func (s *sccOfflineMode) Keepalive(registrationObj *v1.Registration) error {
 }
 
 func (s *sccOfflineMode) PrepareKeepaliveSucceeded(registrationObj *v1.Registration) (*v1.Registration, error) {
-	sccWrapper := suseconnect.OfflineRancherRegistration(s.rancherURL, s.rancherMetrics)
+	sccWrapper := suseconnect.OfflineRancherRegistration(s.rancherURL, s.productMetrics)
 	generatedOfflineRegistrationRequest, err := sccWrapper.PrepareOfflineRegistrationRequest()
 	if err != nil {
 		return registrationObj, err

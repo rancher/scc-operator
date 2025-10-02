@@ -18,6 +18,7 @@ import (
 	"github.com/rancher/scc-operator/pkg/controllers"
 )
 
+// TODO(rancher-bias): maybe we need product variant starters in the future
 type SccStarter struct {
 	context                 context.Context
 	wrangler                wrangler.MiniContext
@@ -30,19 +31,22 @@ func (s *SccStarter) CanStartSccOperator() bool {
 	return s.isServerURLReady() && s.hasSccMetricsSecretPopulated()
 }
 
+// TODO(rancher-bias): Will other SCC Operator consumers have a Server URL?
 func (s *SccStarter) isServerURLReady() bool {
 	return rancher.GetServerURL(s.context, s.wrangler.Settings) != ""
 }
 
+// TODO(rancher-bias): Metrics Secret (for now) is just a Rancher thing - but maybe we should make it product universal?
 func (s *SccStarter) hasSccMetricsSecretPopulated() bool {
 	return s.wrangler.Secrets.HasMetricsSecret()
 }
 
-func (s *SccStarter) EnsureMetricsSecretRequest(ctx context.Context) error {
+func (s *SccStarter) EnsureMetricsSecretRequest(ctx context.Context, namespace string) error {
 	labels := map[string]string{
 		consts.LabelK8sManagedBy: s.options.OperatorName,
 	}
 	metricsRequester := telemetry.NewSecretRequester(
+		namespace,
 		labels,
 		s.wrangler.Dynamic,
 	)
@@ -72,7 +76,7 @@ func (s *SccStarter) waitForSystemReady(onSystemReady func()) {
 func (s *SccStarter) SetupControllers() error {
 	go s.waitForSystemReady(func() {
 		s.log.Debug("Setting up SCC Operator")
-		initOperator, err := setup(s.context, s.log, &s.options, &s.wrangler)
+		initOperator, err := setup(s.context, s.options.Logger, &s.options, &s.wrangler)
 		if err != nil {
 			s.log.Errorf("error setting up scc operator: %s", err.Error())
 		}
