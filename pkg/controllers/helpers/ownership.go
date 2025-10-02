@@ -18,15 +18,8 @@ func HasManagedByLabel[T metav1.Object](incomingObj T) bool {
 func ShouldManage[T metav1.Object](incomingObj T, expectedManager string) bool {
 	objectLabels := incomingObj.GetLabels()
 	managedBy, hasManagedBy := objectLabels[consts.LabelK8sManagedBy]
-	if !hasManagedBy {
-		return false
-	}
+return hasManagedBy && managedBy == expectedManager
 
-	if managedBy == expectedManager {
-		return true
-	}
-
-	return false
 }
 
 // TakeOwnership will set or overwrite the value of the k8s managed-by label
