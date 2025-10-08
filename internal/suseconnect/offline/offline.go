@@ -6,6 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/rancher/scc-operator/internal/repos/secretrepo"
 	"github.com/rancher/scc-operator/pkg/controllers/shared"
@@ -58,13 +59,25 @@ func (o *SecretManager) removeOfflineFinalizer(incomingSecret *corev1.Secret) er
 	if shared.SecretHasOfflineFinalizer(incomingSecret) {
 		updatedSecret := incomingSecret.DeepCopy()
 		updatedSecret = shared.SecretRemoveOfflineFinalizer(updatedSecret)
-		if _, updateErr := o.secretRepo.CreateOrUpdateSecret(updatedSecret); updateErr != nil {
-			if apierrors.IsNotFound(updateErr) {
-				return nil
-			}
+		_, updateErr := o.secretRepo.CreateOrUpdateSecret(updatedSecret)
 
+		if updateErr == nil || apierrors.IsNotFound(updateErr) {
+			return nil
+		}
+		if !apierrors.IsConflict(updateErr) {
 			return updateErr
 		}
+		return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			currentSecret, getErr := o.secretRepo.Get(incomingSecret.Namespace, incomingSecret.Name)
+			if getErr != nil && !apierrors.IsNotFound(getErr) {
+				return getErr
+			}
+			updatedSecret := currentSecret.DeepCopy()
+			updatedSecret = shared.SecretRemoveOfflineFinalizer(updatedSecret)
+			var updateErr error
+			_, updateErr = o.secretRepo.PatchUpdate(currentSecret, updatedSecret)
+			return updateErr
+		})
 	}
 
 	return nil
