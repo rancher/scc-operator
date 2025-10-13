@@ -201,8 +201,8 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 		return incomingObj, nil
 	}
 
-	// TODO(dan): sort out this to validate logic more
-	// TODO: needs something to handle adopting new and unowned instances?
+	// This only applies to the SCC Entrypoint secrets - currently only used for/by Rancher
+	// This will adopt "unowned" secrets and ignore any that are owned by other operators
 	if !helpers.ShouldManage(incomingObj, h.options.OperatorName) {
 		// When the secret has no managedBy label, we should assume ownership I guess?
 		if !helpers.HasManagedByLabel(incomingObj) {
@@ -220,7 +220,8 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 			return incomingObj, nil
 		}
 
-		h.log.Debugf("Secret %s/%s is not managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
+		managedBy := helpers.GetManagedByValue(incomingObj)
+		h.log.Debugf("Secret %s/%s is managed by %s not %s, skipping", incomingObj.Namespace, incomingObj.Name, managedBy, h.options.OperatorName)
 		return incomingObj, nil
 	}
 
@@ -530,6 +531,8 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		h.log.Info("Server URL not set")
 		return registrationObj, errors.New("no server url found in the system info")
 	}
+
+	// TODO: if there are more than one operators per cluster (for other products) check managedBy status
 
 	registrationHandler := h.prepareHandler(registrationObj, rancherURL)
 
