@@ -90,7 +90,7 @@ func getCurrentRegURL(secret *corev1.Secret) (regURL []byte) {
 }
 
 // extractRegistrationParamsFromSecret will extract secret data and prepare it into a RegistrationParams
-func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedBy string) (RegistrationParams, error) {
+func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName string) (RegistrationParams, error) {
 	extractParamsLog := log.NewComponentLogger("params-extractor")
 	incomingSalt := []byte(secret.GetLabels()[consts.LabelObjectSalt])
 	extractParamsLog.Debugf("extracting registration params from secret %s/%s - with salt %s", secret.Namespace, secret.Name, incomingSalt)
@@ -145,11 +145,11 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedBy string
 	extractParamsLog.Debugf("incoming %s/%s secret hashes; name hash: %s, content hash: %s", secret.Namespace, secret.Name, nameID, contentsID)
 
 	return RegistrationParams{
-		managedByOperator: managedBy,
-		regType:           regMode,
-		nameID:            nameID,
-		contentHash:       contentsID,
-		regCode:           regCode,
+		managedByName: managedByName,
+		regType:       regMode,
+		nameID:        nameID,
+		contentHash:   contentsID,
+		regCode:       regCode,
 		regCodeSecretRef: &corev1.SecretReference{
 			Name:      consts.RegistrationCodeSecretName(nameID),
 			Namespace: secret.Namespace,
@@ -165,7 +165,7 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedBy string
 }
 
 type RegistrationParams struct {
-	managedByOperator    string
+	managedByName        string
 	regType              v1.RegistrationMode
 	nameID               string
 	contentHash          string
@@ -182,8 +182,8 @@ func (r RegistrationParams) Labels() map[string]string {
 	return map[string]string{
 		consts.LabelNameSuffix:   r.nameID,
 		consts.LabelSccHash:      r.contentHash,
-		consts.LabelSccManagedBy: consts.ManagedByValueSecretBroker,
-		consts.LabelK8sManagedBy: r.managedByOperator,
+		consts.LabelSccManagedBy: r.managedByName + "/" + consts.ManagedByValueSecretBroker,
+		consts.LabelK8sManagedBy: r.managedByName,
 	}
 }
 

@@ -18,10 +18,10 @@ func TestSCCEnvironment_String(t *testing.T) {
 		input SCCEnvironment
 		want  string
 	}{
-		{"Prod Env", Production, "production"},
-		{"Staging Env", Staging, "staging"},
-		{"PAYG Env", PayAsYouGo, "payAsYouGo"},
-		{"RGS Env", RGS, "rgs"},
+		{"Prod EnvKey", ProductionSCC, "production"},
+		{"StagingSCC EnvKey", StagingSCC, "staging"},
+		{"PAYG EnvKey", PayAsYouGo, "payAsYouGo"},
+		{"RGS EnvKey", RGS, "rgs"},
 		{"unknown", 42, "unknown"},
 	}
 
@@ -32,16 +32,16 @@ func TestSCCEnvironment_String(t *testing.T) {
 	}
 }
 
-func TestAlternativeSccURLs_Ptr(t *testing.T) {
+func TestSccURLs_Ptr(t *testing.T) {
 	asserts := assert.New(t)
 
 	var tests = []struct {
 		name  string
-		input AlternativeSccURLs
+		input SccURLs
 		want  string
 	}{
-		{"Prod URL", ProdSccURL, "https://scc.suse.com"},
-		{"Staging URL", StagingSccURL, "https://stgscc.suse.com"},
+		{"Prod SCC URL", ProdSccURL, "https://scc.suse.com"},
+		{"Staging SCC URL", StagingSccURL, "https://stgscc.suse.com"},
 	}
 
 	for _, tt := range tests {
@@ -54,13 +54,13 @@ func TestAlternativeSccURLs_Ptr(t *testing.T) {
 func TestGetSCCEnvironment_Dev(t *testing.T) {
 	asserts := assert.New(t)
 	initializer.DevMode.SetForTest(true)
-	asserts.Equal(Staging, GetSCCEnvironment())
+	asserts.Equal(StagingSCC, GetSCCEnvironment())
 }
 
 func TestGetSCCEnvironment_Prod(t *testing.T) {
 	asserts := assert.New(t)
 	initializer.DevMode.SetForTest(false)
-	asserts.Equal(Production, GetSCCEnvironment())
+	asserts.Equal(ProductionSCC, GetSCCEnvironment())
 }
 
 func TestBaseURLForSCC_Dev(t *testing.T) {

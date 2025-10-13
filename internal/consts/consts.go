@@ -15,6 +15,7 @@ const (
 )
 
 const (
+	// LabelK8sManagedBy identifies "the tool being used to manage the operation of an application" (per k8s docs).
 	LabelK8sManagedBy = "app.kubernetes.io/managed-by"
 
 	LabelObjectSalt       = "scc.cattle.io/instance-salt"
