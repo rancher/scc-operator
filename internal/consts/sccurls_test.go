@@ -40,8 +40,8 @@ func TestSccURLs_Ptr(t *testing.T) {
 		input SccURLs
 		want  string
 	}{
-		{"Prod URL", ProdSccURL, "https://scc.suse.com"},
-		{"StagingSCC URL", StagingSccURL, "https://stgscc.suse.com"},
+		{"Prod SCC URL", ProdSccURL, "https://scc.suse.com"},
+		{"Staging SCC URL", StagingSccURL, "https://stgscc.suse.com"},
 	}
 
 	for _, tt := range tests {
