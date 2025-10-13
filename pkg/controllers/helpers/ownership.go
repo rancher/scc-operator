@@ -18,12 +18,7 @@ func HasManagedByLabel[T metav1.Object](incomingObj T) bool {
 
 func GetManagedByValue[T metav1.Object](incomingObj T) string {
 	objectLabels := incomingObj.GetLabels()
-	managedBy, hasManagedBy := objectLabels[consts.LabelK8sManagedBy]
-	if !hasManagedBy {
-		return ""
-	}
-
-	return managedBy
+	return objectLabels[consts.LabelK8sManagedBy]
 }
 
 // ShouldManage will verify that this operator should manage a given object
