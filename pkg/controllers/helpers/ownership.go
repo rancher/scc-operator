@@ -7,27 +7,35 @@ import (
 	"github.com/rancher/scc-operator/internal/consts"
 )
 
+// These are helpers related to consts.LabelK8sManagedBy used to track resource ownership.
+
 func HasManagedByLabel[T metav1.Object](incomingObj T) bool {
-	objectAnnotations := incomingObj.GetAnnotations()
-	_, hasManagedBy := objectAnnotations[consts.LabelSccManagedBy]
+	objectLabels := incomingObj.GetLabels()
+	_, hasManagedBy := objectLabels[consts.LabelK8sManagedBy]
 
 	return hasManagedBy
+}
+
+func GetManagedByValue[T metav1.Object](incomingObj T) string {
+	objectLabels := incomingObj.GetLabels()
+	managedBy, hasManagedBy := objectLabels[consts.LabelK8sManagedBy]
+	if !hasManagedBy {
+		return ""
+	}
+
+	return managedBy
 }
 
 // ShouldManage will verify that this operator should manage a given object
 func ShouldManage[T metav1.Object](incomingObj T, expectedManager string) bool {
 	objectLabels := incomingObj.GetLabels()
 	managedBy, hasManagedBy := objectLabels[consts.LabelK8sManagedBy]
-return hasManagedBy && managedBy == expectedManager
 
+	return hasManagedBy && managedBy == expectedManager
 }
 
 // TakeOwnership will set or overwrite the value of the k8s managed-by label
 func TakeOwnership[T generic.RuntimeMetaObject](incomingObj T, owner string) T {
-	if isEmptyObject(incomingObj) {
-		return incomingObj
-	}
-
 	objectLabels := incomingObj.GetLabels()
 	if objectLabels == nil {
 		objectLabels = map[string]string{
