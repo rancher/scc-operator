@@ -8,7 +8,7 @@ import (
 )
 
 func TestValueResolver_SetConfigMapData(t *testing.T) {
-	op := option.NewOption("vr-env", "", option.WithEnvKey("VR_ENV"))
+	op := option.NewOption("vr-env", "default", option.WithEnvKey("VR_ENV"))
 
 	flags := option.Flags{}
 	vr := &ValueResolver{
@@ -17,14 +17,14 @@ func TestValueResolver_SetConfigMapData(t *testing.T) {
 		hasConfigMap: false,
 	}
 
-	assert.Equal(t, "env-value", vr.Get(op, "default"))
+	assert.Equal(t, "env-value", vr.Get(op))
 	assert.Equal(t, false, vr.hasConfigMap)
 	vr.SetConfigMapData(map[string]string{})
 	assert.Equal(t, true, vr.hasConfigMap)
 }
 
 func TestValueResolver_EnvPrecedence(t *testing.T) {
-	op := option.NewOption("vr-env", "", option.WithEnvKey("VR_ENV"))
+	op := option.NewOption("vr-env", "default", option.WithEnvKey("VR_ENV"))
 
 	flags := option.Flags{}
 	vr := &ValueResolver{
@@ -33,12 +33,11 @@ func TestValueResolver_EnvPrecedence(t *testing.T) {
 		hasConfigMap: false,
 	}
 
-	got := vr.Get(op, "default")
-	assert.Equal(t, "env-value", got)
+	assert.Equal(t, "env-value", vr.Get(op))
 }
 
 func TestValueResolver_DefaultFallback(t *testing.T) {
-	op := option.NewOption("vr-default", "")
+	op := option.NewOption("vr-default", "the-default")
 
 	flags := option.Flags{}
 	vr := &ValueResolver{
@@ -47,12 +46,11 @@ func TestValueResolver_DefaultFallback(t *testing.T) {
 		hasConfigMap: false,
 	}
 
-	got := vr.Get(op, "the-default")
-	assert.Equal(t, "the-default", got)
+	assert.Equal(t, "the-default", vr.Get(op))
 }
 
 func TestValueResolver_ConfigMapAllowed(t *testing.T) {
-	op := option.NewOption("vr-cm", "", option.WithConfigMapKey("cm-key"))
+	op := option.NewOption("vr-cm", "default", option.WithConfigMapKey("cm-key"))
 
 	flags := option.Flags{}
 	vr := &ValueResolver{
@@ -62,12 +60,11 @@ func TestValueResolver_ConfigMapAllowed(t *testing.T) {
 		configMapData: map[string]string{"cm-key": "from-cm"},
 	}
 
-	got := vr.Get(op, "default")
-	assert.Equal(t, "from-cm", got)
+	assert.Equal(t, "from-cm", vr.Get(op))
 }
 
 func TestValueResolver_FlagWhenDisabled(t *testing.T) {
-	op := option.NewOption("vr-flag", "", option.WithoutFlag, option.WithFlagKey("flag-key"))
+	op := option.NewOption("vr-flag", "default", option.WithoutFlag, option.WithFlagKey("flag-key"))
 
 	flags := option.Flags{"flag-key": "from-flag"}
 	vr := &ValueResolver{
@@ -76,13 +73,13 @@ func TestValueResolver_FlagWhenDisabled(t *testing.T) {
 		hasConfigMap: false,
 	}
 
-	got := vr.Get(op, "default")
+	got := vr.Get(op)
 	assert.NotEqual(t, "from-flag", got)
 	assert.Equal(t, "default", got)
 }
 
 func TestValueResolver_ConfigMapAllowedUnset(t *testing.T) {
-	op := option.NewOption("vr-cm", "", option.WithConfigMapKey("cm-key"))
+	op := option.NewOption("vr-cm", "default", option.WithConfigMapKey("cm-key"))
 
 	flags := option.Flags{}
 	vr := &ValueResolver{
@@ -92,6 +89,5 @@ func TestValueResolver_ConfigMapAllowedUnset(t *testing.T) {
 		configMapData: map[string]string{},
 	}
 
-	got := vr.Get(op, "default")
-	assert.Equal(t, "default", got)
+	assert.Equal(t, "default", vr.Get(op))
 }

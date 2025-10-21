@@ -14,13 +14,13 @@ func (vr *ValueResolver) SetConfigMapData(configMapData map[string]string) {
 	vr.hasConfigMap = true
 }
 
-func (vr *ValueResolver) Get(o option.RegisteredOption, defaultValue string) string {
+func (vr *ValueResolver) Get(o option.RegisteredOption) string {
 	if val := vr.envVars[o.GetEnvKey()]; val != "" {
 		return val
 	}
 
 	if o.AllowsFlag() && vr.flagValues != nil {
- 		if flagValue, hasFlagValue := vr.flagValues.Get(o.GetFlagKey()); hasFlagValue {
+		if flagValue, hasFlagValue := vr.flagValues.Get(o.GetFlagKey()); hasFlagValue {
 			return flagValue
 		}
 	}
@@ -31,7 +31,7 @@ func (vr *ValueResolver) Get(o option.RegisteredOption, defaultValue string) str
 		}
 	}
 
-	return defaultValue
+	return o.GetDefaultAsString()
 }
 
 // NewValueResolver will prepare the collected flags and envs into a new value resolver

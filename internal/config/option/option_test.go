@@ -13,6 +13,7 @@ func Test_NewOption_Basic(t *testing.T) {
 
 	assert.Equal(t, DebugSetting.Name, "debug")
 	assert.False(t, DebugSetting.Default)
+	assert.Equal(t, "false", DebugSetting.GetDefaultAsString())
 	assert.Equal(t, DebugSetting.AllowFromConfigMap, false)
 
 	// asserts about the global repo
@@ -30,6 +31,20 @@ func Test_NewOption_Basic(t *testing.T) {
 	options = make(map[string]RegisteredOption)
 	assert.Equal(t, len(options), 0)
 	assert.Equal(t, len(AllOptions()), 0)
+}
+
+func Test_NewOption_GetDefaultAsString(t *testing.T) {
+	var BoolSetting = NewOption("debug", false)
+	assert.Equal(t, "false", BoolSetting.GetDefaultAsString())
+
+	var IntSetting = NewOption("timeout", 60)
+	assert.Equal(t, "60", IntSetting.GetDefaultAsString())
+
+	var FloatSetting = NewOption("speed", 60.0)
+	assert.Equal(t, "60.00", FloatSetting.GetDefaultAsString())
+
+	var StringSetting = NewOption("mode", "default")
+	assert.Equal(t, "default", StringSetting.GetDefaultAsString())
 }
 
 func Test_NewOption_DefaultKeys(t *testing.T) {

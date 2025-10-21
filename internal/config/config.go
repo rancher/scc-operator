@@ -59,7 +59,7 @@ var (
 func LoadInitialConfig(ctx context.Context) (*OperatorSettings, error) {
 	valueResolver := NewValueResolver()
 
-	kubeconfigPath := valueResolver.Get(Kubeconfig, "")
+	kubeconfigPath := valueResolver.Get(Kubeconfig)
 
 	restKubeConfig, err := kubeconfig.GetNonInteractiveClientConfig(kubeconfigPath).ClientConfig()
 	if err != nil {
@@ -70,7 +70,7 @@ func LoadInitialConfig(ctx context.Context) (*OperatorSettings, error) {
 		return nil, err
 	}
 
-	operatorNamespace := valueResolver.Get(OperatorNamespace, consts.DefaultSCCNamespace)
+	operatorNamespace := valueResolver.Get(OperatorNamespace)
 
 	// Fetch the ConfigMap.
 	sccConfigMap, err := clientSet.CoreV1().ConfigMaps(operatorNamespace).Get(ctx, consts.SCCOperatorConfigMapName, metav1.GetOptions{})
@@ -81,19 +81,19 @@ func LoadInitialConfig(ctx context.Context) (*OperatorSettings, error) {
 	}
 	// Only the Options after this may use config map (if it exits)
 
-	loggingLevel := valueResolver.Get(LogLevel, "")
-	trace, _ := strconv.ParseBool(valueResolver.Get(Trace, "false"))
-	debug, _ := strconv.ParseBool(valueResolver.Get(Debug, "false"))
-	devMode, _ := strconv.ParseBool(valueResolver.Get(DevMode, "false"))
+	loggingLevel := valueResolver.Get(LogLevel)
+	trace, _ := strconv.ParseBool(valueResolver.Get(Trace))
+	debug, _ := strconv.ParseBool(valueResolver.Get(Debug))
+	devMode, _ := strconv.ParseBool(valueResolver.Get(DevMode))
 
 	loadedConfig := &OperatorSettings{
 		Kubeconfig:      kubeconfigPath,
-		OperatorName:    valueResolver.Get(OperatorName, consts.DefaultOperatorName),
+		OperatorName:    valueResolver.Get(OperatorName),
 		SystemNamespace: operatorNamespace,
-		LeaseNamespace:  valueResolver.Get(LeaseNamespace, consts.DefaultLeaseNamespace),
-		LogFormat:       decideLogFormat(valueResolver.Get(LogFormat, "")),
+		LeaseNamespace:  valueResolver.Get(LeaseNamespace),
+		LogFormat:       decideLogFormat(valueResolver.Get(LogFormat)),
 		LogLevel:        decideLogLevel(loggingLevel, trace, debug),
-		CattleDevMode:   valueResolver.Get(RancherDevMode, "") != "",
+		CattleDevMode:   valueResolver.Get(RancherDevMode) != "",
 		DevMode:         devMode,
 	}
 

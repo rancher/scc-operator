@@ -1,8 +1,10 @@
 package option
 
 import (
+	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/rancher/scc-operator/pkg/util/log"
@@ -12,6 +14,7 @@ var logger = log.NewComponentLogger("int/config/option")
 
 type RegisteredOption interface {
 	GetName() string
+	GetDefaultAsString() string
 
 	SetEnvKey(string)
 	GetEnvKey() string
@@ -33,9 +36,13 @@ type RegisteredOption interface {
 }
 
 // Option is a reimagination of `Setting` from r/r codebase.
-// This implementation is focused on centralizing various configuration sources (rather than holding the values).
+// This implementation is focused on centralizing various configuration sources of the "same value" (rather than holding the values).
 type Option[T any] struct {
-	Name         string
+	// Name gives the option an identifier and is the only required field
+	Name string
+
+	// The NewOption constructor will initialize any unset keys based on the name via `prepareUnsetKeys`
+	// You can manually configure these keys if the Name generated value is undesirable
 	EnvKey       string
 	FlagKey      string
 	ConfigMapKey string
@@ -55,6 +62,22 @@ type Option[T any] struct {
 
 func (s *Option[T]) GetName() string {
 	return s.Name
+}
+
+func (s *Option[T]) GetDefaultAsString() string {
+	switch v := any(s.Default).(type) {
+	case int:
+		return strconv.Itoa(v)
+	case float64:
+		// Convert float with a specific precision
+		return strconv.FormatFloat(v, 'f', 2, 64)
+	case string:
+		// If it's already a string, just return it
+		return v
+	default:
+		// Fallback for all other types (structs, pointers, interfaces, etc.)
+		return fmt.Sprintf("%v", s.Default)
+	}
 }
 
 func (s *Option[T]) SetEnvKey(in string) {
