@@ -19,8 +19,8 @@ func (vr *ValueResolver) Get(o option.RegisteredOption, defaultValue string) str
 		return val
 	}
 
-	if !o.AllowsFlag() {
-		if flagValue, hasFlagValue := vr.flagValues.Get(o.GetFlagKey()); hasFlagValue {
+	if o.AllowsFlag() && vr.flagValues != nil {
+ 		if flagValue, hasFlagValue := vr.flagValues.Get(o.GetFlagKey()); hasFlagValue {
 			return flagValue
 		}
 	}

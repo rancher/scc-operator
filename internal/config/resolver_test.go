@@ -66,8 +66,6 @@ func TestValueResolver_ConfigMapAllowed(t *testing.T) {
 	assert.Equal(t, "from-cm", got)
 }
 
-// Note: current implementation reads flag values only when AllowsFlag() is false.
-// This test documents that behavior so we don't regress unintentionally.
 func TestValueResolver_FlagWhenDisabled(t *testing.T) {
 	op := option.NewOption("vr-flag", "", option.WithoutFlag, option.WithFlagKey("flag-key"))
 
@@ -79,7 +77,8 @@ func TestValueResolver_FlagWhenDisabled(t *testing.T) {
 	}
 
 	got := vr.Get(op, "default")
-	assert.Equal(t, "from-flag", got)
+	assert.NotEqual(t, "from-flag", got)
+	assert.Equal(t, "default", got)
 }
 
 func TestValueResolver_ConfigMapAllowedUnset(t *testing.T) {

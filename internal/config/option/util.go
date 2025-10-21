@@ -10,6 +10,9 @@ type Flags map[string]any
 
 func (f Flags) Get(key string) (string, bool) {
 	value, ok := f[key]
+	if !ok {
+		return "", false
+	}
 	return value.(string), ok
 }
 
