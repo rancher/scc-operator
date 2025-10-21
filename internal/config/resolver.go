@@ -20,11 +20,7 @@ func (vr ValueResolver) Get(o option.RegisteredOption, defaultValue string) stri
 		}
 	}
 
-	if !vr.hasConfigMap {
-		return defaultValue
-	}
-
-	if o.AllowsConfigMap() {
+	if vr.hasConfigMap && o.AllowsConfigMap() {
 		if configMapVal := vr.configMapData[o.GetConfigMapKey()]; configMapVal != "" {
 			return configMapVal
 		}
