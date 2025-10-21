@@ -76,10 +76,8 @@ func LoadInitialConfig(ctx context.Context) (*OperatorSettings, error) {
 	sccConfigMap, err := clientSet.CoreV1().ConfigMaps(operatorNamespace).Get(ctx, consts.SCCOperatorConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		logger.Printf("Could not get ConfigMap 'operator-config'. Using flag and env values only. Error: %v", err)
-		valueResolver.configMapData = make(map[string]string)
 	} else {
-		valueResolver.configMapData = sccConfigMap.Data
-		valueResolver.hasConfigMap = true
+		valueResolver.SetConfigMapData(sccConfigMap.Data)
 	}
 	// Only the Options after this may use config map (if it exits)
 

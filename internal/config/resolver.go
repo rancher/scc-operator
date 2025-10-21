@@ -9,7 +9,12 @@ type ValueResolver struct {
 	configMapData map[string]string
 }
 
-func (vr ValueResolver) Get(o option.RegisteredOption, defaultValue string) string {
+func (vr *ValueResolver) SetConfigMapData(configMapData map[string]string) {
+	vr.configMapData = configMapData
+	vr.hasConfigMap = true
+}
+
+func (vr *ValueResolver) Get(o option.RegisteredOption, defaultValue string) string {
 	if val := vr.envVars[o.GetEnvKey()]; val != "" {
 		return val
 	}

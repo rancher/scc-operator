@@ -7,6 +7,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestValueResolver_SetConfigMapData(t *testing.T) {
+	op := option.NewOption("vr-env", "", option.WithEnvKey("VR_ENV"))
+
+	flags := option.Flags{}
+	vr := &ValueResolver{
+		envVars:      option.EnvVarsMap{"VR_ENV": "env-value"},
+		flagValues:   &flags,
+		hasConfigMap: false,
+	}
+
+	assert.Equal(t, "env-value", vr.Get(op, "default"))
+	assert.Equal(t, false, vr.hasConfigMap)
+	vr.SetConfigMapData(map[string]string{})
+	assert.Equal(t, true, vr.hasConfigMap)
+}
+
 func TestValueResolver_EnvPrecedence(t *testing.T) {
 	op := option.NewOption("vr-env", "", option.WithEnvKey("VR_ENV"))
 
