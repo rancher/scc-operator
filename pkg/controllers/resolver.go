@@ -22,7 +22,7 @@ func (h *handler) initResolvers(ctx context.Context) {
 
 func (h *handler) resolveEntrypointSecret(namespace, name string, obj runtime.Object) ([]relatedresource.Key, error) {
 	var relatedKeys []relatedresource.Key
-	if namespace != h.options.SystemNamespace {
+	if namespace != h.options.SystemNamespace() {
 		return relatedKeys, nil
 	}
 	if name != consts.ResourceSCCEntrypointSecretName {

@@ -1,38 +1,34 @@
 package types
 
 import (
-	"fmt"
-
+	"github.com/rancher/scc-operator/internal/config"
 	rootLog "github.com/rancher/scc-operator/internal/log"
 )
 
+// OperatorMetadata contains the basic build info about the operator binary version info
 type OperatorMetadata struct {
 	Version   string `json:"version"`
 	GitCommit string `json:"gitCommit"`
 	BuildDate string `json:"buildDate"`
 }
 
+// RunOptions holds all the necessary CLI run options and configs
 type RunOptions struct {
 	Logger           rootLog.StructuredLogger
-	OperatorName     string
+	OperatorName     string // OperatorName is intentionally redundant and set by OperatorSettings
+	OperatorSettings *config.OperatorSettings
 	DevMode          bool
 	OperatorMetadata OperatorMetadata
-	SystemNamespace  string
-	LeaseNamespace   string
 }
 
 func (o *RunOptions) Validate() error {
-	if o.OperatorName == "" {
-		return fmt.Errorf("operator name must be set")
+	if err := o.OperatorSettings.Validate(); err != nil {
+		return err
 	}
-	// TODO: should we validate the NS exists? How should mgmt of this be handled?
-	if o.SystemNamespace == "" {
-		return fmt.Errorf("operator must have a valid SCC system namespace")
-	}
-	if o.LeaseNamespace == "" {
-		o.Logger.Warn("operator lease namespace is empty; will default to `kube-system`")
-	}
+
 	return nil
 }
 
-type OperatorOptions interface{}
+func (o *RunOptions) SystemNamespace() string {
+	return o.OperatorSettings.SystemNamespace
+}

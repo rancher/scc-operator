@@ -116,7 +116,7 @@ func Register(
 	controller.initResolvers(ctx)
 
 	withinExpectedNamespaceCondition := func(name string, obj runtime.Object) (bool, error) {
-		if !wranglerPolyfill.InExpectedNamespace(name, obj, controller.options.SystemNamespace) {
+		if !wranglerPolyfill.InExpectedNamespace(name, obj, controller.options.SystemNamespace()) {
 			return false, nil
 		}
 		return true, nil
@@ -165,7 +165,7 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration, rancherURL st
 			options:      h.options,
 			registration: registrationObj,
 			offlineSecrets: offline.New(
-				h.options.SystemNamespace,
+				h.options.SystemNamespace(),
 				offlineRequestSecretName,
 				offlineCertSecretName,
 				ref,
@@ -182,7 +182,7 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration, rancherURL st
 		options:      h.options,
 		registration: registrationObj,
 		sccCredentials: credentials.New(
-			h.options.SystemNamespace,
+			h.options.SystemNamespace(),
 			credsSecretName,
 			ref,
 			h.secretRepo,
@@ -428,8 +428,8 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 	if incomingObj == nil {
 		return nil, nil
 	}
-	if incomingObj.Namespace != h.options.SystemNamespace {
-		h.log.Debugf("Secret %s/%s is not in SCC system namespace %s, skipping cleanup", incomingObj.Namespace, incomingObj.Name, h.options.SystemNamespace)
+	if incomingObj.Namespace != h.options.SystemNamespace() {
+		h.log.Debugf("Secret %s/%s is not in SCC system namespace %s, skipping cleanup", incomingObj.Namespace, incomingObj.Name, h.options.SystemNamespace())
 		return incomingObj, nil
 	}
 
@@ -570,7 +570,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 
 		errorFixHint := fmt.Sprintf("delete this registration `%s` and then create a new one to try again.", registrationObj.Name)
 		if shared.RegistrationHasManagedFinalizer(registrationObj) {
-			errorFixHint = fmt.Sprintf("delete the entrypoint secret `%s/%s`, give it time to clean up, and then create a new one to try again.", h.options.SystemNamespace, consts.ResourceSCCEntrypointSecretName)
+			errorFixHint = fmt.Sprintf("delete the entrypoint secret `%s/%s`, give it time to clean up, and then create a new one to try again.", h.options.SystemNamespace(), consts.ResourceSCCEntrypointSecretName)
 		}
 		h.log.Warn("after resolving the issue(s), " + errorFixHint)
 		return registrationObj, nil
