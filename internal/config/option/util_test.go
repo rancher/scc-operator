@@ -6,6 +6,38 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestFlags_Get(t *testing.T) {
+	flags := Flags{
+		"string-key": "a-string",
+		"bool-key":   true,
+		"int-key":    123,
+	}
+
+	t.Run("get string value", func(t *testing.T) {
+		val, ok := flags.Get("string-key")
+		assert.True(t, ok)
+		assert.Equal(t, "a-string", val)
+	})
+
+	t.Run("get bool value", func(t *testing.T) {
+		val, ok := flags.Get("bool-key")
+		assert.True(t, ok)
+		assert.Equal(t, "true", val)
+	})
+
+	t.Run("get int value", func(t *testing.T) {
+		val, ok := flags.Get("int-key")
+		assert.True(t, ok)
+		assert.Equal(t, "123", val)
+	})
+
+	t.Run("get missing value", func(t *testing.T) {
+		val, ok := flags.Get("missing-key")
+		assert.False(t, ok)
+		assert.Equal(t, "", val)
+	})
+}
+
 func Test_AllFlags_Basic(t *testing.T) {
 	// reset global registry
 	options = make(map[string]RegisteredOption)
