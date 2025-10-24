@@ -20,7 +20,7 @@ func (vr *ValueResolver) Get(o option.RegisteredOption) string {
 	}
 
 	if o.AllowsFlag() && vr.flagValues != nil {
-		if flagValue, hasFlagValue := vr.flagValues.Get(o.GetFlagKey()); hasFlagValue {
+		if flagValue, hasFlagValue := vr.flagValues.Get(o.GetFlagKey()); hasFlagValue && flagValue != "" {
 			return flagValue
 		}
 	}
