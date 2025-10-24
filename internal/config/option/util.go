@@ -1,6 +1,9 @@
 package option
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 func AllOptions() map[string]RegisteredOption {
 	return options
@@ -13,7 +16,7 @@ func (f Flags) Get(key string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	return value.(string), ok
+	return fmt.Sprintf("%v", value), ok
 }
 
 func AllFlags() Flags {

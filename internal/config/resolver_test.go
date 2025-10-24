@@ -91,3 +91,16 @@ func TestValueResolver_ConfigMapAllowedUnset(t *testing.T) {
 
 	assert.Equal(t, "default", vr.Get(op))
 }
+
+func TestValueResolver_EmptyFlagFallsBack(t *testing.T) {
+	op := option.NewOption("vr-empty-flag", "default", option.WithFlagKey("flag-key"))
+
+	flags := option.Flags{"flag-key": ""}
+	vr := &ValueResolver{
+		envVars:      option.EnvVarsMap{},
+		flagValues:   &flags,
+		hasConfigMap: false,
+	}
+
+	assert.Equal(t, "default", vr.Get(op))
+}
