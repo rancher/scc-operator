@@ -55,8 +55,8 @@ type SCCHandler interface {
 	NeedsActivation(*v1.Registration) bool
 	// ReadyForActivation checks if the system is ready for activation.
 	ReadyForActivation(*v1.Registration) bool
-	// ResetToRegisteredForActivation will clean up the registration back to the ReadyForActivation state
-	ResetToRegisteredForActivation(*v1.Registration) (*v1.Registration, error)
+	// ResetToReadyForActivation will clean up the registration back to the ReadyForActivation state
+	ResetToReadyForActivation(*v1.Registration) (*v1.Registration, error)
 
 	// PrepareForRegister preforms pre-registration steps
 	PrepareForRegister(*v1.Registration) (*v1.Registration, error)
@@ -543,7 +543,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 			resetUpdateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				reset := registrationObj.DeepCopy()
 
-				reset, resetErr := registrationHandler.ResetToRegisteredForActivation(reset)
+				reset, resetErr := registrationHandler.ResetToReadyForActivation(reset)
 				if resetErr != nil {
 					return resetErr
 				}

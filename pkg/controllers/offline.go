@@ -102,7 +102,7 @@ func (s *sccOfflineMode) ReadyForActivation(registrationObj *v1.Registration) bo
 		registrationObj.Spec.OfflineRegistrationCertificateSecretRef != nil
 }
 
-func (s *sccOfflineMode) ResetToRegisteredForActivation(registrationObj *v1.Registration) (*v1.Registration, error) {
+func (s *sccOfflineMode) ResetToReadyForActivation(registrationObj *v1.Registration) (*v1.Registration, error) {
 	registrationObj.RemoveCondition(v1.RegistrationConditionActivated)
 	registrationObj.RemoveCondition(v1.RegistrationConditionOfflineCertificateReady)
 	registrationObj.RemoveCondition(v1.ResourceConditionFailure)
