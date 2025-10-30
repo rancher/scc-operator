@@ -105,7 +105,7 @@ func main() {
 
 func run(ctx context.Context, restKubeConfig *rest.Config, runOptions types.RunOptions) error {
 	logger.Debugf("Setting up `%s` client for '%s' namespace", runOptions.OperatorSettings.OperatorName, runOptions.OperatorSettings.SystemNamespace)
-	logger.Debugf("Run options: %v", runOptions)
+	logger.Tracef("Run options: %+v", runOptions)
 
 	sccOperatorStarter, err := operator.New(ctx, restKubeConfig, runOptions)
 	if err != nil {

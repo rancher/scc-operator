@@ -39,6 +39,7 @@ func New(
 	initializer.OperatorName.Set(options.OperatorName)
 
 	kubeconfig.RateLimiter = ratelimit.None
+	starterLog.Debugf("Creating WranglerMiniContext with lease namespace: %s", options.OperatorSettings.LeaseNamespace)
 	wContext, err := wrangler.NewWranglerMiniContext(
 		ctx,
 		kubeconfig,
