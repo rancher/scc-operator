@@ -4,16 +4,17 @@ import (
 	"testing"
 
 	"github.com/rancher/scc-operator/internal/config/option"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestValueResolver_SetConfigMapData(t *testing.T) {
 	op := option.NewOption("vr-env", "default", option.WithEnvKey("VR_ENV"))
 
-	flags := option.Flags{}
+	flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	vr := &ValueResolver{
 		envVars:      option.EnvVarsMap{"VR_ENV": "env-value"},
-		flagValues:   &flags,
+		flagSet:      flagSet,
 		hasConfigMap: false,
 	}
 
@@ -26,10 +27,10 @@ func TestValueResolver_SetConfigMapData(t *testing.T) {
 func TestValueResolver_EnvPrecedence(t *testing.T) {
 	op := option.NewOption("vr-env", "default", option.WithEnvKey("VR_ENV"))
 
-	flags := option.Flags{}
+	flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	vr := &ValueResolver{
 		envVars:      option.EnvVarsMap{"VR_ENV": "env-value"},
-		flagValues:   &flags,
+		flagSet:      flagSet,
 		hasConfigMap: false,
 	}
 
@@ -39,10 +40,10 @@ func TestValueResolver_EnvPrecedence(t *testing.T) {
 func TestValueResolver_DefaultFallback(t *testing.T) {
 	op := option.NewOption("vr-default", "the-default")
 
-	flags := option.Flags{}
+	flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	vr := &ValueResolver{
 		envVars:      option.EnvVarsMap{},
-		flagValues:   &flags,
+		flagSet:      flagSet,
 		hasConfigMap: false,
 	}
 
@@ -52,10 +53,10 @@ func TestValueResolver_DefaultFallback(t *testing.T) {
 func TestValueResolver_ConfigMapAllowed(t *testing.T) {
 	op := option.NewOption("vr-cm", "default", option.WithConfigMapKey("cm-key"))
 
-	flags := option.Flags{}
+	flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	vr := &ValueResolver{
 		envVars:       option.EnvVarsMap{},
-		flagValues:    &flags,
+		flagSet:       flagSet,
 		hasConfigMap:  true,
 		configMapData: map[string]string{"cm-key": "from-cm"},
 	}
@@ -66,10 +67,13 @@ func TestValueResolver_ConfigMapAllowed(t *testing.T) {
 func TestValueResolver_FlagWhenDisabled(t *testing.T) {
 	op := option.NewOption("vr-flag", "default", option.WithoutFlag, option.WithFlagKey("flag-key"))
 
-	flags := option.Flags{"flag-key": "from-flag"}
+	flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flagSet.String("flag-key", "from-flag", "")
+	flagSet.Parse([]string{"--flag-key=from-flag"})
+
 	vr := &ValueResolver{
 		envVars:      option.EnvVarsMap{},
-		flagValues:   &flags,
+		flagSet:      flagSet,
 		hasConfigMap: false,
 	}
 
@@ -81,10 +85,10 @@ func TestValueResolver_FlagWhenDisabled(t *testing.T) {
 func TestValueResolver_ConfigMapAllowedUnset(t *testing.T) {
 	op := option.NewOption("vr-cm", "default", option.WithConfigMapKey("cm-key"))
 
-	flags := option.Flags{}
+	flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	vr := &ValueResolver{
 		envVars:       option.EnvVarsMap{},
-		flagValues:    &flags,
+		flagSet:       flagSet,
 		hasConfigMap:  true,
 		configMapData: map[string]string{},
 	}
@@ -92,17 +96,20 @@ func TestValueResolver_ConfigMapAllowedUnset(t *testing.T) {
 	assert.Equal(t, "default", vr.Get(op))
 }
 
-func TestValueResolver_EmptyFlagFallsBack(t *testing.T) {
+func TestValueResolver_EmptyFlagIsHonored(t *testing.T) {
 	op := option.NewOption("vr-empty-flag", "default", option.WithFlagKey("flag-key"))
 
-	flags := option.Flags{"flag-key": ""}
+	flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flagSet.String("flag-key", "default", "")
+	flagSet.Parse([]string{"--flag-key="})
+
 	vr := &ValueResolver{
 		envVars:      option.EnvVarsMap{},
-		flagValues:   &flags,
+		flagSet:      flagSet,
 		hasConfigMap: false,
 	}
 
-	assert.Equal(t, "default", vr.Get(op))
+	assert.Equal(t, "", vr.Get(op))
 }
 
 func TestValueResolver_DefaultFlagDoesNotOverrideConfigMap(t *testing.T) {
@@ -110,10 +117,13 @@ func TestValueResolver_DefaultFlagDoesNotOverrideConfigMap(t *testing.T) {
 
 	// Simulate flags being parsed, where "debug" has a default value of false.
 	// The flag default is then parsed into the `option.Flags` as a string value
-	flags := option.Flags{"debug": "false"}
+	flagSet := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flagSet.Bool("debug", false, "A test bool flag")
+	_ = flagSet.Parse([]string{}) // not passed. Changed is false.
+
 	vr := &ValueResolver{
 		envVars:       option.EnvVarsMap{},
-		flagValues:    &flags,
+		flagSet:       flagSet,
 		hasConfigMap:  true,
 		configMapData: map[string]string{"debug": "true"},
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/rancher/wrangler/v3/pkg/kubeconfig"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -56,8 +57,8 @@ var (
 )
 
 // LoadInitialConfig will fetch a value resolver and combine it with a ConfigMap (if exists) to prepare an OperatorSettings
-func LoadInitialConfig(ctx context.Context) (*OperatorSettings, error) {
-	valueResolver := NewValueResolver()
+func LoadInitialConfig(ctx context.Context, flags *pflag.FlagSet) (*OperatorSettings, error) {
+	valueResolver := NewValueResolver(flags)
 
 	kubeconfigPath := valueResolver.Get(Kubeconfig)
 

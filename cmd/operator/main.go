@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 
 	"github.com/rancher/scc-operator/internal/config"
 	"github.com/rancher/wrangler/v3/pkg/kubeconfig"
 	"github.com/rancher/wrangler/v3/pkg/signals"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 	"k8s.io/client-go/rest"
 
 	"github.com/rancher/scc-operator/cmd/operator/version"
@@ -33,18 +33,18 @@ func getOperatorMetadata() *types.OperatorMetadata {
 }
 
 func setupCli(ctx context.Context) *config.OperatorSettings {
-	flag.StringVar(&config.LogFormat.FlagValue, "log-format", "", "Set the log format.")
-	flag.StringVar(&config.LogLevel.FlagValue, "log-level", "", "Set the logging level.")
-	flag.StringVar(&config.Kubeconfig.FlagValue, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
-	flag.StringVar(&config.OperatorName.FlagValue, "operator-name", "", fmt.Sprintf("Name of the operator. Defaults to %s when unset.", consts.DefaultOperatorName))
-	flag.StringVar(&config.OperatorNamespace.FlagValue, "operator-namespace", "", "The namespace where the operator is deployed.")
-	flag.StringVar(&config.LeaseNamespace.FlagValue, "lease-namespace", "", "The namespace where the operator lease lives.")
-	flag.BoolVar(&config.Debug.FlagValue, "debug", false, "Enable debug logging.")
-	flag.BoolVar(&config.Trace.FlagValue, "trace", false, "Enable trace logging.")
+	pflag.StringVar(&config.LogFormat.FlagValue, "log-format", "", "Set the log format.")
+	pflag.StringVar(&config.LogLevel.FlagValue, "log-level", "", "Set the logging level.")
+	pflag.StringVar(&config.Kubeconfig.FlagValue, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
+	pflag.StringVar(&config.OperatorName.FlagValue, "operator-name", "", fmt.Sprintf("Name of the operator. Defaults to %s when unset.", consts.DefaultOperatorName))
+	pflag.StringVar(&config.OperatorNamespace.FlagValue, "operator-namespace", "", "The namespace where the operator is deployed.")
+	pflag.StringVar(&config.LeaseNamespace.FlagValue, "lease-namespace", "", "The namespace where the operator lease lives.")
+	pflag.BoolVar(&config.Debug.FlagValue, "debug", false, "Enable debug logging.")
+	pflag.BoolVar(&config.Trace.FlagValue, "trace", false, "Enable trace logging.")
+	pflag.Parse()
 
-	flag.Parse()
-
-	appConfig, err := config.LoadInitialConfig(ctx)
+	flagSet := pflag.CommandLine
+	appConfig, err := config.LoadInitialConfig(ctx, flagSet)
 	if err != nil {
 		logrus.Fatal(fmt.Errorf("error loading scc-operator config: %w", err))
 	}
