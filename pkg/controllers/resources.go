@@ -200,16 +200,21 @@ func (h *handler) registrationFromSecretEntrypoint(
 		)
 	}
 
-	hashedName := fmt.Sprintf("scc-registration-%s", params.nameID)
+	desiredName := consts.RegistrationName(params.nameID)
 	var reg *v1.Registration
 	var err error
 
-	reg, err = h.registrationCache.Get(hashedName)
+	reg, err = h.registrationCache.Get(desiredName)
 	if err != nil && apierrors.IsNotFound(err) {
-		reg = &v1.Registration{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: hashedName,
-			},
+		// This looks silly but is the best way to fix races with the Cache at start up time.
+		// When the controllers start and the caches are still warming up it will always fail to retrieve.
+		reg, err = h.registrations.Get(desiredName, metav1.GetOptions{})
+		if err != nil && apierrors.IsNotFound(err) {
+			reg = &v1.Registration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: desiredName,
+				},
+			}
 		}
 	}
 	if reg.Labels == nil {
