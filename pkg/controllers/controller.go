@@ -709,20 +709,14 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	// Handle what to do when CheckNow is used...
 	if shared.RegistrationNeedsSyncNow(registrationObj) {
 		if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
-			updated := registrationObj.DeepCopy()
-			updated.Spec = *registrationObj.Spec.WithoutSyncNow()
-
+			// First refresh the offline secret
 			offlineHandler := registrationHandler.(*sccOfflineMode)
-			refreshErr := offlineHandler.RefreshOfflineRequestSecret()
-			_, updateErr := h.registrations.Update(updated)
-			if updateErr != nil || refreshErr != nil {
-				return registrationObj, errors.Join(refreshErr, updateErr)
+			if refreshErr := offlineHandler.RefreshOfflineRequestSecret(); refreshErr != nil {
+				return registrationObj, refreshErr
 			}
-
-			return registrationObj, nil
 		}
 
-		// Todo: online/offline handler interface should have a SyncNow call to get rid of the if here
+		// After offline specific action, do the interface based reset
 		updated := registrationObj.DeepCopy()
 		updated.Spec = registrationObj.Spec.WithoutSyncNow()
 		updated, _ = registrationHandler.ResetToReadyForActivation(updated)
