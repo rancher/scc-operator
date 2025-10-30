@@ -104,3 +104,22 @@ func TestValueResolver_EmptyFlagFallsBack(t *testing.T) {
 
 	assert.Equal(t, "default", vr.Get(op))
 }
+
+func TestValueResolver_DefaultFlagDoesNotOverrideConfigMap(t *testing.T) {
+	op := option.NewOption("debug", false, option.AllowedFromConfigMap)
+
+	// Simulate flags being parsed, where "debug" has a default value of false.
+	// The flag default is then parsed into the `option.Flags` as a string value
+	flags := option.Flags{"debug": "false"}
+	vr := &ValueResolver{
+		envVars:       option.EnvVarsMap{},
+		flagValues:    &flags,
+		hasConfigMap:  true,
+		configMapData: map[string]string{"debug": "true"},
+	}
+
+	// The bug is that the flag's default value ("flag-default-value") will be returned,
+	// instead of the value from the config map ("cm-value").
+	// This test will fail with the old code.
+	assert.Equal(t, "true", vr.Get(op))
+}
