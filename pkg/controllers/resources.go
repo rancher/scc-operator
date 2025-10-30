@@ -182,7 +182,7 @@ func (r RegistrationParams) Labels() map[string]string {
 	return map[string]string{
 		consts.LabelNameSuffix:   r.nameID,
 		consts.LabelSccHash:      r.contentHash,
-		consts.LabelSccManagedBy: r.managedByName + "/" + consts.ManagedByValueSecretBroker,
+		consts.LabelSccManagedBy: r.managedByName + "_" + consts.ManagedByValueSecretBroker,
 		consts.LabelK8sManagedBy: r.managedByName,
 	}
 }
