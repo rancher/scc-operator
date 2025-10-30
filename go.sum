@@ -1,7 +1,5 @@
 cel.dev/expr v0.20.0 h1:OunBvVCfvpWlt4dN7zg3FM6TDkzOePe1+foGJ9AXeeI=
 cel.dev/expr v0.20.0/go.mod h1:MrpN08Q+lEBs+bGYdLxxHkZoUSsCp0nSKTs0nTymJgw=
-github.com/SUSE/connect-ng v1.14.0 h1:IovW65t3rl8sHwoxDIJtSSgVzo0M72yyTvZabheKI18=
-github.com/SUSE/connect-ng v1.14.0/go.mod h1:iOl7a5Dn2kX9tJtDVzNblhtaS640WyhvgibCBk9Bt4s=
 github.com/SUSE/connect-ng v1.15.0 h1:vaVSGArReLr8jIZvDtH1cmsLXW05cpitLgmRtw9XocY=
 github.com/SUSE/connect-ng v1.15.0/go.mod h1:iOl7a5Dn2kX9tJtDVzNblhtaS640WyhvgibCBk9Bt4s=
 github.com/antlr4-go/antlr/v4 v4.13.0 h1:lxCg3LAv+EUK6t1i0y1V6/SLeUi0eKEKdhQAlS8TVTI=
