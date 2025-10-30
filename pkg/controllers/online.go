@@ -205,6 +205,16 @@ func (s *sccOnlineMode) NeedsActivation(registrationObj *v1.Registration) bool {
 	return shared.RegistrationNeedsActivation(registrationObj)
 }
 
+func (s *sccOnlineMode) NeedsPreprocessRegistration(_ *v1.Registration) bool {
+	// TODO: online implementation of NeedsPreprocessRegistration
+	return false
+}
+
+func (s *sccOnlineMode) PreprocessRegistration(registrationObj *v1.Registration) (*v1.Registration, error) {
+	// TODO: online implementation of PreprocessRegistration
+	return registrationObj, nil
+}
+
 func (s *sccOnlineMode) ResetToReadyForActivation(registrationObj *v1.Registration) (*v1.Registration, error) {
 	registrationObj.Status.ActivationStatus.Activated = false
 	registrationObj.Status.ActivationStatus.LastValidatedTS = &metav1.Time{}

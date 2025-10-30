@@ -55,6 +55,9 @@ type SCCHandler interface {
 	NeedsActivation(*v1.Registration) bool
 	// ReadyForActivation checks if the system is ready for activation.
 	ReadyForActivation(*v1.Registration) bool
+
+	NeedsPreprocessRegistration(*v1.Registration) bool
+	PreprocessRegistration(*v1.Registration) (*v1.Registration, error)
 	// ResetToReadyForActivation will clean up the registration back to the ReadyForActivation state
 	ResetToReadyForActivation(*v1.Registration) (*v1.Registration, error)
 
@@ -536,27 +539,18 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 
 	registrationHandler := h.prepareHandler(registrationObj, rancherURL)
 
-	if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
-		if v1.ResourceConditionFailure.IsTrue(registrationObj) && v1.RegistrationConditionOfflineCertificateReady.IsFalse(registrationObj) && v1.RegistrationConditionOfflineCertificateReady.GetMessage(registrationObj) != InitialOfflineCertificateReadyMessage && registrationObj.Spec.OfflineRegistrationCertificateSecretRef == nil {
-			h.log.Info("registration is failed but user removed certificate. Resetting registration status back to ReadyForActivation")
+	if registrationHandler.NeedsPreprocessRegistration(registrationObj) {
+		processed := registrationObj.DeepCopy()
+		processed, _ = registrationHandler.PreprocessRegistration(processed)
 
-			resetUpdateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				reset := registrationObj.DeepCopy()
-
-				reset, resetErr := registrationHandler.ResetToReadyForActivation(reset)
-				if resetErr != nil {
-					return resetErr
-				}
-
-				_, updateErr := h.registrations.UpdateStatus(reset)
-				return updateErr
-			})
-			if resetUpdateErr != nil {
-				return registrationObj, resetUpdateErr
-			}
-
-			return registrationObj, nil
+		var err error
+		processed, err = h.registrations.UpdateStatus(processed)
+		if err != nil {
+			return registrationObj, err
 		}
+
+		_, err = h.registrations.Update(processed)
+		return registrationObj, err
 	}
 
 	if shared.RegistrationIsFailed(registrationObj) {

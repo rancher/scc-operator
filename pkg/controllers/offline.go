@@ -102,6 +102,32 @@ func (s *sccOfflineMode) ReadyForActivation(registrationObj *v1.Registration) bo
 		registrationObj.Spec.OfflineRegistrationCertificateSecretRef != nil
 }
 
+func (s *sccOfflineMode) NeedsPreprocessRegistration(registrationObj *v1.Registration) bool {
+	activatedButMissingCert := registrationObj.Status.ActivationStatus.Activated && registrationObj.Spec.OfflineRegistrationCertificateSecretRef == nil
+	if activatedButMissingCert {
+		s.log.Info("registration is still active without an offline certificate. Resetting registration status back to ReadyForActivation")
+	}
+
+	failedCertRemoved := v1.ResourceConditionFailure.IsTrue(registrationObj) &&
+		v1.RegistrationConditionOfflineCertificateReady.IsFalse(registrationObj) &&
+		v1.RegistrationConditionOfflineCertificateReady.GetMessage(registrationObj) != InitialOfflineCertificateReadyMessage &&
+		registrationObj.Spec.OfflineRegistrationCertificateSecretRef == nil
+
+	if failedCertRemoved {
+		s.log.Info("registration is failed but user removed certificate. Resetting registration status back to ReadyForActivation")
+	}
+
+	return activatedButMissingCert || failedCertRemoved
+}
+
+func (s *sccOfflineMode) PreprocessRegistration(registrationObj *v1.Registration) (*v1.Registration, error) {
+	registrationObj, err := s.ResetToReadyForActivation(registrationObj)
+	if err != nil {
+		s.log.Error(err)
+	}
+	return registrationObj, err
+}
+
 func (s *sccOfflineMode) ResetToReadyForActivation(registrationObj *v1.Registration) (*v1.Registration, error) {
 	registrationObj.Status.ActivationStatus.Activated = false
 	registrationObj.Status.ActivationStatus.LastValidatedTS = &metav1.Time{}
