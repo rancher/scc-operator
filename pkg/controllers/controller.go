@@ -724,15 +724,8 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 
 		// Todo: online/offline handler interface should have a SyncNow call to get rid of the if here
 		updated := registrationObj.DeepCopy()
-		updated.Spec = *registrationObj.Spec.WithoutSyncNow()
-		updated.Status.ActivationStatus.Activated = false
-		updated.Status.ActivationStatus.LastValidatedTS = &metav1.Time{}
-		v1.ResourceConditionProgressing.True(updated)
-		v1.ResourceConditionReady.False(updated)
-		v1.ResourceConditionDone.False(updated)
-		v1.RegistrationConditionActivated.False(updated)
-		// Set ResourceConditionProgressing as the CurrentCondition since we're resetting the registration process
-		updated.SetCurrentCondition(v1.ResourceConditionProgressing)
+		updated.Spec = registrationObj.Spec.WithoutSyncNow()
+		updated, _ = registrationHandler.ResetToReadyForActivation(updated)
 
 		var err error
 		updated, err = h.registrations.UpdateStatus(updated)
@@ -741,7 +734,6 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 			return registrationObj, err
 		}
 
-		updated.Spec = *registrationObj.Spec.WithoutSyncNow()
 		updated, err = h.registrations.Update(updated)
 		return registrationObj, err
 	}

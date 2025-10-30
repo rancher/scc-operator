@@ -66,8 +66,8 @@ type RegistrationSpec struct {
 	SyncNow                                 *bool                   `json:"syncNow,omitempty"`
 }
 
-func (rs *RegistrationSpec) WithoutSyncNow() *RegistrationSpec {
-	return &RegistrationSpec{
+func (rs *RegistrationSpec) WithoutSyncNow() RegistrationSpec {
+	return RegistrationSpec{
 		Mode:                                    rs.Mode,
 		RegistrationRequest:                     rs.RegistrationRequest,
 		OfflineRegistrationCertificateSecretRef: rs.OfflineRegistrationCertificateSecretRef,
