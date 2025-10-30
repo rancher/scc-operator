@@ -103,6 +103,8 @@ func (s *sccOfflineMode) ReadyForActivation(registrationObj *v1.Registration) bo
 }
 
 func (s *sccOfflineMode) ResetToReadyForActivation(registrationObj *v1.Registration) (*v1.Registration, error) {
+	registrationObj.Status.ActivationStatus.Activated = false
+	registrationObj.Status.ActivationStatus.LastValidatedTS = &metav1.Time{}
 	registrationObj.RemoveCondition(v1.RegistrationConditionActivated)
 	registrationObj.RemoveCondition(v1.RegistrationConditionOfflineCertificateReady)
 	registrationObj.RemoveCondition(v1.ResourceConditionFailure)
