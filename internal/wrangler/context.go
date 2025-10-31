@@ -8,8 +8,10 @@ import (
 	lasso "github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/lasso/pkg/mapper"
+	"github.com/rancher/scc-operator/internal/consts"
 	"github.com/rancher/scc-operator/internal/rancher/settings"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher/scc-operator/pkg/util/log"
 	v1core "github.com/rancher/wrangler/v3/pkg/generated/controllers/core"
 	corev1 "github.com/rancher/wrangler/v3/pkg/generated/controllers/core/v1"
 	"github.com/rancher/wrangler/v3/pkg/generic"
@@ -74,6 +76,7 @@ func enableProtobuf(cfg *rest.Config) *rest.Config {
 }
 
 func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, systemNamespace, leaseNamespace string) (MiniContext, error) {
+	log.Logger.Debugf("Lease namespace is %s", leaseNamespace)
 	controllerFactory, err := controller.NewSharedControllerFactoryFromConfig(enableProtobuf(restConfig), Scheme)
 	if err != nil {
 		return MiniContext{}, err
@@ -128,6 +131,7 @@ func NewWranglerMiniContext(_ context.Context, restConfig *rest.Config, systemNa
 
 	// By default, the `leaseNamespace` will be empty which defaults to `kube-system`.
 	// If there are multiple SCC operator instances, only one will have controller leases at a time.
+	log.Logger.Debugf("Creating new leader manager in namespace %s", leaseNamespace)
 	leadership := leader.NewManager(leaseNamespace, "scc-controllers", k8s)
 
 	return MiniContext{
@@ -155,13 +159,18 @@ func (c *MiniContext) Start(ctx context.Context) error {
 	c.controllerLock.Lock()
 	defer c.controllerLock.Unlock()
 
-	if err := c.ControllerFactory.Start(ctx, 10); err != nil {
+	log.Logger.Debug("Starting controller factory")
+	if err := c.ControllerFactory.Start(ctx, consts.OperatorWorkerThreads); err != nil {
 		return err
 	}
+	log.Logger.Debug("Starting leadership manager")
 	c.leadership.Start(ctx)
 	return nil
 }
 
 func (c *MiniContext) OnLeader(f func(ctx context.Context) error) {
-	c.leadership.OnLeader(f)
+	c.leadership.OnLeader(func(ctx context.Context) error {
+		log.Logger.Debug("Acquired leadership, running controller")
+		return f(ctx)
+	})
 }

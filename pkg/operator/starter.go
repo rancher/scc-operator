@@ -33,12 +33,23 @@ func (s *SccStarter) CanStartSccOperator() bool {
 
 // TODO(rancher-bias): Will other SCC Operator consumers have a Server URL?
 func (s *SccStarter) isServerURLReady() bool {
-	return rancher.GetServerURL(s.context, s.wrangler.Settings) != ""
+	serverURL := rancher.GetServerURL(s.context, s.wrangler.Settings)
+	if serverURL == "" {
+		s.log.Trace("Server URL is not ready yet.")
+		return false
+	}
+	s.log.Tracef("Server URL is ready: %s", serverURL)
+	return true
 }
 
 // TODO(rancher-bias): Metrics Secret (for now) is just a Rancher thing - but maybe we should make it product universal?
 func (s *SccStarter) hasSccMetricsSecretPopulated() bool {
-	return s.wrangler.Secrets.HasMetricsSecret()
+	if !s.wrangler.Secrets.HasMetricsSecret() {
+		s.log.Trace("Metrics secret is not populated yet.")
+		return false
+	}
+	s.log.Trace("Metrics secret is populated.")
+	return true
 }
 
 func (s *SccStarter) EnsureMetricsSecretRequest(ctx context.Context, namespace string) error {
@@ -59,6 +70,7 @@ func (s *SccStarter) waitForSystemReady(onSystemReady func()) {
 	defer onSystemReady()
 	if s.CanStartSccOperator() {
 		close(s.systemRegistrationReady)
+		s.log.Debug("System is ready, closing systemRegistrationReady channel.")
 		return
 	}
 
@@ -68,7 +80,9 @@ func (s *SccStarter) waitForSystemReady(onSystemReady func()) {
 			s.log.Info("can now start controllers; server URL and initial metrics are now ready.")
 			close(s.systemRegistrationReady)
 		} else {
-			s.log.Info("cannot start controllers yet; server URL and/or initial metrics are not ready.")
+			s.log.Trace("cannot start controllers yet; checking readiness conditions...")
+			s.isServerURLReady()             // This will log trace if not ready
+			s.hasSccMetricsSecretPopulated() // This will log trace if not ready
 		}
 	}, 15*time.Second, s.systemRegistrationReady)
 }
@@ -94,7 +108,7 @@ func (s *SccStarter) SetupControllers() error {
 			s.wrangler.Settings,
 		)
 
-		if startErr := start.All(s.context, 2, initOperator.sccResourceFactory); startErr != nil {
+		if startErr := start.All(s.context, consts.OperatorWorkerThreads, initOperator.sccResourceFactory); startErr != nil {
 			s.log.Errorf("error starting operator: %v", startErr)
 		}
 		<-s.context.Done()
@@ -109,8 +123,9 @@ func (s *SccStarter) SetupControllers() error {
 
 func (s *SccStarter) Run() error {
 	s.log.Debug("Starting to run SCC Operator; will only activate on leader")
+	s.log.Tracef("Attempting to acquire lease in namespace: %s", s.options.OperatorSettings.LeaseNamespace)
 	s.wrangler.OnLeader(func(_ context.Context) error {
-		s.log.Debug("Preparing SCC controllers and starting them up")
+		s.log.Debug("Lease acquired. Preparing SCC controllers and starting them up")
 		return s.SetupControllers()
 	})
 

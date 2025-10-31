@@ -39,3 +39,5 @@ const (
 	SettingNameServerURL     = "server-url"
 	SettingNameServerVersion = "server-version"
 )
+
+const OperatorWorkerThreads = 2

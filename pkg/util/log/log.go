@@ -2,6 +2,10 @@ package log
 
 import "github.com/rancher/scc-operator/internal/log"
 
+// Logger references a global logger instance great for one-off logging.
+// Sometimes it doesn't make sense to create a component specific logger so we can use this one.
+var Logger = NewLog(log.WithSubComponent("global-logger"))
+
 var defaultOpts []log.Optional
 
 func AddDefaultOpts(opts ...log.Optional) {
