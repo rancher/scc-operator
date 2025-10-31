@@ -205,9 +205,27 @@ func (s *sccOnlineMode) NeedsActivation(registrationObj *v1.Registration) bool {
 	return shared.RegistrationNeedsActivation(registrationObj)
 }
 
-func (s *sccOnlineMode) ResetToRegisteredForActivation(_ *v1.Registration) (*v1.Registration, error) {
-	// TODO: Implement this function equivalent for online mode
-	return nil, nil
+func (s *sccOnlineMode) NeedsPreprocessRegistration(_ *v1.Registration) bool {
+	// TODO: online implementation of NeedsPreprocessRegistration
+	return false
+}
+
+func (s *sccOnlineMode) PreprocessRegistration(registrationObj *v1.Registration) (*v1.Registration, error) {
+	// TODO: online implementation of PreprocessRegistration
+	return registrationObj, nil
+}
+
+func (s *sccOnlineMode) ResetToReadyForActivation(registrationObj *v1.Registration) (*v1.Registration, error) {
+	registrationObj.Status.ActivationStatus.Activated = false
+	registrationObj.Status.ActivationStatus.LastValidatedTS = &metav1.Time{}
+	v1.ResourceConditionProgressing.True(registrationObj)
+	v1.ResourceConditionReady.False(registrationObj)
+	v1.ResourceConditionDone.False(registrationObj)
+	v1.RegistrationConditionActivated.False(registrationObj)
+	// Set ResourceConditionProgressing as the CurrentCondition since we're resetting the registration process
+	registrationObj.SetCurrentCondition(v1.ResourceConditionProgressing)
+
+	return registrationObj, nil
 }
 
 func (s *sccOnlineMode) ReadyForActivation(registrationObj *v1.Registration) bool {

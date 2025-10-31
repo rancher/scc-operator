@@ -55,8 +55,11 @@ type SCCHandler interface {
 	NeedsActivation(*v1.Registration) bool
 	// ReadyForActivation checks if the system is ready for activation.
 	ReadyForActivation(*v1.Registration) bool
-	// ResetToRegisteredForActivation will clean up the registration back to the ReadyForActivation state
-	ResetToRegisteredForActivation(*v1.Registration) (*v1.Registration, error)
+
+	NeedsPreprocessRegistration(*v1.Registration) bool
+	PreprocessRegistration(*v1.Registration) (*v1.Registration, error)
+	// ResetToReadyForActivation will clean up the registration back to the ReadyForActivation state
+	ResetToReadyForActivation(*v1.Registration) (*v1.Registration, error)
 
 	// PrepareForRegister preforms pre-registration steps
 	PrepareForRegister(*v1.Registration) (*v1.Registration, error)
@@ -536,27 +539,18 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 
 	registrationHandler := h.prepareHandler(registrationObj, rancherURL)
 
-	if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
-		if v1.ResourceConditionFailure.IsTrue(registrationObj) && v1.RegistrationConditionOfflineCertificateReady.IsFalse(registrationObj) && v1.RegistrationConditionOfflineCertificateReady.GetMessage(registrationObj) != InitialOfflineCertificateReadyMessage && registrationObj.Spec.OfflineRegistrationCertificateSecretRef == nil {
-			h.log.Info("registration is failed but user removed certificate. Resetting registration status back to ReadyForActivation")
+	if registrationHandler.NeedsPreprocessRegistration(registrationObj) {
+		processed := registrationObj.DeepCopy()
+		processed, _ = registrationHandler.PreprocessRegistration(processed)
 
-			resetUpdateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				reset := registrationObj.DeepCopy()
-
-				reset, resetErr := registrationHandler.ResetToRegisteredForActivation(reset)
-				if resetErr != nil {
-					return resetErr
-				}
-
-				_, updateErr := h.registrations.UpdateStatus(reset)
-				return updateErr
-			})
-			if resetUpdateErr != nil {
-				return registrationObj, resetUpdateErr
-			}
-
-			return registrationObj, nil
+		var err error
+		processed, err = h.registrations.UpdateStatus(processed)
+		if err != nil {
+			return registrationObj, err
 		}
+
+		_, err = h.registrations.Update(processed)
+		return registrationObj, err
 	}
 
 	if shared.RegistrationIsFailed(registrationObj) {
@@ -709,30 +703,17 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	// Handle what to do when CheckNow is used...
 	if shared.RegistrationNeedsSyncNow(registrationObj) {
 		if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
-			updated := registrationObj.DeepCopy()
-			updated.Spec = *registrationObj.Spec.WithoutSyncNow()
-
+			// First refresh the offline secret
 			offlineHandler := registrationHandler.(*sccOfflineMode)
-			refreshErr := offlineHandler.RefreshOfflineRequestSecret()
-			_, updateErr := h.registrations.Update(updated)
-			if updateErr != nil || refreshErr != nil {
-				return registrationObj, errors.Join(refreshErr, updateErr)
+			if refreshErr := offlineHandler.RefreshOfflineRequestSecret(); refreshErr != nil {
+				return registrationObj, refreshErr
 			}
-
-			return registrationObj, nil
 		}
 
-		// Todo: online/offline handler interface should have a SyncNow call to get rid of the if here
+		// After offline specific action, do the interface based reset
 		updated := registrationObj.DeepCopy()
-		updated.Spec = *registrationObj.Spec.WithoutSyncNow()
-		updated.Status.ActivationStatus.Activated = false
-		updated.Status.ActivationStatus.LastValidatedTS = &metav1.Time{}
-		v1.ResourceConditionProgressing.True(updated)
-		v1.ResourceConditionReady.False(updated)
-		v1.ResourceConditionDone.False(updated)
-		v1.RegistrationConditionActivated.False(updated)
-		// Set ResourceConditionProgressing as the CurrentCondition since we're resetting the registration process
-		updated.SetCurrentCondition(v1.ResourceConditionProgressing)
+		updated.Spec = registrationObj.Spec.WithoutSyncNow()
+		updated, _ = registrationHandler.ResetToReadyForActivation(updated)
 
 		var err error
 		updated, err = h.registrations.UpdateStatus(updated)
@@ -741,7 +722,6 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 			return registrationObj, err
 		}
 
-		updated.Spec = *registrationObj.Spec.WithoutSyncNow()
 		updated, err = h.registrations.Update(updated)
 		return registrationObj, err
 	}

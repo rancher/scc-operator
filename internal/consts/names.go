@@ -13,6 +13,10 @@ const (
 	OfflineCertificateSecretNamePrefix   = "offline-certificate-"
 )
 
+func RegistrationName(namePartIn string) string {
+	return fmt.Sprintf("%s-%s", ResourceSCCEntrypointSecretName, namePartIn)
+}
+
 func SCCCredentialsSecretName(namePartIn string) string {
 	return fmt.Sprintf("%s%s", SCCSystemCredentialsSecretNamePrefix, namePartIn)
 }
