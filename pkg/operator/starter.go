@@ -108,7 +108,7 @@ func (s *SccStarter) SetupControllers() error {
 			s.wrangler.Settings,
 		)
 
-		if startErr := start.All(s.context, 2, initOperator.sccResourceFactory); startErr != nil {
+		if startErr := start.All(s.context, consts.OperatorWorkerThreads, initOperator.sccResourceFactory); startErr != nil {
 			s.log.Errorf("error starting operator: %v", startErr)
 		}
 		<-s.context.Done()

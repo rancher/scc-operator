@@ -8,6 +8,7 @@ import (
 	lasso "github.com/rancher/lasso/pkg/client"
 	"github.com/rancher/lasso/pkg/controller"
 	"github.com/rancher/lasso/pkg/mapper"
+	"github.com/rancher/scc-operator/internal/consts"
 	"github.com/rancher/scc-operator/internal/rancher/settings"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/util/log"
@@ -159,7 +160,7 @@ func (c *MiniContext) Start(ctx context.Context) error {
 	defer c.controllerLock.Unlock()
 
 	log.Logger.Debug("Starting controller factory")
-	if err := c.ControllerFactory.Start(ctx, 10); err != nil {
+	if err := c.ControllerFactory.Start(ctx, consts.OperatorWorkerThreads); err != nil {
 		return err
 	}
 	log.Logger.Debug("Starting leadership manager")
