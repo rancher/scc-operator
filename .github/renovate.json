@@ -3,9 +3,7 @@
     "github>rancher/renovate-config#release",
     "group:allNonMajor"
   ],
-  "baseBranches": [
-    "main",
-  ],
+  "baseBranches": ["main"],
   "ignoreDeps": [
     "github.com/rancher/hull",
     "github.com/rancher/lasso",
