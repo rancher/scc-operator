@@ -3,7 +3,9 @@
     "github>rancher/renovate-config#release",
     "group:allNonMajor"
   ],
-  "baseBranches": ["main"],
+  "baseBranchPatterns": [
+    "main"
+  ],
   "ignoreDeps": [
     "github.com/rancher/hull",
     "github.com/rancher/lasso",
@@ -11,8 +13,12 @@
   ],
   "packageRules": [
     {
-      "matchBaseBranches": ["main"],
-      "extends": ["github>rancher/renovate-config:rancher-main#main"]
+      "matchBaseBranches": [
+        "main"
+      ],
+      "extends": [
+        "github>rancher/renovate-config:rancher-main#main"
+      ]
     },
     {
       "groupName": "GitHub Workflow Actions",
