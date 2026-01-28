@@ -12,7 +12,7 @@ import (
 
 	"github.com/rancher/scc-operator/internal/consts"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher/scc-operator/pkg/controllers/shared"
+	"github.com/rancher/scc-operator/pkg/controllers/lifecycle"
 )
 
 func (o *SecretManager) SetRegistrationOfflineRegistrationRequestSecretRef(registrationObj *v1.Registration) *v1.Registration {
@@ -73,7 +73,7 @@ func (o *SecretManager) saveRequestSecret() error {
 		offlineRequest.Data[consts.SecretKeyOfflineRegRequest] = o.offlineRequest
 	}
 
-	offlineRequest = shared.SecretAddOfflineFinalizer(offlineRequest)
+	offlineRequest = lifecycle.SecretAddOfflineFinalizer(offlineRequest)
 
 	labels := o.defaultLabels
 	labels[consts.LabelSccSecretRole] = string(consts.OfflineRequestRole)

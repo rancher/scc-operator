@@ -1,4 +1,4 @@
-package shared
+package lifecycle
 
 import (
 	"github.com/rancher/scc-operator/internal/types"
