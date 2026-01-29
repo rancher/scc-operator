@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/rancher/scc-operator/internal/repos/secretrepo"
-	"github.com/rancher/scc-operator/pkg/controllers/shared"
+	"github.com/rancher/scc-operator/pkg/controllers/lifecycle"
 )
 
 type SecretManager struct {
@@ -56,9 +56,9 @@ func (o *SecretManager) Remove() error {
 }
 
 func (o *SecretManager) removeOfflineFinalizer(incomingSecret *corev1.Secret) error {
-	if shared.SecretHasOfflineFinalizer(incomingSecret) {
+	if lifecycle.SecretHasOfflineFinalizer(incomingSecret) {
 		updatedSecret := incomingSecret.DeepCopy()
-		updatedSecret = shared.SecretRemoveOfflineFinalizer(updatedSecret)
+		updatedSecret = lifecycle.SecretRemoveOfflineFinalizer(updatedSecret)
 		_, updateErr := o.secretRepo.CreateOrUpdateSecret(updatedSecret)
 
 		if updateErr == nil || apierrors.IsNotFound(updateErr) {
@@ -73,7 +73,7 @@ func (o *SecretManager) removeOfflineFinalizer(incomingSecret *corev1.Secret) er
 				return getErr
 			}
 			updatedSecret := currentSecret.DeepCopy()
-			updatedSecret = shared.SecretRemoveOfflineFinalizer(updatedSecret)
+			updatedSecret = lifecycle.SecretRemoveOfflineFinalizer(updatedSecret)
 			var updateErr error
 			_, updateErr = o.secretRepo.PatchUpdate(currentSecret, updatedSecret)
 			return updateErr

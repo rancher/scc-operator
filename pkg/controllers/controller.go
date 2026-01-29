@@ -30,7 +30,7 @@ import (
 	wranglerPolyfill "github.com/rancher/scc-operator/internal/wrangler/polyfill"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/controllers/helpers"
-	"github.com/rancher/scc-operator/pkg/controllers/shared"
+	"github.com/rancher/scc-operator/pkg/controllers/lifecycle"
 	registrationControllers "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/util/log"
 )
@@ -400,13 +400,13 @@ func (h *handler) cleanupRelatedSecretsByHash(contentHash string) error {
 	})
 
 	for _, secret := range secrets {
-		if shared.SecretHasCredentialsFinalizer(secret) ||
-			shared.SecretHasRegCodeFinalizer(secret) {
+		if lifecycle.SecretHasCredentialsFinalizer(secret) ||
+			lifecycle.SecretHasRegCodeFinalizer(secret) {
 
 			var updateErr error
 			secretUpdated := secret.DeepCopy()
-			secretUpdated = shared.SecretRemoveCredentialsFinalizer(secretUpdated)
-			secretUpdated = shared.SecretRemoveRegCodeFinalizer(secretUpdated)
+			secretUpdated = lifecycle.SecretRemoveCredentialsFinalizer(secretUpdated)
+			secretUpdated = lifecycle.SecretRemoveRegCodeFinalizer(secretUpdated)
 			_, updateErr = h.secretRepo.RetryingPatchUpdate(secret, secretUpdated)
 			if updateErr != nil {
 				h.log.Errorf("failed to update secret %s/%s: %v", secret.Namespace, secret.Name, updateErr)
@@ -468,8 +468,8 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 		return incomingObj, nil
 	}
 
-	if shared.SecretHasCredentialsFinalizer(incomingObj) ||
-		shared.SecretHasRegCodeFinalizer(incomingObj) {
+	if lifecycle.SecretHasCredentialsFinalizer(incomingObj) ||
+		lifecycle.SecretHasRegCodeFinalizer(incomingObj) {
 		refs := incomingObj.GetOwnerReferences()
 		danglingRefs := 0
 		for _, ref := range refs {
@@ -503,11 +503,11 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 			return nil, fmt.Errorf("cannot remove SCC finalizer from secret %s/%s, dangling references to Registration found", incomingObj.Namespace, incomingObj.Name)
 		}
 		newSecret := incomingObj.DeepCopy()
-		if shared.SecretHasCredentialsFinalizer(newSecret) {
-			newSecret = shared.SecretRemoveCredentialsFinalizer(newSecret)
+		if lifecycle.SecretHasCredentialsFinalizer(newSecret) {
+			newSecret = lifecycle.SecretRemoveCredentialsFinalizer(newSecret)
 		}
-		if shared.SecretHasRegCodeFinalizer(newSecret) {
-			newSecret = shared.SecretRemoveRegCodeFinalizer(newSecret)
+		if lifecycle.SecretHasRegCodeFinalizer(newSecret) {
+			newSecret = lifecycle.SecretRemoveRegCodeFinalizer(newSecret)
 		}
 		logrus.Info("Removing finalizer from secret", newSecret.Name, "in namespace", newSecret.Namespace)
 		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -553,7 +553,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		return registrationObj, err
 	}
 
-	if shared.RegistrationIsFailed(registrationObj) {
+	if lifecycle.RegistrationIsFailed(registrationObj) {
 		failedCondition := registrationObj.Status.CurrentCondition
 		if failedCondition != nil {
 			h.log.Errorf("registration `%s` has the Failure status condition from: %v", registrationObj.Name, failedCondition)
@@ -563,7 +563,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		h.log.Warnf("reviewing the registration `%s` for other errors is advised before retrying", registrationObj.Name)
 
 		errorFixHint := fmt.Sprintf("delete this registration `%s` and then create a new one to try again.", registrationObj.Name)
-		if shared.RegistrationHasManagedFinalizer(registrationObj) {
+		if lifecycle.RegistrationHasManagedFinalizer(registrationObj) {
 			errorFixHint = fmt.Sprintf("delete the entrypoint secret `%s/%s`, give it time to clean up, and then create a new one to try again.", h.options.SystemNamespace(), consts.ResourceSCCEntrypointSecretName)
 		}
 		h.log.Warn("after resolving the issue(s), " + errorFixHint)
@@ -684,7 +684,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 			}
 
 			activated := registrationObj.DeepCopy()
-			activated = shared.PrepareSuccessfulActivation(activated)
+			activated = lifecycle.PrepareSuccessfulActivation(activated)
 			prepared, err := registrationHandler.PrepareActivatedForKeepalive(activated)
 			if err != nil {
 				err := h.reconcileActivation(registrationHandler, registrationObj, activationErr, types.ActivationPrepForKeepalive)
@@ -701,7 +701,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	}
 
 	// Handle what to do when CheckNow is used...
-	if shared.RegistrationNeedsSyncNow(registrationObj) {
+	if lifecycle.RegistrationNeedsSyncNow(registrationObj) {
 		if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
 			// First refresh the offline secret
 			offlineHandler := registrationHandler.(*sccOfflineMode)
@@ -757,7 +757,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		}
 
 		keepalive := registrationObj.DeepCopy()
-		keepalive = shared.PrepareSuccessfulActivation(keepalive)
+		keepalive = lifecycle.PrepareSuccessfulActivation(keepalive)
 		v1.RegistrationConditionKeepalive.True(keepalive)
 		prepared, err := registrationHandler.PrepareKeepaliveSucceeded(keepalive)
 		if err != nil {

@@ -18,6 +18,6 @@ RUN echo 'scc:x:1000:1000::/home/scc:/bin/bash' >> /etc/passwd && \
     mkdir /home/scc && \
     chown -R scc:scc /home/scc
 
-USER scc
+USER 1000
 
 ENTRYPOINT ["scc-operator"]

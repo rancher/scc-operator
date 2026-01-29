@@ -12,7 +12,7 @@ import (
 	"github.com/rancher/scc-operator/internal/consts"
 	"github.com/rancher/scc-operator/internal/repos/secretrepo"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher/scc-operator/pkg/controllers/shared"
+	"github.com/rancher/scc-operator/pkg/controllers/lifecycle"
 )
 
 const (
@@ -106,7 +106,7 @@ func (c *CredentialSecretsAdapter) saveCredentials() error {
 		sccCreds.Data[TokenKey] = []byte(token)
 	}
 
-	sccCreds = shared.SecretAddCredentialsFinalizer(sccCreds)
+	sccCreds = lifecycle.SecretAddCredentialsFinalizer(sccCreds)
 
 	if sccCreds.Labels == nil {
 		sccCreds.Labels = c.labels
@@ -137,9 +137,9 @@ func (c *CredentialSecretsAdapter) Remove() error {
 		return nil
 	}
 
-	if shared.SecretHasCredentialsFinalizer(currentSecret) {
+	if lifecycle.SecretHasCredentialsFinalizer(currentSecret) {
 		updatedSecret := currentSecret.DeepCopy()
-		updatedSecret = shared.SecretRemoveCredentialsFinalizer(updatedSecret)
+		updatedSecret = lifecycle.SecretRemoveCredentialsFinalizer(updatedSecret)
 		if _, updateErr := c.secretRepo.Controller.Update(updatedSecret); updateErr != nil {
 			if apierrors.IsNotFound(updateErr) {
 				return nil

@@ -13,7 +13,7 @@ import (
 	offlineSecrets "github.com/rancher/scc-operator/internal/suseconnect/offline"
 	"github.com/rancher/scc-operator/internal/types"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher/scc-operator/pkg/controllers/shared"
+	"github.com/rancher/scc-operator/pkg/controllers/lifecycle"
 )
 
 type sccOfflineMode struct {
@@ -34,7 +34,7 @@ func (s *sccOfflineMode) SetRancherMetrics(rancherMetrics telemetry.MetricsWrapp
 
 func (s *sccOfflineMode) NeedsRegistration(registrationObj *v1.Registration) bool {
 	return registrationObj.Spec.OfflineRegistrationCertificateSecretRef == nil &&
-		(shared.RegistrationHasNotStarted(registrationObj) ||
+		(lifecycle.RegistrationHasNotStarted(registrationObj) ||
 			!registrationObj.HasCondition(v1.RegistrationConditionOfflineRequestReady) ||
 			v1.RegistrationConditionOfflineRequestReady.IsFalse(registrationObj))
 }
@@ -94,7 +94,7 @@ func (s *sccOfflineMode) ReconcileRegisterError(registrationObj *v1.Registration
 
 func (s *sccOfflineMode) NeedsActivation(registrationObj *v1.Registration) bool {
 	return registrationObj.Status.OfflineRegistrationRequest != nil &&
-		shared.RegistrationNeedsActivation(registrationObj)
+		lifecycle.RegistrationNeedsActivation(registrationObj)
 }
 
 func (s *sccOfflineMode) ReadyForActivation(registrationObj *v1.Registration) bool {
@@ -207,7 +207,7 @@ func (s *sccOfflineMode) ReconcileActivateError(registrationObj *v1.Registration
 	// Cannot recover from this error so must set failure
 	registrationObj.Status.ActivationStatus.Activated = false
 
-	return shared.PrepareFailed(registrationObj, activationErr)
+	return lifecycle.PrepareFailed(registrationObj, activationErr)
 }
 
 func (s *sccOfflineMode) Keepalive(registrationObj *v1.Registration) error {

@@ -13,7 +13,7 @@ import (
 	"github.com/rancher/scc-operator/internal/consts"
 	coreUtil "github.com/rancher/scc-operator/internal/initializer"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher/scc-operator/pkg/controllers/shared"
+	"github.com/rancher/scc-operator/pkg/controllers/lifecycle"
 	"github.com/rancher/scc-operator/pkg/util"
 	"github.com/rancher/scc-operator/pkg/util/log"
 	"github.com/rancher/scc-operator/pkg/util/salt"
@@ -223,8 +223,8 @@ func (h *handler) registrationFromSecretEntrypoint(
 	maps.Copy(reg.Labels, params.Labels())
 
 	reg.Spec = paramsToRegSpec(params)
-	if !shared.RegistrationHasManagedFinalizer(reg) {
-		reg = shared.RegistrationAddManagedFinalizer(reg)
+	if !lifecycle.RegistrationHasManagedFinalizer(reg) {
+		reg = lifecycle.RegistrationAddManagedFinalizer(reg)
 	}
 
 	return reg, nil
@@ -276,8 +276,8 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 	defaultLabels[consts.LabelSccSecretRole] = string(consts.RegistrationCode)
 	maps.Copy(regcodeSecret.Labels, defaultLabels)
 
-	if !shared.SecretHasRegCodeFinalizer(regcodeSecret) {
-		regcodeSecret = shared.SecretAddRegCodeFinalizer(regcodeSecret)
+	if !lifecycle.SecretHasRegCodeFinalizer(regcodeSecret) {
+		regcodeSecret = lifecycle.SecretAddRegCodeFinalizer(regcodeSecret)
 	}
 
 	return regcodeSecret, nil
@@ -309,8 +309,8 @@ func (h *handler) offlineCertFromSecretEntrypoint(params RegistrationParams) (*c
 	defaultLabels[consts.LabelSccSecretRole] = string(consts.OfflineCertificate)
 	maps.Copy(offlineCertSecret.Labels, defaultLabels)
 
-	if !shared.SecretHasOfflineFinalizer(offlineCertSecret) {
-		offlineCertSecret = shared.SecretAddOfflineFinalizer(offlineCertSecret)
+	if !lifecycle.SecretHasOfflineFinalizer(offlineCertSecret) {
+		offlineCertSecret = lifecycle.SecretAddOfflineFinalizer(offlineCertSecret)
 	}
 
 	return offlineCertSecret, nil
