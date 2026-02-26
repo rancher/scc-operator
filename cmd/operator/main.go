@@ -14,14 +14,13 @@ import (
 	"github.com/rancher/scc-operator/cmd/operator/version"
 	"github.com/rancher/scc-operator/internal/consts"
 	"github.com/rancher/scc-operator/internal/initializer"
-	rootLog "github.com/rancher/scc-operator/internal/log"
+	"github.com/rancher/scc-operator/internal/logging"
 	"github.com/rancher/scc-operator/internal/types"
 	"github.com/rancher/scc-operator/pkg/operator"
-	"github.com/rancher/scc-operator/pkg/util/log"
 )
 
 var (
-	logger rootLog.StructuredLogger
+	logger logging.StructuredLogger
 )
 
 func getOperatorMetadata() *types.OperatorMetadata {
@@ -49,12 +48,12 @@ func setupCli(ctx context.Context) *config.OperatorSettings {
 		logrus.Fatal(fmt.Errorf("error loading scc-operator config: %w", err))
 	}
 
-	rootLog.SetupLogging(appConfig.LogLevel, appConfig.LogFormat)
-	log.AddDefaultOpts(
-		rootLog.WithOperatorName(appConfig.OperatorName),
-		rootLog.WithOperatorNamespace(appConfig.SystemNamespace),
+	logging.SetupLogging(appConfig.LogLevel, appConfig.LogFormat)
+	logging.AddDefaultOpts(
+		logging.WithOperatorName(appConfig.OperatorName),
+		logging.WithOperatorNamespace(appConfig.SystemNamespace),
 	)
-	logger = log.NewLog()
+	logger = logging.NewLog()
 
 	return appConfig
 }
@@ -83,10 +82,10 @@ func main() {
 
 	if operatorSettings.DevMode {
 		logger.Warn("with DevMode enabled log level will be forced to at least debug.")
-		currentLevel := rootLog.GetLogLevel()
+		currentLevel := logging.GetLogLevel()
 		if currentLevel < logrus.DebugLevel {
-			rootLog.SetLogLevel(logrus.DebugLevel)
-			logger = log.NewLog()
+			logging.SetLogLevel(logrus.DebugLevel)
+			logger = logging.NewLog()
 		}
 	}
 

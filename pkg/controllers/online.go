@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/rancher/scc-operator/internal/consts"
-	"github.com/rancher/scc-operator/internal/log"
+	"github.com/rancher/scc-operator/internal/logging"
 	"github.com/rancher/scc-operator/internal/repos/secretrepo"
 	"github.com/rancher/scc-operator/internal/suseconnect"
 	"github.com/rancher/scc-operator/internal/suseconnect/credentials"
@@ -29,7 +29,7 @@ type sccOnlineMode struct {
 	rancherURL     string
 	options        *types.RunOptions
 	registration   *v1.Registration
-	log            log.StructuredLogger
+	log            logging.StructuredLogger
 	sccCredentials *credentials.CredentialSecretsAdapter
 	secretRepo     *secretrepo.SecretRepository
 	rancherMetrics telemetry.MetricsWrapper

@@ -13,7 +13,7 @@ import (
 	"github.com/rancher/wrangler/v3/pkg/start"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	rootLog "github.com/rancher/scc-operator/internal/log"
+	rootLog "github.com/rancher/scc-operator/internal/logging"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/controllers"
 )

@@ -23,8 +23,8 @@ linters:
         text: 'var-naming: avoid meaningless package names'
       - linters:
           - revive
-        path: pkg/util/.*.go
-        text: 'var-naming: avoid meaningless package names'
+        path: cmd/operator/version/.*.go
+        text: 'var-naming: avoid package names that conflict with Go standard library package names'
     paths:
       - internal/telemetry
       - pkg/systeminfo

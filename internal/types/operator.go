@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/rancher/scc-operator/internal/config"
-	rootLog "github.com/rancher/scc-operator/internal/log"
+	rootLog "github.com/rancher/scc-operator/internal/logging"
 )
 
 // OperatorMetadata contains the basic build info about the operator binary version info

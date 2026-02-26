@@ -8,7 +8,7 @@ import (
 	"github.com/rancher/scc-operator/internal/telemetry"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	rootLog "github.com/rancher/scc-operator/internal/log"
+	rootLog "github.com/rancher/scc-operator/internal/logging"
 	"github.com/rancher/scc-operator/internal/suseconnect"
 	offlineSecrets "github.com/rancher/scc-operator/internal/suseconnect/offline"
 	"github.com/rancher/scc-operator/internal/types"

@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/rancher/scc-operator/internal/initializer"
-	"github.com/rancher/scc-operator/internal/log"
+	"github.com/rancher/scc-operator/internal/logging"
 	"github.com/rancher/scc-operator/internal/types"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/crds"
@@ -18,7 +18,7 @@ import (
 
 type SccOperator struct {
 	devMode            bool
-	log                log.StructuredLogger
+	log                logging.StructuredLogger
 	sccResourceFactory *scc.Factory
 	secrets            corev1.SecretController
 	options            *types.RunOptions

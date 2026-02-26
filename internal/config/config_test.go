@@ -3,7 +3,7 @@ package config
 import (
 	"testing"
 
-	rootLog "github.com/rancher/scc-operator/internal/log"
+	rootLog "github.com/rancher/scc-operator/internal/logging"
 	"github.com/sirupsen/logrus"
 )
 

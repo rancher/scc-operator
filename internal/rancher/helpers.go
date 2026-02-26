@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/logging"
 	"github.com/rancher/scc-operator/internal/rancher/settings"
-	"github.com/rancher/scc-operator/pkg/util/log"
 	"github.com/sirupsen/logrus"
 )
 
@@ -16,7 +16,7 @@ func GetServerURL(ctx context.Context, settings *settings.SettingReader) string 
 
 	serverURLSetting, err := settings.Get(ctx, consts.SettingNameServerURL)
 	if err != nil {
-		log.NewLog().Error(err, "Failed to get install uuid setting")
+		logging.NewLog().Error(err, "Failed to get install uuid setting")
 		return ""
 	}
 	logrus.Debug(serverURLSetting)
@@ -31,7 +31,7 @@ func GetRancherInstallUUID(ctx context.Context, settings *settings.SettingReader
 
 	installUUIDSetting, err := settings.Get(ctx, consts.SettingNameInstallUUID)
 	if err != nil {
-		log.NewLog().Error(err, "Failed to get install uuid setting")
+		logging.NewLog().Error(err, "Failed to get install uuid setting")
 		return ""
 	}
 	logrus.Debug(installUUIDSetting)

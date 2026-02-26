@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rancher/scc-operator/pkg/util/log"
+	"github.com/rancher/scc-operator/internal/logging"
 	"github.com/stretchr/testify/assert"
 )
 
-var testLogs = log.NewComponentLogger("jitterbug-tests")
+var testLogs = logging.NewComponentLogger("jitterbug-tests")
 
 func TestNewJitterChecker(t *testing.T) {
 	t.Parallel()

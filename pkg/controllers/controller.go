@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rancher/scc-operator/internal/logging"
 	"github.com/rancher/scc-operator/internal/rancher"
 	"github.com/rancher/scc-operator/internal/rancher/settings"
 	"github.com/rancher/scc-operator/internal/telemetry"
@@ -32,7 +33,6 @@ import (
 	"github.com/rancher/scc-operator/pkg/controllers/helpers"
 	"github.com/rancher/scc-operator/pkg/controllers/lifecycle"
 	registrationControllers "github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io/v1"
-	"github.com/rancher/scc-operator/pkg/util/log"
 )
 
 const (
@@ -106,7 +106,7 @@ func Register(
 	settings *settings.SettingReader,
 ) {
 	controller := &handler{
-		log:               log.NewControllerLogger("registration-controller"),
+		log:               logging.NewControllerLogger("registration-controller"),
 		ctx:               ctx,
 		options:           options,
 		registrations:     registrations,

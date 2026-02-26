@@ -13,11 +13,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/rancher/scc-operator/internal/consts"
-	rootLog "github.com/rancher/scc-operator/internal/log"
-	"github.com/rancher/scc-operator/pkg/util/log"
+	"github.com/rancher/scc-operator/internal/logging"
 )
 
-var logger = log.NewComponentLogger("int/config")
+var logger = logging.NewComponentLogger("int/config")
 
 // OperatorSettings represents config values that the SCC Operator relies on to run
 // These values are either set by: 1. Reading EnvKey vars, or 2. the ConfigMap used by deployers
@@ -27,7 +26,7 @@ type OperatorSettings struct {
 	Kubeconfig      string
 	SystemNamespace string
 	LeaseNamespace  string
-	LogFormat       rootLog.Format
+	LogFormat       logging.Format
 	LogLevel        logrus.Level
 	CattleDevMode   bool
 
@@ -110,11 +109,11 @@ func LoadInitialConfig(ctx context.Context, flags *pflag.FlagSet) (*OperatorSett
 	return loadedConfig, nil
 }
 
-func decideLogFormat(formatStr string) rootLog.Format {
-	logFormat := rootLog.Format(formatStr)
+func decideLogFormat(formatStr string) logging.Format {
+	logFormat := logging.Format(formatStr)
 	if !logFormat.IsValid() {
-		logger.Warnf("Invalid log format '%s' provided. Defaulting to '%s'.", formatStr, rootLog.DefaultFormat)
-		return rootLog.DefaultFormat
+		logger.Warnf("Invalid log format '%s' provided. Defaulting to '%s'.", formatStr, logging.DefaultFormat)
+		return logging.DefaultFormat
 	}
 
 	return logFormat
