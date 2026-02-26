@@ -13,14 +13,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 
-	"github.com/rancher/scc-operator/internal/log"
+	"github.com/rancher/scc-operator/internal/logging"
 	"github.com/rancher/scc-operator/internal/wrangler"
 	"github.com/rancher/scc-operator/pkg/generated/controllers/scc.cattle.io"
 )
 
 func setup(
 	ctx context.Context,
-	logger log.StructuredLogger,
+	logger logging.StructuredLogger,
 	options *types.RunOptions,
 	wContext *wrangler.MiniContext,
 ) (*SccOperator, error) {

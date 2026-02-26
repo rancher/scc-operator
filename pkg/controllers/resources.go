@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 
+	"github.com/rancher/scc-operator/internal/logging"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +16,6 @@ import (
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/controllers/lifecycle"
 	"github.com/rancher/scc-operator/pkg/util"
-	"github.com/rancher/scc-operator/pkg/util/log"
 	"github.com/rancher/scc-operator/pkg/util/salt"
 )
 
@@ -91,7 +91,7 @@ func getCurrentRegURL(secret *corev1.Secret) (regURL []byte) {
 
 // extractRegistrationParamsFromSecret will extract secret data and prepare it into a RegistrationParams
 func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName string) (RegistrationParams, error) {
-	extractParamsLog := log.NewComponentLogger("params-extractor")
+	extractParamsLog := logging.NewComponentLogger("params-extractor")
 	incomingSalt := []byte(secret.GetLabels()[consts.LabelObjectSalt])
 	extractParamsLog.Debugf("extracting registration params from secret %s/%s - with salt %s", secret.Namespace, secret.Name, incomingSalt)
 

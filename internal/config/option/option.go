@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rancher/scc-operator/pkg/util/log"
+	"github.com/rancher/scc-operator/internal/logging"
 )
 
-var logger = log.NewComponentLogger("int/config/option")
+var logger = logging.NewComponentLogger("int/config/option")
 
 type RegisteredOption interface {
 	GetName() string

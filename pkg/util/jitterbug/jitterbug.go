@@ -6,8 +6,7 @@ package jitterbug
 import (
 	"time"
 
-	rootLog "github.com/rancher/scc-operator/internal/log"
-	"github.com/rancher/scc-operator/pkg/util/log"
+	rootLog "github.com/rancher/scc-operator/internal/logging"
 )
 
 type JitterFunction func(nextTrigger, strictDeadline time.Duration) (bool, error)
@@ -32,7 +31,7 @@ func NewJitterChecker(config *Config, callable JitterFunction) *JitterChecker {
 // NewJitterCheckerFromCalculator will complete initialization of optional Config fields and return a jitter checker
 func NewJitterCheckerFromCalculator(calculator JitterCalculator, callable JitterFunction) *JitterChecker {
 	return &JitterChecker{
-		log:        log.NewComponentLogger("jitterbug"),
+		log:        rootLog.NewComponentLogger("jitterbug"),
 		config:     calculator.config,
 		calculator: &calculator,
 		callable:   callable,

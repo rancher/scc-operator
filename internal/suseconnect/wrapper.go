@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rancher/scc-operator/internal/telemetry"
 
-	rootLog "github.com/rancher/scc-operator/internal/log"
+	rootLog "github.com/rancher/scc-operator/internal/logging"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 )
 

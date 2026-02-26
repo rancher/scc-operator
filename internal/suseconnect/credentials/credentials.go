@@ -4,12 +4,11 @@ import (
 	"github.com/SUSE/connect-ng/pkg/connection"
 	"github.com/pkg/errors"
 
-	rootLog "github.com/rancher/scc-operator/internal/log"
-	"github.com/rancher/scc-operator/pkg/util/log"
+	rootLog "github.com/rancher/scc-operator/internal/logging"
 )
 
 func credsContextLogger() rootLog.StructuredLogger {
-	logBuilder := log.NewSccLogBuilder(rootLog.WithSubComponent("suse-connect-creds"))
+	logBuilder := rootLog.NewSccLogBuilder(rootLog.WithSubComponent("suse-connect-creds"))
 	return logBuilder.ToLogger()
 }
 
