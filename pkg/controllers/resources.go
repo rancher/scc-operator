@@ -7,6 +7,7 @@ import (
 	"maps"
 
 	"github.com/rancher/scc-operator/internal/logging"
+	utilUrls "github.com/rancher/scc-operator/pkg/util/urls"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +16,6 @@ import (
 	coreUtil "github.com/rancher/scc-operator/internal/initializer"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
 	"github.com/rancher/scc-operator/pkg/controllers/lifecycle"
-	"github.com/rancher/scc-operator/pkg/util"
 	"github.com/rancher/scc-operator/pkg/util/salt"
 )
 
@@ -79,8 +79,8 @@ func getCurrentRegURL(secret *corev1.Secret) (regURL []byte) {
 	if ok {
 		return regURLBytes
 	}
-	if util.HasGlobalPrimeRegistrationURL() {
-		globalRegistrationURL := util.GetGlobalPrimeRegistrationURL()
+	if utilUrls.HasGlobalPrimeRegistrationURL() {
+		globalRegistrationURL := utilUrls.GetGlobalPrimeRegistrationURL()
 		return []byte(globalRegistrationURL)
 	}
 	if coreUtil.DevMode.Get() {
