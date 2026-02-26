@@ -117,6 +117,10 @@ func testSecretForUpdate(inSecret *corev1.Secret, inReg *v1.Registration) *corev
 	inSecret.OwnerReferences = []metav1.OwnerReference{
 		*inReg.ToOwnerRef(),
 	}
+	if inSecret.Labels == nil {
+		inSecret.Labels = map[string]string{}
+	}
+	inSecret.Labels[consts.LabelSccSecretRole] = string(consts.SCCCredentialsRole)
 	return inSecret
 }
 
@@ -208,8 +212,6 @@ func TestSecretsAdapterCredentials_Basic(t *testing.T) {
 		TokenKey: "Hello-WORLD",
 	})
 	prepared := testSecretForUpdate(modifiedSecret.DeepCopy(), &testReg)
-	// TODO fix skip
-	t.Skip("something broke this")
 	mockSecretsController.EXPECT().Update(prepared).Return(prepared, nil).MaxTimes(1)
 
 	// Update token
@@ -309,8 +311,6 @@ func TestSecretEmptyTokenUpdate(t *testing.T) {
 		TokenKey: "",
 	})
 	prepared := testSecretForUpdate(modifiedSecret.DeepCopy(), &testReg)
-	// TODO fix skip
-	t.Skip("something broke this")
 	mockSecretsController.EXPECT().Update(prepared).Return(prepared, nil).MaxTimes(1)
 
 	updateErr := secretsBackedCredentials.UpdateToken("")
