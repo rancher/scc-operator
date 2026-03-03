@@ -47,7 +47,6 @@ jobs:
         uses: rancher-eio/read-vault-secrets@main
         with:
           secrets: |
-            secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry | PRIME_REGISTRY ;
             secret/data/github/repo/${{ github.repository }}/rancher-prime-stg-registry/credentials registry |  PRIME_STG_REGISTRY;
             secret/data/github/repo/${{ github.repository }}/rancher-prime-stg-registry/credentials username |  PRIME_STG_REGISTRY_USERNAME;
             secret/data/github/repo/${{ github.repository }}/rancher-prime-stg-registry/credentials password |  PRIME_STG_REGISTRY_PASSWORD;
@@ -71,4 +70,27 @@ jobs:
           prime-repo: ${{ env.REPO }}
           prime-username: ${{ env.PRIME_STG_REGISTRY_USERNAME }}
           prime-password: ${{ env.PRIME_STG_REGISTRY_PASSWORD }}
-          identity-registry: ${{ env.PRIME_REGISTRY }}
+          identity-registry: ${{ env.PRIME_STG_REGISTRY }}
+      - name: Check SemVer Characteristics
+        id: semver_check
+        run: bash ./.github/scripts/check-semver "${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+      - name: "Read prime prod secrets"
+        if: ${{github.repository == 'rancher/scc-operator' && steps.semver_check.outputs.HAS_PRERELEASE == 'false'}}
+        uses: rancher-eio/read-vault-secrets@main
+        with:
+          secrets: |
+            secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials registry |  PRIME_REGISTRY;
+            secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials username |  PRIME_REGISTRY_USERNAME;
+            secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password |  PRIME_REGISTRY_PASSWORD;
+      - name: Build and push scc-operator image (prod)
+        if: ${{github.repository == 'rancher/scc-operator' && steps.semver_check.outputs.HAS_PRERELEASE == 'false'}}
+        uses: rancher/ecm-distro-tools/actions/publish-image@master
+        with:
+          image: 'scc-operator'
+          tag: ${{ github.ref_name }}
+          push-to-public: false
+          push-to-prime: true
+          prime-registry: ${{ env.PRIME_REGISTRY }}
+          prime-repo: rancher
+          prime-username: ${{ env.PRIME_REGISTRY_USERNAME }}
+          prime-password: ${{ env.PRIME_REGISTRY_PASSWORD }}
