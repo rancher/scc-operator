@@ -8,7 +8,6 @@ builds:
       main: ./cmd/operator/main.go
       goos:
         - linux
-        - darwin
       goarch:
         - amd64
         - arm64
@@ -24,42 +23,25 @@ builds:
         - -trimpath
       env:
         - CGO_ENABLED=0
-
-  # macOS build, only when GOOS_DARWIN_DEV is set
-    - id: scc-operator-darwin
-      main: ./cmd/operator/main.go
-      goos:
-        - darwin
-      goarch:
-        - amd64
-        - arm64
-      binary: scc-operator
-      ldflags:
-        - -extldflags
-        - -static
-        - -s -w
-        - -X github.com/rancher/scc-operator/cmd/operator/version.Version={{.Version}}
-        - -X github.com/rancher/scc-operator/cmd/operator/version.Commit={{.Commit}}
-        - -X github.com/rancher/scc-operator/cmd/operator/version.Date={{.Date}}
-      flags:
-        - -trimpath
-      env:
-        - CGO_ENABLED=0
-      skip: '{{ not (index .Env "GOOS_DARWIN_DEV") }}'
 
 archives:
     - id: scc-operator
       builds:
         - scc-operator
-      name_template: '{{ .Binary }}-{{ .Os }}-{{ .Arch }}'
+      name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
+
 release:
   prerelease: auto
+  draft: true
   extra_files:
     - glob : ./build/artifacts/*.tgz
+
 checksum:
   name_template: 'checksums.txt'
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
+
 changelog:
   sort: asc
   filters:
