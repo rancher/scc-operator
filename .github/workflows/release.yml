@@ -66,7 +66,7 @@ jobs:
 
         # This encapsulates: login, qemu, build/push
       - name: Build and push scc-operator image (dockerhub and prime stg)
-        uses: rancher/ecm-distro-tools/actions/publish-image@8821b2e4aa18f762dc334f811f54e8f215771a68 # v0.66.2
+        uses: rancher/ecm-distro-tools/actions/publish-image@dcb1a0f50ca91f9f9a1f34fa335a9182686234d5 # v0.66.3
         with:
           image: 'scc-operator'
           tag: ${{ github.ref_name }}
@@ -95,7 +95,7 @@ jobs:
             secret/data/github/repo/${{ github.repository }}/rancher-prime-registry/credentials password |  PRIME_REGISTRY_PASSWORD;
       - name: Build and push scc-operator image (prod)
         if: ${{github.repository == 'rancher/scc-operator' && steps.semver_check.outputs.HAS_PRERELEASE == 'false'}}
-        uses: rancher/ecm-distro-tools/actions/publish-image@8821b2e4aa18f762dc334f811f54e8f215771a68 # v0.66.2
+        uses: rancher/ecm-distro-tools/actions/publish-image@dcb1a0f50ca91f9f9a1f34fa335a9182686234d5 # v0.66.3
         with:
           image: 'scc-operator'
           tag: ${{ github.ref_name }}
