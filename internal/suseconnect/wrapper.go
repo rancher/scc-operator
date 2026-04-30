@@ -110,11 +110,17 @@ func (sw *SccWrapper) PrepareOfflineRegistrationRequest() (*registration.Offline
 
 func (sw *SccWrapper) KeepAlive() error {
 	// 1 call Status
-	status, statusErr := registration.Status(sw.conn, sw.rancherURL, sw.rancherMetrics.ToSystemInformation(), registration.NoExtraData)
+	status, statusErr := registration.Status(
+		sw.conn,
+		sw.rancherURL,
+		sw.rancherMetrics.ToSystemInformation(),
+		registration.NoExtraData, // We don't use data profiles
+		registration.NoExtraData, // Nor do we use extra data yet
+	)
 	if status != registration.Registered {
 		return fmt.Errorf("trying to send keepalive on a system that is not yet registered. register this system first: %v", statusErr)
 	}
-	// 2 verify response says we're registered still
+	// 2 verify the response says we're registered still
 	return statusErr
 }
 
