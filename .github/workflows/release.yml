@@ -82,7 +82,7 @@ jobs:
 
         # This encapsulates: login, qemu, build/push
       - name: Build and push scc-operator image (dockerhub and prime stg)
-        uses: rancher/ecm-distro-tools/actions/publish-image@0e1697ecc955e85ec73970b66c8984241fa84a28 # v0.69.0
+        uses: rancher/ecm-distro-tools/actions/publish-image@da9f5b6e258c327660eeab3db97952b612f1cf9f # v0.69.3
         with:
           image: 'scc-operator'
           tag: ${{ github.ref_name }}
@@ -114,7 +114,7 @@ jobs:
 
       - name: Build and push scc-operator image (prod)
         if: ${{github.repository == 'rancher/scc-operator' && steps.semver_check.outputs.HAS_PRERELEASE == 'false'}}
-        uses: rancher/ecm-distro-tools/actions/publish-image@0e1697ecc955e85ec73970b66c8984241fa84a28 # v0.69.0
+        uses: rancher/ecm-distro-tools/actions/publish-image@da9f5b6e258c327660eeab3db97952b612f1cf9f # v0.69.3
         with:
           image: 'scc-operator'
           tag: ${{ github.ref_name }}
