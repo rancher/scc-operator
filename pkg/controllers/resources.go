@@ -89,6 +89,15 @@ func getCurrentRegURL(secret *corev1.Secret) (regURL []byte) {
 	return []byte{}
 }
 
+func getRegURLCert(secret *corev1.Secret) ([]byte, bool) {
+	regCertBytes, ok := secret.Data[consts.RegistrationURLCert]
+	if ok {
+		return regCertBytes, ok
+	}
+
+	return []byte{}, ok
+}
+
 // extractRegistrationParamsFromSecret will extract secret data and prepare it into a RegistrationParams
 func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName string) (RegistrationParams, error) {
 	extractParamsLog := logging.NewComponentLogger("params-extractor")
@@ -117,12 +126,13 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 	offlineRegCertData, certOk := secret.Data[consts.SecretKeyOfflineRegCert]
 	hasOfflineCert := certOk && len(offlineRegCertData) > 0
 
-	// TODO: when RMT needs to be supported eventually we need to accept Reg URL and Reg Server Cert.
-	var regURLBytes []byte
+	hasRegCertField := false
+	var regURLBytes, regCertBytes []byte
 	regURLString := ""
 	if regMode == v1.RegistrationModeOnline {
 		regURLBytes = getCurrentRegURL(secret)
 		regURLString = string(regURLBytes)
+		regCertBytes, hasRegCertField = getRegURLCert(secret)
 	}
 
 	hasher := md5.New()
@@ -160,7 +170,14 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 			Name:      consts.OfflineCertificateSecretName(nameID),
 			Namespace: secret.Namespace,
 		},
-		regURL: regURLString,
+		regURL:            regURLString,
+		regURLCertSet:     hasRegCertField,
+		hasRegURLCertData: hasRegCertField && len(regCertBytes) > 0,
+		regURLCertData:    &regCertBytes,
+		regURLCertSecretRef: &corev1.SecretReference{
+			Name:      consts.RegistrationURLCertificateSecretName(nameID),
+			Namespace: secret.Namespace,
+		},
 	}, nil
 }
 
@@ -172,6 +189,10 @@ type RegistrationParams struct {
 	regCode              []byte
 	regCodeSecretRef     *corev1.SecretReference
 	regURL               string
+	regURLCertSet        bool // true when the secret includes regURLCert field
+	hasRegURLCertData    bool // true when regURLCertSet and regURLCertData is not empty
+	regURLCertData       *[]byte
+	regURLCertSecretRef  *corev1.SecretReference
 	hasOfflineCertData   bool
 	offlineCertData      *[]byte
 	offlineCertSecretRef *corev1.SecretReference
@@ -247,12 +268,16 @@ func paramsToRegSpec(params RegistrationParams) v1.RegistrationSpec {
 	// check if params has regURL and use, otherwise check if devmode and when true use staging Scc url
 	if params.regURL != "" {
 		regSpec.RegistrationRequest.RegistrationAPIUrl = &params.regURL
+
+		if params.hasRegURLCertData {
+			regSpec.RegistrationRequest.RegistrationAPICertificateSecretRef = params.regURLCertSecretRef
+		}
 	}
 
 	return regSpec
 }
 
-// regCodeFromSecretEntrypoint fetches the registration code provided by an entrypoint secret
+// regCodeFromSecretEntrypoint fetches (or prepares) the RegCode secret provided by an entrypoint secret
 func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
 	secretName := params.regCodeSecretRef.Name
 
@@ -281,6 +306,36 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 	}
 
 	return regcodeSecret, nil
+}
+
+func (h *handler) regURLCertFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
+	secretName := params.regURLCertSecretRef.Name
+
+	regURLCertSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), secretName)
+	if err != nil && apierrors.IsNotFound(err) {
+		regURLCertSecret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: h.options.SystemNamespace(),
+				Name:      secretName,
+			},
+			Data: map[string][]byte{
+				consts.RegistrationURLCert: *params.regURLCertData,
+			},
+		}
+	}
+
+	if regURLCertSecret.Labels == nil {
+		regURLCertSecret.Labels = map[string]string{}
+	}
+	defaultLabels := params.Labels()
+	defaultLabels[consts.LabelSccSecretRole] = string(consts.RegistrationServerCertRole)
+	maps.Copy(regURLCertSecret.Labels, defaultLabels)
+
+	if !lifecycle.SecretHasRegURLCertFinalizer(regURLCertSecret) {
+		regURLCertSecret = lifecycle.SecretAddRegURLCertFinalizer(regURLCertSecret)
+	}
+
+	return regURLCertSecret, nil
 }
 
 // offlineCertFromSecretEntrypoint helps to extract and prepare the Offline Cert secret for creation based on entrypoint secret
