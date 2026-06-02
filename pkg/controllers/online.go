@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -57,11 +58,17 @@ func (s *sccOnlineMode) prepareSCCOnlineConnection(
 	rancherMetrics telemetry.MetricsWrapper,
 	registrationURL string,
 ) suseconnect.SccWrapper {
+	// Fetch the registration URL certificate if provided
+	var cert *x509.Certificate
+	if s.registration.Spec.RegistrationRequest.RegistrationAPICertificateSecretRef != nil {
+		cert = suseconnect.FetchRegistrationURLCertFrom(s.secretRepo, s.registration.Spec.RegistrationRequest.RegistrationAPICertificateSecretRef)
+	}
+
 	return suseconnect.OnlineRancherConnection(
 		suseconnect.OnlineConnectionParams{
 			RancherURL:      s.rancherURL,
 			RegistrationURL: registrationURL,
-			Options:         suseconnect.DefaultConnectionOptions(s.options.OperatorName, s.options.OperatorMetadata.Version),
+			Options:         suseconnect.DefaultConnectionOptions(s.options.OperatorName, s.options.OperatorMetadata.Version, cert),
 		},
 		s.sccCredentials.SccCredentials(),
 		rancherMetrics,
