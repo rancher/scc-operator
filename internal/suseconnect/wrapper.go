@@ -1,6 +1,7 @@
 package suseconnect
 
 import (
+	"crypto/x509"
 	"fmt"
 
 	"github.com/SUSE/connect-ng/pkg/connection"
@@ -25,11 +26,12 @@ type SccWrapper struct {
 	rancherMetrics telemetry.MetricsWrapper
 }
 
-func DefaultConnectionOptions(appName, version string) connection.Options {
-	// So this doesn't necessarily mean these have to match Rancher on the cluster.
-	// Rather the details about the HTTP client talking to SCC
-	// TODO: eventually add localization support?
-	return connection.DefaultOptions(appName, version, "en_US")
+func DefaultConnectionOptions(appName, version string, cert *x509.Certificate) connection.Options {
+	opts := connection.DefaultOptions(appName, version, "en_US")
+	if cert != nil {
+		opts.Certificate = cert
+	}
+	return opts
 }
 
 type OnlineConnectionParams struct {
