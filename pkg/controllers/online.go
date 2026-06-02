@@ -610,7 +610,7 @@ func (s *sccOnlineMode) Deregister() error {
 		s.log.Debugf("failed to get registration code secret %s/%s during cleanup: %v", regCodeSecretRef.Namespace, regCodeSecretRef.Name, regCodeErr)
 		return regCodeErr
 	}
-	if lifecycle.SecretHasRegCodeFinalizer(regCodeSecret) {
+	if regCodeSecret != nil && lifecycle.SecretHasRegCodeFinalizer(regCodeSecret) {
 		updateRegCodeSecret := regCodeSecret.DeepCopy()
 		updateRegCodeSecret = lifecycle.SecretRemoveRegCodeFinalizer(updateRegCodeSecret)
 
@@ -621,9 +621,31 @@ func (s *sccOnlineMode) Deregister() error {
 		}
 	}
 
-	if err := s.secretRepo.Controller.Delete(regCodeSecretRef.Namespace, regCodeSecretRef.Name, &metav1.DeleteOptions{}); err != nil {
+	if err := s.secretRepo.Controller.Delete(regCodeSecretRef.Namespace, regCodeSecretRef.Name, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		s.log.Debugf("failed to delete registration code secret %s/%s: %v", regCodeSecretRef.Namespace, regCodeSecretRef.Name, err)
 		return err
+	}
+
+	// Clean up registration URL certificate secret if it exists
+	regURLCertSecretRef := s.registration.Spec.RegistrationRequest.RegistrationAPICertificateSecretRef
+	if regURLCertSecretRef != nil {
+		regURLCertSecret, regURLCertErr := s.secretRepo.Get(regURLCertSecretRef.Namespace, regURLCertSecretRef.Name)
+		if regURLCertErr != nil && !apierrors.IsNotFound(regURLCertErr) {
+			return regURLCertErr
+		}
+		if regURLCertSecret != nil && lifecycle.SecretHasRegURLCertFinalizer(regURLCertSecret) {
+			updateRegURLCertSecret := regURLCertSecret.DeepCopy()
+			updateRegURLCertSecret = lifecycle.SecretRemoveRegURLCertFinalizer(updateRegURLCertSecret)
+
+			_, regURLCertErr = s.secretRepo.Controller.Update(updateRegURLCertSecret)
+			if regURLCertErr != nil {
+				return regURLCertErr
+			}
+		}
+
+		if err := s.secretRepo.Controller.Delete(regURLCertSecretRef.Namespace, regURLCertSecretRef.Name, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	return nil
