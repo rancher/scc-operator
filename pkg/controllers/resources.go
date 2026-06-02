@@ -282,7 +282,11 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 	secretName := params.regCodeSecretRef.Name
 
 	regcodeSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), secretName)
-	if err != nil && apierrors.IsNotFound(err) {
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, err
+		}
+
 		regcodeSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: h.options.SystemNamespace(),
@@ -312,7 +316,11 @@ func (h *handler) regURLCertFromSecretEntrypoint(params RegistrationParams) (*co
 	secretName := params.regURLCertSecretRef.Name
 
 	regURLCertSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), secretName)
-	if err != nil && apierrors.IsNotFound(err) {
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, err
+		}
+
 		regURLCertSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: h.options.SystemNamespace(),
