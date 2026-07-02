@@ -14,9 +14,7 @@ require (
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/gobuffalo/flect v1.0.3 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
-	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -51,7 +49,6 @@ require (
 	sigs.k8s.io/controller-tools v0.20.1 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.4.2 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )

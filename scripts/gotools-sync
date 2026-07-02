@@ -64,9 +64,10 @@ toolchain $TOOLCHAIN_VERSION
     rm -f "${modfile}.bak"
 
     if [ "$SKIP_TIDY" = false ]; then
-        # Run go mod tidy to update dependencies
+        # Run go mod tidy from inside the tool directory to avoid picking up deps from root module
+        tool_dir=$(dirname "$modfile")
         echo "  Running go mod tidy..."
-        go mod tidy -modfile="$modfile"
+        (cd "$tool_dir" && go mod tidy)
     fi
 
     echo "  Updated to go $GO_VERSION, toolchain $TOOLCHAIN_VERSION"
