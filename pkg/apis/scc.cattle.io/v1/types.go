@@ -45,7 +45,7 @@ const (
 // +kubebuilder:printcolumn:name="Mode",type=string,JSONPath=`.spec.mode`
 // +kubebuilder:printcolumn:name="Registration Active",type=boolean,JSONPath=`.status.activationStatus.activated`
 // +kubebuilder:printcolumn:name="System ID",type=integer,JSONPath=`.status.sccSystemID`
-// +kubebuilder:printcolumn:name="Last Sync",type="date",JSONPath=".status.activationStatus.lastValidatedTS"
+// +kubebuilder:printcolumn:name="Last Sync",type=date-time,JSONPath=".status.activationStatus.lastValidatedTS"
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type Registration struct {
@@ -58,12 +58,14 @@ type Registration struct {
 
 // RegistrationSpec is a description of a registration config
 type RegistrationSpec struct {
-	// +default:value="online"
+	// +kubebuilder:default=online
 	Mode RegistrationMode `json:"mode"`
 	// +optional
-	RegistrationRequest                     *RegistrationRequest    `json:"registrationRequest,omitempty"`
+	RegistrationRequest *RegistrationRequest `json:"registrationRequest,omitempty"`
+	// +optional
 	OfflineRegistrationCertificateSecretRef *corev1.SecretReference `json:"offlineRegistrationCertificateSecretRef,omitempty"`
-	SyncNow                                 *bool                   `json:"syncNow,omitempty"`
+	// +optional
+	SyncNow *bool `json:"syncNow,omitempty"`
 }
 
 func (rs *RegistrationSpec) WithoutSyncNow() RegistrationSpec {
@@ -97,7 +99,7 @@ type RegistrationStatus struct {
 	// +optional
 	SCCSystemID *int `json:"sccSystemID,omitempty"`
 	// +optional
-	RegisteredProduct *string `json:"registeredProduct"`
+	RegisteredProduct *string `json:"registeredProduct,omitempty"`
 	// +optional
 	RegistrationExpiresAt *metav1.Time `json:"registrationExpiresAt,omitempty"`
 
@@ -110,7 +112,7 @@ type RegistrationStatus struct {
 }
 
 type SystemActivationState struct {
-	// +default:value=false
+	// +kubebuilder:default=false
 	Activated bool `json:"activated"`
 	// +optional
 	LastValidatedTS *metav1.Time `json:"lastValidatedTS"`
