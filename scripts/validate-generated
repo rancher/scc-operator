@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+cd $(dirname $0)/..
+
+echo "Validating generated files are up to date..."
+
+# Run code generation
+go generate ./...
+
+# Check if any files were modified
+if [ -n "$(git status --porcelain)" ]; then
+    echo "ERROR: Generated files have either been changed manually or were not updated."
+    echo ""
+    echo "The following generated files differ after regeneration:"
+    git status --porcelain
+    echo ""
+    echo "Run 'go generate ./...' and commit the changes."
+    exit 1
+fi
+
+echo "✓ All generated files are up to date"

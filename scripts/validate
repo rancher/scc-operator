@@ -1,9 +1,14 @@
 #!/bin/bash
 set -e
 
-cd $(dirname $0)/..
+cd "$(dirname "$0")"
 
 echo "Running validation..."
+
+# Validate generated files are up to date
+./generated-validate
+
+cd ..
 
 if ! command -v golangci-lint; then
     echo Skipping validation: no golangci-lint available
