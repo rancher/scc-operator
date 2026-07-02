@@ -1,0 +1,58 @@
+#!/bin/bash
+set -e
+
+cd $(dirname $0)/..
+
+echo "Validating go.mod versions across main and gotools..."
+
+# Extract go and toolchain versions from main go.mod
+MAIN_GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')
+MAIN_TOOLCHAIN_VERSION=$(grep '^toolchain ' go.mod | awk '{print $2}')
+
+if [ -z "$MAIN_GO_VERSION" ]; then
+    echo "Error: Could not find go version in main go.mod"
+    exit 1
+fi
+
+echo "Main go.mod versions:"
+echo "  go: $MAIN_GO_VERSION"
+if [ -n "$MAIN_TOOLCHAIN_VERSION" ]; then
+    echo "  toolchain: $MAIN_TOOLCHAIN_VERSION"
+fi
+echo ""
+
+ERRORS=0
+
+# Check each gotools module
+for modfile in gotools/*/go.mod; do
+    if [ ! -f "$modfile" ]; then
+        continue
+    fi
+
+    TOOL_GO_VERSION=$(grep '^go ' "$modfile" | awk '{print $2}')
+    TOOL_TOOLCHAIN_VERSION=$(grep '^toolchain ' "$modfile" | awk '{print $2}')
+
+    # Check go version
+    if [ "$TOOL_GO_VERSION" != "$MAIN_GO_VERSION" ]; then
+        echo "ERROR: $modfile has go $TOOL_GO_VERSION (expected $MAIN_GO_VERSION)"
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    # Check toolchain version
+    if [ -n "$MAIN_TOOLCHAIN_VERSION" ]; then
+        if [ "$TOOL_TOOLCHAIN_VERSION" != "$MAIN_TOOLCHAIN_VERSION" ]; then
+            echo "ERROR: $modfile has toolchain $TOOL_TOOLCHAIN_VERSION (expected $MAIN_TOOLCHAIN_VERSION)"
+            ERRORS=$((ERRORS + 1))
+        fi
+    fi
+done
+
+if [ $ERRORS -eq 0 ]; then
+    echo "✓ All go.mod files are in sync"
+    exit 0
+else
+    echo ""
+    echo "Found $ERRORS version mismatch(es)"
+    echo "Run 'scripts/gotools-sync' to synchronize versions"
+    exit 1
+fi
