@@ -18,8 +18,6 @@ scripts/gotools-sync
 scripts/gotools-validate
 ```
 
-The sync script updates the version declarations but skips `go mod tidy` by default. You can run `go mod tidy -modfile=gotools/<tool>/go.mod` manually for each tool if needed.
-
 ## Managing tools
 
 **Using a tool**
