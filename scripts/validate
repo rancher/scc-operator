@@ -5,8 +5,11 @@ cd "$(dirname "$0")"
 
 echo "Running validation..."
 
+# Validate gotools are in sync
+./gotools-validate
+
 # Validate generated files are up to date
-./generated-validate
+./validate-generated
 
 cd ..
 
