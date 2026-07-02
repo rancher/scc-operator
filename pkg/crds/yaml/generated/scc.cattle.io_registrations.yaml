@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.17.1
+    controller-gen.kubebuilder.io/version: v0.20.1
   name: registrations.scc.cattle.io
 spec:
   group: scc.cattle.io
@@ -26,7 +26,7 @@ spec:
       type: integer
     - jsonPath: .status.activationStatus.lastValidatedTS
       name: Last Sync
-      type: date
+      type: date-time
     name: v1
     schema:
       openAPIV3Schema:
