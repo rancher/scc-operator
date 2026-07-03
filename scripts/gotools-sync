@@ -1,0 +1,82 @@
+#!/bin/bash
+set -e
+
+cd $(dirname $0)/..
+
+# Parse command line args
+SKIP_TIDY=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --skip-tidy)
+            SKIP_TIDY=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--skip-tidy]"
+            exit 1
+            ;;
+    esac
+done
+
+echo "Syncing go.mod versions from main to gotools..."
+
+# Extract go and toolchain versions from main go.mod
+GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')
+TOOLCHAIN_VERSION=$(grep '^toolchain ' go.mod | awk '{print $2}')
+
+if [ -z "$GO_VERSION" ]; then
+    echo "Error: Could not find go version in main go.mod"
+    exit 1
+fi
+
+echo "Main go.mod versions:"
+echo "  go: $GO_VERSION"
+if [ -n "$TOOLCHAIN_VERSION" ]; then
+    echo "  toolchain: $TOOLCHAIN_VERSION"
+fi
+
+# Update each gotools module
+for modfile in gotools/*/go.mod; do
+    if [ ! -f "$modfile" ]; then
+        continue
+    fi
+
+    echo ""
+    echo "Updating $modfile..."
+
+    # Update go version
+    sed -i.bak "s/^go .*/go $GO_VERSION/" "$modfile"
+
+    # Update toolchain version (or add it if missing)
+    if [ -n "$TOOLCHAIN_VERSION" ]; then
+        if grep -q '^toolchain ' "$modfile"; then
+            sed -i.bak "s/^toolchain .*/toolchain $TOOLCHAIN_VERSION/" "$modfile"
+        else
+            # Add toolchain line after go line
+            sed -i.bak "/^go /a\\
+toolchain $TOOLCHAIN_VERSION
+" "$modfile"
+        fi
+    fi
+
+    # Remove backup file
+    rm -f "${modfile}.bak"
+
+    if [ "$SKIP_TIDY" = false ]; then
+        # Run go mod tidy from inside the tool directory to avoid picking up deps from root module
+        tool_dir=$(dirname "$modfile")
+        echo "  Running go mod tidy..."
+        (cd "$tool_dir" && go mod tidy)
+    fi
+
+    echo "  Updated to go $GO_VERSION, toolchain $TOOLCHAIN_VERSION"
+done
+
+echo ""
+if [ "$SKIP_TIDY" = true ]; then
+    echo "All gotools modules synchronized! (skipped go mod tidy)"
+    echo "Note: You may want to run 'go mod tidy -modfile=<file>' manually for each tool"
+else
+    echo "All gotools modules synchronized!"
+fi

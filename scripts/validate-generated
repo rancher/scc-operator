@@ -1,0 +1,43 @@
+#!/bin/bash
+set -e
+
+cd $(dirname $0)/..
+
+echo "Validating generated files are up to date..."
+
+# Capture git state before generation
+before=$(git status --porcelain)
+
+# Warn if repo is already dirty
+if [ -n "$before" ]; then
+    echo "WARNING: Repository has uncommitted changes before running 'go generate':"
+    echo "$before"
+    echo ""
+fi
+
+# Run code generation
+go generate ./...
+
+# Capture git state after generation
+after=$(git status --porcelain)
+
+# Check if go generate modified anything
+if [ "$before" != "$after" ]; then
+    echo "ERROR: Generated files have either been changed manually or were not updated."
+    echo ""
+    echo "The following files changed after running 'go generate':"
+    # Show the diff between before and after states
+    diff <(echo "$before") <(echo "$after") | grep "^>" | sed 's/^> //' || git diff --name-only HEAD
+    echo ""
+    echo "Run 'go generate ./...' and commit the changes."
+    exit 1
+fi
+
+echo "✓ All generated files are up to date"
+
+# Remind if repo was dirty before we started
+if [ -n "$before" ]; then
+    echo ""
+    echo "NOTE: Repository still has uncommitted changes (existed before validation):"
+    echo "$before"
+fi
