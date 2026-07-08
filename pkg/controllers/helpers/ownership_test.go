@@ -151,13 +151,13 @@ func TestShouldManage(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:    "registration with hasManagedBy label",
+			name:    "registration with both labels matching",
 			manager: "test-manager",
 			input: &v1.Registration{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						consts.LabelK8sManagedBy: "test-manager",
-						consts.LabelSccManagedBy: "test-value",
+						consts.LabelSccManagedBy: "test-manager_secret-broker",
 					},
 				},
 			},
@@ -177,12 +177,12 @@ func TestShouldManage(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:    "secret with hasManagedBy label",
+			name:    "secret with both labels matching",
 			manager: "test-manager",
 			input: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						consts.LabelSccManagedBy: "test-value",
+						consts.LabelSccManagedBy: "test-manager_secret-broker",
 						consts.LabelK8sManagedBy: "test-manager",
 					},
 				},
@@ -223,23 +223,24 @@ func TestTakeOwnership(t *testing.T) {
 			expectedShouldManage: false,
 			expectedLabels: map[string]string{
 				consts.LabelK8sManagedBy: "test-manager",
+				consts.LabelSccManagedBy: "test-manager_secret-broker",
 			},
 		},
 		{
-			name:    "registration with hasManagedBy label",
+			name:    "registration with both labels matching",
 			manager: "test-manager",
 			input: &v1.Registration{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						consts.LabelK8sManagedBy: "test-manager",
-						consts.LabelSccManagedBy: "test-value",
+						consts.LabelSccManagedBy: "test-manager_secret-broker",
 					},
 				},
 			},
-			expectedShouldManage: true,
+			expectedShouldManage: true, // Both labels match
 			expectedLabels: map[string]string{
 				consts.LabelK8sManagedBy: "test-manager",
-				consts.LabelSccManagedBy: "test-value",
+				consts.LabelSccManagedBy: "test-manager_secret-broker",
 			},
 		},
 		{
@@ -256,23 +257,23 @@ func TestTakeOwnership(t *testing.T) {
 			expectedShouldManage: false,
 			expectedLabels: map[string]string{
 				consts.LabelK8sManagedBy: "different-test-manager",
-				consts.LabelSccManagedBy: "test-value",
+				consts.LabelSccManagedBy: "different-test-manager_secret-broker", // TakeOwnership overwrites both
 			},
 		},
 		{
-			name:    "secret with hasManagedBy label",
+			name:    "secret with both labels matching",
 			manager: "test-manager",
 			input: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						consts.LabelSccManagedBy: "test-value",
+						consts.LabelSccManagedBy: "test-manager_secret-broker",
 						consts.LabelK8sManagedBy: "test-manager",
 					},
 				},
 			},
-			expectedShouldManage: true,
+			expectedShouldManage: true, // Both labels match
 			expectedLabels: map[string]string{
-				consts.LabelSccManagedBy: "test-value",
+				consts.LabelSccManagedBy: "test-manager_secret-broker",
 				consts.LabelK8sManagedBy: "test-manager",
 			},
 		},
@@ -283,6 +284,7 @@ func TestTakeOwnership(t *testing.T) {
 			expectedShouldManage: false,
 			expectedLabels: map[string]string{
 				consts.LabelK8sManagedBy: "test-manager",
+				consts.LabelSccManagedBy: "test-manager_secret-broker",
 			},
 		},
 	}

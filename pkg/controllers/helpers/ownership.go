@@ -9,6 +9,11 @@ import (
 
 // These are helpers related to consts.LabelK8sManagedBy used to track resource ownership.
 
+// SccManagedByValue constructs the SCC managed-by label value in the format "<operator>_secret-broker"
+func SccManagedByValue(operatorName string) string {
+	return operatorName + "_" + consts.ManagedByValueSecretBroker
+}
+
 func HasManagedByLabel[T metav1.Object](incomingObj T) bool {
 	objectLabels := incomingObj.GetLabels()
 	_, hasManagedBy := objectLabels[consts.LabelK8sManagedBy]
@@ -21,23 +26,42 @@ func GetManagedByValue[T metav1.Object](incomingObj T) string {
 	return objectLabels[consts.LabelK8sManagedBy]
 }
 
-// ShouldManage will verify that this operator should manage a given object
+// ShouldManage will verify that this operator should manage a given object.
+// Checks both k8s and SCC managed-by labels. Treats Helm as manageable.
 func ShouldManage[T metav1.Object](incomingObj T, expectedManager string) bool {
 	objectLabels := incomingObj.GetLabels()
 	managedBy, hasManagedBy := objectLabels[consts.LabelK8sManagedBy]
+	managedBySCC, hasManagedBySCC := objectLabels[consts.LabelSccManagedBy]
+	expectedSCCManager := SccManagedByValue(expectedManager)
 
-	return hasManagedBy && managedBy == expectedManager
+	// Has k8s label only (backwards compatibility)
+	if hasManagedBy && !hasManagedBySCC {
+		return managedBy == expectedManager
+	}
+
+	// Has both labels
+	if hasManagedBy && hasManagedBySCC {
+		return managedBySCC == expectedSCCManager && (managedBy == expectedManager || managedBy == "Helm")
+	}
+
+	return false
 }
 
-// TakeOwnership will set or overwrite the value of the k8s managed-by label
+// TakeOwnership sets the k8s and SCC managed-by labels.
+// Preserves app.kubernetes.io/managed-by if it's set to "Helm".
 func TakeOwnership[T generic.RuntimeMetaObject](incomingObj T, owner string) T {
 	objectLabels := incomingObj.GetLabels()
 	if objectLabels == nil {
 		objectLabels = map[string]string{
 			consts.LabelK8sManagedBy: owner,
+			consts.LabelSccManagedBy: SccManagedByValue(owner),
 		}
 	} else {
-		objectLabels[consts.LabelK8sManagedBy] = owner
+		// Only overwrite k8s managed-by if it's not Helm
+		if objectLabels[consts.LabelK8sManagedBy] != "Helm" {
+			objectLabels[consts.LabelK8sManagedBy] = owner
+		}
+		objectLabels[consts.LabelSccManagedBy] = SccManagedByValue(owner)
 	}
 
 	incomingObj.SetLabels(objectLabels)
@@ -55,72 +79,4 @@ func HasSccManagedByLabel[T metav1.Object](incomingObj T) bool {
 func GetSccManagedByValue[T metav1.Object](incomingObj T) string {
 	objectLabels := incomingObj.GetLabels()
 	return objectLabels[consts.LabelSccManagedBy]
-}
-
-// ShouldManageByScc checks if this operator should manage based on SCC label.
-// Falls back to k8s managed-by for backwards compatibility.
-// Special case: Helm-managed resources are treated as manageable by this operator.
-func ShouldManageByScc[T metav1.Object](incomingObj T, expectedManager string) bool {
-	objectLabels := incomingObj.GetLabels()
-
-	// If the caller passes the SCC managed-by value (e.g. "<operator>_secret-broker"),
-	// derive the expected k8s managed-by value ("<operator>") for fallback behavior.
-	expectedK8sManager := expectedManager
-	suffix := "_" + consts.ManagedByValueSecretBroker
-	if len(expectedManager) > len(suffix) && expectedManager[len(expectedManager)-len(suffix):] == suffix {
-		expectedK8sManager = expectedManager[:len(expectedManager)-len(suffix)]
-	}
-
-	// Check SCC-specific label first (new behavior)
-	sccManagedBy, hasSccManagedBy := objectLabels[consts.LabelSccManagedBy]
-	if hasSccManagedBy {
-		return sccManagedBy == expectedManager
-	}
-
-	// Check k8s managed-by
-	k8sManagedBy, hasK8sManagedBy := objectLabels[consts.LabelK8sManagedBy]
-	if hasK8sManagedBy {
-		// Treat Helm-managed resources as manageable by this operator.
-		// This allows Helm-deployed entrypoint secrets to be processed without requiring
-		// the operator to overwrite app.kubernetes.io/managed-by.
-		if k8sManagedBy == "Helm" {
-			return true
-		}
-		// Fall back to exact match for backwards compatibility
-		return k8sManagedBy == expectedK8sManager
-	}
-
-	// If neither label is set, resource is unmanaged
-	return false
-}
-
-// TakeSccOwnership sets the SCC managed-by label without touching k8s managed-by.
-// Use this to adopt resources that may be managed by other tools (e.g., Helm).
-func TakeSccOwnership[T generic.RuntimeMetaObject](incomingObj T, owner string) T {
-	objectLabels := incomingObj.GetLabels()
-	if objectLabels == nil {
-		objectLabels = map[string]string{
-			consts.LabelSccManagedBy: owner,
-		}
-	} else {
-		objectLabels[consts.LabelSccManagedBy] = owner
-	}
-
-	incomingObj.SetLabels(objectLabels)
-	return incomingObj
-}
-
-// TakeFullOwnership sets both SCC and k8s managed-by labels.
-// Use this for resources created and fully owned by the operator.
-func TakeFullOwnership[T generic.RuntimeMetaObject](incomingObj T, owner string) T {
-	objectLabels := incomingObj.GetLabels()
-	if objectLabels == nil {
-		objectLabels = map[string]string{}
-	}
-
-	objectLabels[consts.LabelSccManagedBy] = owner
-	objectLabels[consts.LabelK8sManagedBy] = owner
-
-	incomingObj.SetLabels(objectLabels)
-	return incomingObj
 }
