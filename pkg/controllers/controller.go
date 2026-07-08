@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -155,7 +154,13 @@ func (h *handler) prepareHandler(registrationObj *v1.Registration, rancherURL st
 		consts.LabelSccHash:      registrationObj.Labels[consts.LabelSccHash],
 		consts.LabelNameSuffix:   nameSuffixHash,
 		consts.LabelSccManagedBy: controllerID,
-		consts.LabelK8sManagedBy: initializer.OperatorName.Get(),
+	}
+
+	// Only set k8s managed-by if not already present on Registration (preserve Helm ownership)
+	if existingK8sManagedBy := registrationObj.Labels[consts.LabelK8sManagedBy]; existingK8sManagedBy != "" {
+		defaultLabels[consts.LabelK8sManagedBy] = existingK8sManagedBy
+	} else {
+		defaultLabels[consts.LabelK8sManagedBy] = initializer.OperatorName.Get()
 	}
 
 	if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
@@ -206,25 +211,30 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 
 	// This only applies to the SCC Entrypoint secrets - currently only used for/by Rancher
 	// This will adopt "unowned" secrets and ignore any that are owned by other operators
-	if !helpers.ShouldManage(incomingObj, h.options.OperatorName) {
-		// When the secret has no managedBy label, we should assume ownership I guess?
-		if !helpers.HasManagedByLabel(incomingObj) {
-			h.log.Debugf("taking ownership of the unowned entrypoint secret")
+	// Check if we should manage this secret based on SCC label
+	if !helpers.ShouldManageByScc(incomingObj, h.options.OperatorName) {
+		// Check if the secret has NO SCC managed-by label (newly created by Helm or user)
+		if !helpers.HasSccManagedByLabel(incomingObj) {
+			h.log.Debugf("taking SCC ownership of the unmanaged entrypoint secret")
 			prepared := incomingObj.DeepCopy()
-			prepared = helpers.TakeOwnership(prepared, h.options.OperatorName)
+
+			// Only set SCC managed-by label, preserve existing k8s managed-by (e.g., "Helm")
+			prepared = helpers.TakeSccOwnership(prepared, h.options.OperatorName)
+
 			_, updateErr := h.secretRepo.RetryingPatchUpdate(incomingObj, prepared)
 			if updateErr != nil {
-				h.log.Errorf("failed to take ownership of secret %s/%s: %v", incomingObj.Namespace, incomingObj.Name, updateErr)
+				h.log.Errorf("failed to take SCC ownership of secret %s/%s: %v", incomingObj.Namespace, incomingObj.Name, updateErr)
 				return incomingObj, updateErr
 			}
 
-			h.log.Debugf("Secret %s/%s is now managed by %s", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
+			h.log.Debugf("Secret %s/%s is now SCC-managed by %s", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
 
 			return incomingObj, nil
 		}
 
-		managedBy := helpers.GetManagedByValue(incomingObj)
-		h.log.Debugf("Secret %s/%s is managed by %s not %s, skipping", incomingObj.Namespace, incomingObj.Name, managedBy, h.options.OperatorName)
+		// Secret has SCC managed-by label but for a different operator
+		sccManagedBy := helpers.GetSccManagedByValue(incomingObj)
+		h.log.Debugf("Secret %s/%s is SCC-managed by %s not %s, skipping", incomingObj.Namespace, incomingObj.Name, sccManagedBy, h.options.OperatorName)
 		return incomingObj, nil
 	}
 
@@ -247,7 +257,16 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 			newSecret.Annotations = map[string]string{}
 		}
 		newSecret.Annotations[consts.LabelSccLastProcessed] = time.Now().Format(time.RFC3339)
-		maps.Copy(newSecret.Labels, params.Labels())
+
+		// Merge params labels, but preserve existing app.kubernetes.io/managed-by
+		paramsLabels := params.Labels()
+		for k, v := range paramsLabels {
+			// Don't overwrite k8s managed-by if already set (e.g., by Helm)
+			if k == consts.LabelK8sManagedBy && newSecret.Labels[k] != "" {
+				continue
+			}
+			newSecret.Labels[k] = v
+		}
 
 		_, updateErr := h.secretRepo.RetryingPatchUpdate(incomingObj, newSecret)
 		if updateErr != nil {
@@ -291,9 +310,15 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 	}
 	newSecret.Annotations[consts.LabelSccLastProcessed] = time.Now().Format(time.RFC3339)
 
-	labels := incomingObj.Labels
-	maps.Copy(labels, params.Labels())
-	newSecret.Labels = labels
+	// Merge params labels, but preserve existing app.kubernetes.io/managed-by
+	paramsLabels := params.Labels()
+	for k, v := range paramsLabels {
+		// Don't overwrite k8s managed-by if already set (e.g., by Helm)
+		if k == consts.LabelK8sManagedBy && newSecret.Labels[k] != "" {
+			continue
+		}
+		newSecret.Labels[k] = v
+	}
 
 	if _, err := h.secretRepo.RetryingPatchUpdate(incomingObj, newSecret); err != nil {
 		return incomingObj, err
@@ -436,8 +461,8 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 		return incomingObj, nil
 	}
 
-	if !helpers.ShouldManage(incomingObj, h.options.OperatorName) {
-		h.log.Debugf("Secret %s/%s is not managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
+	if !helpers.ShouldManageByScc(incomingObj, h.options.OperatorName) {
+		h.log.Debugf("Secret %s/%s is not SCC-managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
 		return incomingObj, nil
 	}
 
