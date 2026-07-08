@@ -177,9 +177,8 @@ type RegistrationParams struct {
 	offlineCertSecretRef *corev1.SecretReference
 }
 
-// Labels produces the labels to apply to related resources
-// Note: This is used for operator-created resources (Registration CR, derived Secrets),
-// NOT for updating the entrypoint Secret (which preserves its original k8s managed-by label)
+// Labels produces the labels to apply to related resources.
+// For the entrypoint Secret, these labels may be merged while preserving its existing app.kubernetes.io/managed-by label.
 func (r RegistrationParams) Labels() map[string]string {
 	return map[string]string{
 		consts.LabelNameSuffix:   r.nameID,

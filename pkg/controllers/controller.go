@@ -212,14 +212,16 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 	// This only applies to the SCC Entrypoint secrets - currently only used for/by Rancher
 	// This will adopt "unowned" secrets and ignore any that are owned by other operators
 	// Check if we should manage this secret based on SCC label
-	if !helpers.ShouldManageByScc(incomingObj, h.options.OperatorName) {
+	// Use the same SCC manager value format that we write via params.Labels()
+	expectedSccManager := fmt.Sprintf("%s_%s", h.options.OperatorName, consts.ManagedByValueSecretBroker)
+	if !helpers.ShouldManageByScc(incomingObj, expectedSccManager) {
 		// Check if the secret has NO SCC managed-by label (newly created by Helm or user)
 		if !helpers.HasSccManagedByLabel(incomingObj) {
 			h.log.Debugf("taking SCC ownership of the unmanaged entrypoint secret")
 			prepared := incomingObj.DeepCopy()
 
 			// Only set SCC managed-by label, preserve existing k8s managed-by (e.g., "Helm")
-			prepared = helpers.TakeSccOwnership(prepared, h.options.OperatorName)
+			prepared = helpers.TakeSccOwnership(prepared, expectedSccManager)
 
 			_, updateErr := h.secretRepo.RetryingPatchUpdate(incomingObj, prepared)
 			if updateErr != nil {
@@ -227,14 +229,14 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 				return incomingObj, updateErr
 			}
 
-			h.log.Debugf("Secret %s/%s is now SCC-managed by %s", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
+			h.log.Debugf("Secret %s/%s is now SCC-managed by %s", incomingObj.Namespace, incomingObj.Name, expectedSccManager)
 
 			return incomingObj, nil
 		}
 
 		// Secret has SCC managed-by label but for a different operator
 		sccManagedBy := helpers.GetSccManagedByValue(incomingObj)
-		h.log.Debugf("Secret %s/%s is SCC-managed by %s not %s, skipping", incomingObj.Namespace, incomingObj.Name, sccManagedBy, h.options.OperatorName)
+		h.log.Debugf("Secret %s/%s is SCC-managed by %s not %s, skipping", incomingObj.Namespace, incomingObj.Name, sccManagedBy, expectedSccManager)
 		return incomingObj, nil
 	}
 
@@ -482,8 +484,10 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 	// For entrypoint Secret, use ShouldManageByScc (supports Helm-managed Secrets)
 	// For other operator-created Secrets, use ShouldManage (checks k8s managed-by)
 	if h.isSCCEntrypointSecret(incomingObj) {
-		if !helpers.ShouldManageByScc(incomingObj, h.options.OperatorName) {
-			h.log.Debugf("Secret %s/%s is not SCC-managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
+		// Use the same SCC manager value format that we write during reconcile
+		expectedSccManager := fmt.Sprintf("%s_%s", h.options.OperatorName, consts.ManagedByValueSecretBroker)
+		if !helpers.ShouldManageByScc(incomingObj, expectedSccManager) {
+			h.log.Debugf("Secret %s/%s is not SCC-managed by %s, skipping", incomingObj.Namespace, incomingObj.Name, expectedSccManager)
 			return incomingObj, nil
 		}
 		hash, ok := incomingObj.Labels[consts.LabelNameSuffix]
