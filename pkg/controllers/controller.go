@@ -217,6 +217,14 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 	if !helpers.ShouldManageByScc(incomingObj, expectedSccManager) {
 		// Check if the secret has NO SCC managed-by label (newly created by Helm or user)
 		if !helpers.HasSccManagedByLabel(incomingObj) {
+			// Only adopt if the Secret is unowned or Helm-managed
+			// Ignore Secrets explicitly owned by other tools
+			k8sManagedBy := helpers.GetManagedByValue(incomingObj)
+			if k8sManagedBy != "" && k8sManagedBy != "Helm" {
+				h.log.Debugf("Secret %s/%s is managed by %s (not Helm or unowned), skipping adoption", incomingObj.Namespace, incomingObj.Name, k8sManagedBy)
+				return incomingObj, nil
+			}
+
 			h.log.Debugf("taking SCC ownership of the unmanaged entrypoint secret")
 			prepared := incomingObj.DeepCopy()
 

@@ -180,6 +180,18 @@ func TestShouldManageByScc(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:    "Falls back to k8s label when SCC manager has _secret-broker suffix",
+			manager: "test-manager_secret-broker",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelK8sManagedBy: "test-manager",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
 			name:    "Helm label is treated as manageable",
 			manager: "test-manager",
 			input: &corev1.Secret{

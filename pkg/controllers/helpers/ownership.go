@@ -63,6 +63,14 @@ func GetSccManagedByValue[T metav1.Object](incomingObj T) string {
 func ShouldManageByScc[T metav1.Object](incomingObj T, expectedManager string) bool {
 	objectLabels := incomingObj.GetLabels()
 
+	// If the caller passes the SCC managed-by value (e.g. "<operator>_secret-broker"),
+	// derive the expected k8s managed-by value ("<operator>") for fallback behavior.
+	expectedK8sManager := expectedManager
+	suffix := "_" + consts.ManagedByValueSecretBroker
+	if len(expectedManager) > len(suffix) && expectedManager[len(expectedManager)-len(suffix):] == suffix {
+		expectedK8sManager = expectedManager[:len(expectedManager)-len(suffix)]
+	}
+
 	// Check SCC-specific label first (new behavior)
 	sccManagedBy, hasSccManagedBy := objectLabels[consts.LabelSccManagedBy]
 	if hasSccManagedBy {
@@ -79,7 +87,7 @@ func ShouldManageByScc[T metav1.Object](incomingObj T, expectedManager string) b
 			return true
 		}
 		// Fall back to exact match for backwards compatibility
-		return k8sManagedBy == expectedManager
+		return k8sManagedBy == expectedK8sManager
 	}
 
 	// If neither label is set, resource is unmanaged
