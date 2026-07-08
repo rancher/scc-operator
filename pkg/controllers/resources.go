@@ -15,7 +15,6 @@ import (
 	"github.com/rancher/scc-operator/internal/consts"
 	coreUtil "github.com/rancher/scc-operator/internal/initializer"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
-	"github.com/rancher/scc-operator/pkg/controllers/helpers"
 	"github.com/rancher/scc-operator/pkg/controllers/lifecycle"
 	"github.com/rancher/scc-operator/pkg/util/salt"
 )
@@ -184,7 +183,7 @@ func (r RegistrationParams) Labels() map[string]string {
 	return map[string]string{
 		consts.LabelNameSuffix:   r.nameID,
 		consts.LabelSccHash:      r.contentHash,
-		consts.LabelSccManagedBy: helpers.SccManagedByValue(r.managedByName),
+		consts.LabelSccManagedBy: consts.SccManagedByValue(r.managedByName),
 		consts.LabelK8sManagedBy: r.managedByName, // Always use operator name for operator-created resources
 	}
 }

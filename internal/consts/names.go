@@ -32,3 +32,8 @@ func OfflineRequestSecretName(namePartIn string) string {
 func OfflineCertificateSecretName(namePartIn string) string {
 	return fmt.Sprintf("%s%s", OfflineCertificateSecretNamePrefix, namePartIn)
 }
+
+// SccManagedByValue constructs the SCC managed-by label value in the format "<operator>_secret-broker"
+func SccManagedByValue(operatorName string) string {
+	return fmt.Sprintf("%s_%s", operatorName, ManagedByValueSecretBroker)
+}
