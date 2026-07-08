@@ -144,16 +144,8 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 	contentsID := hex.EncodeToString(hasher.Sum(nil))
 	extractParamsLog.Debugf("incoming %s/%s secret hashes; name hash: %s, content hash: %s", secret.Namespace, secret.Name, nameID, contentsID)
 
-	// Preserve existing app.kubernetes.io/managed-by label (e.g., "Helm")
-	existingK8sManagedBy := secret.GetLabels()[consts.LabelK8sManagedBy]
-	if existingK8sManagedBy == "" {
-		// If not set, default to operator name for backwards compatibility
-		existingK8sManagedBy = managedByName
-	}
-
 	return RegistrationParams{
 		managedByName: managedByName,
-		k8sManagedBy:  existingK8sManagedBy,
 		regType:       regMode,
 		nameID:        nameID,
 		contentHash:   contentsID,
@@ -174,7 +166,6 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 
 type RegistrationParams struct {
 	managedByName        string
-	k8sManagedBy         string // Preserve existing k8s managed-by label (e.g., "Helm")
 	regType              v1.RegistrationMode
 	nameID               string
 	contentHash          string
@@ -187,20 +178,15 @@ type RegistrationParams struct {
 }
 
 // Labels produces the labels to apply to related resources
+// Note: This is used for operator-created resources (Registration CR, derived Secrets),
+// NOT for updating the entrypoint Secret (which preserves its original k8s managed-by label)
 func (r RegistrationParams) Labels() map[string]string {
-	labels := map[string]string{
+	return map[string]string{
 		consts.LabelNameSuffix:   r.nameID,
 		consts.LabelSccHash:      r.contentHash,
 		consts.LabelSccManagedBy: r.managedByName + "_" + consts.ManagedByValueSecretBroker,
+		consts.LabelK8sManagedBy: r.managedByName, // Always use operator name for operator-created resources
 	}
-
-	// Only set k8s managed-by if provided (preserve Helm ownership)
-	// This is set in extractRegistrationParamsFromSecret based on existing label
-	if r.k8sManagedBy != "" {
-		labels[consts.LabelK8sManagedBy] = r.k8sManagedBy
-	}
-
-	return labels
 }
 
 // registrationFromSecretEntrypoint will produce a valid Registration object desired state based on Entrypoint secret

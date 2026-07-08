@@ -59,7 +59,7 @@ func GetSccManagedByValue[T metav1.Object](incomingObj T) string {
 
 // ShouldManageByScc checks if this operator should manage based on SCC label.
 // Falls back to k8s managed-by for backwards compatibility.
-// Special case: Helm-managed resources are treated as manageable.
+// Special case: Helm-managed resources are treated as manageable by this operator.
 func ShouldManageByScc[T metav1.Object](incomingObj T, expectedManager string) bool {
 	objectLabels := incomingObj.GetLabels()
 
@@ -72,9 +72,9 @@ func ShouldManageByScc[T metav1.Object](incomingObj T, expectedManager string) b
 	// Check k8s managed-by
 	k8sManagedBy, hasK8sManagedBy := objectLabels[consts.LabelK8sManagedBy]
 	if hasK8sManagedBy {
-		// Treat Helm-managed resources as equal to rancher-scc-operator
-		// This allows Helm-deployed secrets to be processed without requiring
-		// a second reconciliation pass
+		// Treat Helm-managed resources as manageable by this operator.
+		// This allows Helm-deployed entrypoint secrets to be processed without requiring
+		// the operator to overwrite app.kubernetes.io/managed-by.
 		if k8sManagedBy == "Helm" {
 			return true
 		}
