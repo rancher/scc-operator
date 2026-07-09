@@ -112,6 +112,10 @@ Automated update from ${SOURCE_REPO} release ${TAG}"
 
   # Create PR
   summary "  - Creating PR..."
+
+  # Format branch name for title: strip "release/" prefix
+  BRANCH_LABEL="${TARGET_BRANCH#release/}"
+
   PR_BODY="## Summary
 Update SCC Operator image to [\`${TAG}\`](https://github.com/${SOURCE_REPO}/releases/tag/${TAG})
 
@@ -123,7 +127,7 @@ Update SCC Operator image to [\`${TAG}\`](https://github.com/${SOURCE_REPO}/rele
     --repo rancher/rancher \
     --base "$TARGET_BRANCH" \
     --head "$BRANCH_NAME" \
-    --title "Update SCC Operator to ${TAG}" \
+    --title "[${BRANCH_LABEL}] Update SCC Operator to ${TAG}" \
     --body "$PR_BODY" \
     --label "status/auto-created" 2>&1; then
     summary "  ✓ PR created successfully"
