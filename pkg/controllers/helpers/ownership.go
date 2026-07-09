@@ -29,7 +29,12 @@ func ShouldAdopt[T metav1.Object](incomingObj T, expectedManager string) bool {
 	managedBySCC, hasManagedBySCC := objectLabels[consts.LabelSccManagedBy]
 	expectedSCCManager := consts.SccManagedByValue(expectedManager)
 
-	// No labels at all = unmanaged, should adopt
+	// No labels at all - unmanaged resource, should adopt
+	if !hasManagedBy && !hasManagedBySCC {
+		return true
+	}
+
+	// Has k8s label only (backwards compatibility)
 	if hasManagedBy && !hasManagedBySCC {
 		return managedBy == expectedManager || managedBy == "Helm"
 	}
@@ -55,7 +60,7 @@ func ShouldManage[T metav1.Object](incomingObj T, expectedManager string) bool {
 	managedBySCC, hasManagedBySCC := objectLabels[consts.LabelSccManagedBy]
 	expectedSCCManager := consts.SccManagedByValue(expectedManager)
 
-	// No labels at all = unmanaged, should adopt
+	// Has k8s label only (backwards compatibility)
 	if hasManagedBy && !hasManagedBySCC {
 		return managedBy == expectedManager
 	}

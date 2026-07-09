@@ -219,7 +219,7 @@ func TestShouldAdopt(t *testing.T) {
 			name:     "no labels at all - should adopt",
 			manager:  "test-manager",
 			input:    &v1.Registration{},
-			expected: false, // No labels means nothing to match against
+			expected: true, // Unmanaged resource should be adopted
 		},
 		{
 			name:    "k8s label only - matching operator - should adopt",
