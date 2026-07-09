@@ -29,27 +29,13 @@ func ShouldAdopt[T metav1.Object](incomingObj T, expectedManager string) bool {
 	managedBySCC, hasManagedBySCC := objectLabels[consts.LabelSccManagedBy]
 	expectedSCCManager := consts.SccManagedByValue(expectedManager)
 
-	// No labels at all - unmanaged resource, should adopt
-	if !hasManagedBy && !hasManagedBySCC {
-		return true
-	}
+	// Check k8s label if present: must match expectedManager OR be "Helm" (we can adopt from Helm)
+	k8sOK := !hasManagedBy || managedBy == expectedManager || managedBy == "Helm"
 
-	// Has k8s label only (backwards compatibility)
-	if hasManagedBy && !hasManagedBySCC {
-		return managedBy == expectedManager || managedBy == "Helm"
-	}
+	// Check SCC label if present: must match expectedSCCManager
+	sccOK := !hasManagedBySCC || managedBySCC == expectedSCCManager
 
-	// Has SCC label only (manual edit or corruption - trust our label)
-	if !hasManagedBy && hasManagedBySCC {
-		return managedBySCC == expectedSCCManager
-	}
-
-	// Has both labels
-	if hasManagedBy && hasManagedBySCC {
-		return managedBySCC == expectedSCCManager && (managedBy == expectedManager || managedBy == "Helm")
-	}
-
-	return false
+	return k8sOK && sccOK
 }
 
 // ShouldManage checks if this operator already manages a resource.
@@ -60,22 +46,14 @@ func ShouldManage[T metav1.Object](incomingObj T, expectedManager string) bool {
 	managedBySCC, hasManagedBySCC := objectLabels[consts.LabelSccManagedBy]
 	expectedSCCManager := consts.SccManagedByValue(expectedManager)
 
-	// Has k8s label only (backwards compatibility)
-	if hasManagedBy && !hasManagedBySCC {
-		return managedBy == expectedManager
-	}
+	// Check k8s label if present: must match expectedManager (not Helm-only) OR be Helm with matching SCC
+	k8sOK := !hasManagedBy || managedBy == expectedManager || (managedBy == "Helm" && hasManagedBySCC)
 
-	// Has SCC label only (manual edit or corruption - trust our label)
-	if !hasManagedBy && hasManagedBySCC {
-		return managedBySCC == expectedSCCManager
-	}
+	// Check SCC label if present: must match expectedSCCManager
+	sccOK := !hasManagedBySCC || managedBySCC == expectedSCCManager
 
-	// Has both labels
-	if hasManagedBy && hasManagedBySCC {
-		return managedBySCC == expectedSCCManager && (managedBy == expectedManager || managedBy == "Helm")
-	}
-
-	return false
+	// At least one of our labels must be present and both must be valid
+	return (hasManagedBy || hasManagedBySCC) && k8sOK && sccOK
 }
 
 // TakeOwnership sets the k8s and SCC managed-by labels.
