@@ -207,6 +207,239 @@ func TestShouldManage(t *testing.T) {
 	}
 }
 
+func TestShouldAdopt(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		manager  string
+		input    runtimeMetaObject
+		expected bool
+	}{
+		{
+			name:     "no labels at all - should adopt",
+			manager:  "test-manager",
+			input:    &v1.Registration{},
+			expected: false, // No labels means nothing to match against
+		},
+		{
+			name:    "k8s label only - matching operator - should adopt",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelK8sManagedBy: "test-manager",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name:    "k8s label only - Helm - should adopt",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelK8sManagedBy: "Helm",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name:    "k8s label only - different operator - should NOT adopt",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelK8sManagedBy: "argocd",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name:    "SCC label only - matching - should adopt (fallback case)",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelSccManagedBy: "test-manager_secret-broker",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name:    "SCC label only - not matching - should NOT adopt",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelSccManagedBy: "other-operator_secret-broker",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name:    "both labels - matching operator - should adopt",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelK8sManagedBy: "test-manager",
+						consts.LabelSccManagedBy: "test-manager_secret-broker",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name:    "both labels - Helm k8s + matching SCC - should adopt",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelK8sManagedBy: "Helm",
+						consts.LabelSccManagedBy: "test-manager_secret-broker",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name:    "both labels - matching k8s but wrong SCC format - should NOT adopt",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelK8sManagedBy: "test-manager",
+						consts.LabelSccManagedBy: "wrong-format",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name:    "both labels - Helm k8s but wrong SCC - should NOT adopt",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelK8sManagedBy: "Helm",
+						consts.LabelSccManagedBy: "other-operator_secret-broker",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name:    "both labels - different k8s operator + different SCC - should NOT adopt",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelK8sManagedBy: "argocd",
+						consts.LabelSccManagedBy: "other-operator_secret-broker",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name:    "both labels - different k8s operator but matching SCC - should NOT adopt",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelK8sManagedBy: "argocd",
+						consts.LabelSccManagedBy: "test-manager_secret-broker",
+					},
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := ShouldAdopt(tc.input, tc.manager)
+			assert.Equal(t, tc.expected, result, "ShouldAdopt result mismatch")
+		})
+	}
+}
+
+func TestShouldManage_WithSccOnlyFallback(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		manager  string
+		input    runtimeMetaObject
+		expected bool
+	}{
+		{
+			name:    "SCC label only - matching - should manage (fallback case)",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelSccManagedBy: "test-manager_secret-broker",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name:    "SCC label only - not matching - should NOT manage",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelSccManagedBy: "other-operator_secret-broker",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name:    "SCC label only - wrong format - should NOT manage",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelSccManagedBy: "test-manager", // Missing _secret-broker suffix
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name:    "both labels - k8s Helm + matching SCC - should manage",
+			manager: "test-manager",
+			input: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						consts.LabelK8sManagedBy: "Helm",
+						consts.LabelSccManagedBy: "test-manager_secret-broker",
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := ShouldManage(tc.input, tc.manager)
+			assert.Equal(t, tc.expected, result, "ShouldManage result mismatch")
+		})
+	}
+}
+
 func TestTakeOwnership(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {

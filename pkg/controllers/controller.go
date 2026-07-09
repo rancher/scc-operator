@@ -224,18 +224,8 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 		return incomingObj, nil
 	}
 
-	// This only applies to the SCC Entrypoint secrets - currently only used for/by Rancher
-	// This will adopt "unowned" secrets and ignore any that are owned by other operators
-	if !helpers.ShouldAdopt(incomingObj, h.options.OperatorName) {
-		// Secret is owned by a different operator (not Helm, not this operator, not unowned)
-		sccManagedBy := helpers.GetSccManagedByValue(incomingObj)
-		k8sManagedBy := helpers.GetManagedByValue(incomingObj)
-		h.log.Debugf("Secret %s/%s is managed by another tool (k8s: %s, scc: %s), skipping", incomingObj.Namespace, incomingObj.Name, k8sManagedBy, sccManagedBy)
-		return incomingObj, nil
-	}
-
-	// Check if we need to adopt (doesn't have SCC label yet)
-	if !helpers.HasSccManagedByLabel(incomingObj) {
+	// Phase 1: Adoption - take ownership of unmanaged or Helm-managed entrypoint Secrets
+	if !helpers.HasSccManagedByLabel(incomingObj) && helpers.ShouldAdopt(incomingObj, h.options.OperatorName) {
 		h.log.Debugf("adopting unmanaged or Helm-managed entrypoint secret")
 		prepared := incomingObj.DeepCopy()
 
@@ -249,9 +239,18 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 		}
 
 		h.log.Debugf("Secret %s/%s is now managed by %s", incomingObj.Namespace, incomingObj.Name, h.options.OperatorName)
-
 		return incomingObj, nil
 	}
+
+	// Phase 2: Validation - skip Secrets not managed by this operator
+	if !helpers.ShouldManage(incomingObj, h.options.OperatorName) {
+		sccManagedBy := helpers.GetSccManagedByValue(incomingObj)
+		k8sManagedBy := helpers.GetManagedByValue(incomingObj)
+		h.log.Debugf("Secret %s/%s is managed by another tool (k8s: %s, scc: %s), skipping", incomingObj.Namespace, incomingObj.Name, k8sManagedBy, sccManagedBy)
+		return incomingObj, nil
+	}
+
+	// Phase 3: Processing - handle managed entrypoint Secret
 
 	if _, saltOk := incomingObj.GetLabels()[consts.LabelObjectSalt]; !saltOk {
 		return h.prepareSecretSalt(incomingObj)
