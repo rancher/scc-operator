@@ -177,13 +177,14 @@ type RegistrationParams struct {
 	offlineCertSecretRef *corev1.SecretReference
 }
 
-// Labels produces the labels to apply to related resources
+// Labels produces the labels to apply to related resources.
+// For the entrypoint Secret, these labels may be merged while preserving its existing app.kubernetes.io/managed-by label.
 func (r RegistrationParams) Labels() map[string]string {
 	return map[string]string{
 		consts.LabelNameSuffix:   r.nameID,
 		consts.LabelSccHash:      r.contentHash,
-		consts.LabelSccManagedBy: r.managedByName + "_" + consts.ManagedByValueSecretBroker,
-		consts.LabelK8sManagedBy: r.managedByName,
+		consts.LabelSccManagedBy: consts.SccManagedByValue(r.managedByName),
+		consts.LabelK8sManagedBy: r.managedByName, // Always use operator name for operator-created resources
 	}
 }
 

@@ -21,25 +21,71 @@ func GetManagedByValue[T metav1.Object](incomingObj T) string {
 	return objectLabels[consts.LabelK8sManagedBy]
 }
 
-// ShouldManage will verify that this operator should manage a given object
+// ShouldAdopt checks if this operator should adopt/take ownership of a resource.
+// Returns true for unmanaged resources, Helm-managed resources, or resources already managed by this operator.
+func ShouldAdopt[T metav1.Object](incomingObj T, expectedManager string) bool {
+	objectLabels := incomingObj.GetLabels()
+	managedBy, hasManagedBy := objectLabels[consts.LabelK8sManagedBy]
+	managedBySCC, hasManagedBySCC := objectLabels[consts.LabelSccManagedBy]
+	expectedSCCManager := consts.SccManagedByValue(expectedManager)
+
+	// Check k8s label if present: must match expectedManager OR be "Helm" (we can adopt from Helm)
+	k8sOK := !hasManagedBy || managedBy == expectedManager || managedBy == "Helm"
+
+	// Check SCC label if present: must match expectedSCCManager
+	sccOK := !hasManagedBySCC || managedBySCC == expectedSCCManager
+
+	return k8sOK && sccOK
+}
+
+// ShouldManage checks if this operator already manages a resource.
+// Returns true only for resources already managed by this operator (not Helm-only).
 func ShouldManage[T metav1.Object](incomingObj T, expectedManager string) bool {
 	objectLabels := incomingObj.GetLabels()
 	managedBy, hasManagedBy := objectLabels[consts.LabelK8sManagedBy]
+	managedBySCC, hasManagedBySCC := objectLabels[consts.LabelSccManagedBy]
+	expectedSCCManager := consts.SccManagedByValue(expectedManager)
 
-	return hasManagedBy && managedBy == expectedManager
+	// Check k8s label if present: must match expectedManager (not Helm-only) OR be Helm with matching SCC
+	k8sOK := !hasManagedBy || managedBy == expectedManager || (managedBy == "Helm" && hasManagedBySCC)
+
+	// Check SCC label if present: must match expectedSCCManager
+	sccOK := !hasManagedBySCC || managedBySCC == expectedSCCManager
+
+	// At least one of our labels must be present and both must be valid
+	return (hasManagedBy || hasManagedBySCC) && k8sOK && sccOK
 }
 
-// TakeOwnership will set or overwrite the value of the k8s managed-by label
+// TakeOwnership sets the k8s and SCC managed-by labels.
+// Preserves app.kubernetes.io/managed-by if it's set to "Helm".
 func TakeOwnership[T generic.RuntimeMetaObject](incomingObj T, owner string) T {
 	objectLabels := incomingObj.GetLabels()
 	if objectLabels == nil {
 		objectLabels = map[string]string{
 			consts.LabelK8sManagedBy: owner,
+			consts.LabelSccManagedBy: consts.SccManagedByValue(owner),
 		}
 	} else {
-		objectLabels[consts.LabelK8sManagedBy] = owner
+		// Only overwrite k8s managed-by if it's not Helm
+		if objectLabels[consts.LabelK8sManagedBy] != "Helm" {
+			objectLabels[consts.LabelK8sManagedBy] = owner
+		}
+		objectLabels[consts.LabelSccManagedBy] = consts.SccManagedByValue(owner)
 	}
 
 	incomingObj.SetLabels(objectLabels)
 	return incomingObj
+}
+
+// HasSccManagedByLabel checks if the SCC-specific managed-by label is set
+func HasSccManagedByLabel[T metav1.Object](incomingObj T) bool {
+	objectLabels := incomingObj.GetLabels()
+	_, hasManagedBy := objectLabels[consts.LabelSccManagedBy]
+	return hasManagedBy
+}
+
+// GetSccManagedByValue returns the value of scc.cattle.io/managed-by
+func GetSccManagedByValue[T metav1.Object](incomingObj T) string {
+	objectLabels := incomingObj.GetLabels()
+	return objectLabels[consts.LabelSccManagedBy]
 }
