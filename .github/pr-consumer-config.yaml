@@ -1,0 +1,13 @@
+# Configuration for send-pr-to-consumer action
+version_mapping_type: major
+
+version_branch_map:
+  "0":
+    - "main"
+    - "dev-v2.14"
+    - "dev-v2.13"
+    - "dev-v2.12"
+
+target:
+  repo: "rancher/rancher"
+  update_script: "./.github/scripts/update-build-yaml.sh"

@@ -45,12 +45,10 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: rancher
 
-      - name: Push updates to rancher/rancher
+      - name: Create PRs to rancher/rancher
         if: github.repository == 'rancher/scc-operator'
-        env:
-          TAG: ${{ inputs.tag }}
-          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
-          SOURCE_REPO: ${{ github.repository }}
-          SCC_DIR: ${{ github.workspace }}
-          RANCHER_DIR: ${{ github.workspace }}/rancher-repo
-        run: ./.github/workflows/push-to-rancher/run-gha.sh
+        uses: rancher/ecm-distro-tools/actions/create-pr@master
+        with:
+          tag: ${{ inputs.tag }}
+          config-file: .github/pr-consumer-config.yaml
+          github-token: ${{ steps.generate_token.outputs.token }}
