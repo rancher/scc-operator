@@ -1,0 +1,54 @@
+name: Push to rancher/rancher
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'SCC Operator tag to sync (e.g. v0.4.2-rc.1)'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: 'SCC Operator tag to sync'
+        required: true
+        type: string
+
+jobs:
+  push-to-rancher:
+    name: Push to rancher/rancher
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    container:
+      image: ghcr.io/rancher/ci-image/go1.25
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Read GitHub App Credentials from Vault
+        if: github.repository == 'rancher/scc-operator'
+        uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
+        with:
+          secrets: |
+            secret/data/github/repo/${{ github.repository }}/github/app-credentials appId | APPID;
+            secret/data/github/repo/${{ github.repository }}/github/app-credentials privateKey | PRIVATEKEY
+
+      - name: Generate GitHub App Token
+        if: github.repository == 'rancher/scc-operator'
+        id: generate_token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ env.APPID }}
+          private-key: ${{ env.PRIVATEKEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: rancher
+
+      - name: Create PRs to rancher/rancher
+        if: github.repository == 'rancher/scc-operator'
+        uses: rancher/ecm-distro-tools/actions/create-pr@master
+        with:
+          tag: ${{ inputs.tag }}
+          config-file: .github/pr-consumer-config.yaml
+          github-token: ${{ steps.generate_token.outputs.token }}

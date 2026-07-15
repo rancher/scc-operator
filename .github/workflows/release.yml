@@ -129,9 +129,18 @@ jobs:
     name: Un-draft release
     runs-on: ubuntu-latest
     needs: [ ci, goreleaser, image ]
+    outputs:
+      is_stable: ${{ steps.semver_check.outputs.HAS_PRERELEASE == 'false' }}
     permissions:
       contents: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Check SemVer Characteristics
+        id: semver_check
+        run: bash ./.github/scripts/check-semver "${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+
       - name: Fully publish release (retry until visible)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -139,7 +148,7 @@ jobs:
         run: |
           set -euo pipefail
           tag="${{ github.ref_name }}"
-          
+
           for i in {1..12}; do
             if gh release view -R "${{ github.repository }}" "$tag" >/dev/null 2>&1; then
               gh release edit -R "${{ github.repository }}" "$tag" --draft=false
@@ -148,6 +157,14 @@ jobs:
             echo "Release '$tag' not found yet (attempt $i/12). Sleeping 10s..."
             sleep 10
           done
-          
+
           echo "Release '$tag' still not found after retries; failing."
           exit 1
+
+  push-to-rancher:
+    name: Push to rancher/rancher
+    needs: [ release ]
+    if: ${{ github.repository == 'rancher/scc-operator' && needs.release.outputs.is_stable == 'true' }}
+    uses: ./.github/workflows/push-to-rancher.yml
+    with:
+      tag: ${{ github.ref_name }}
