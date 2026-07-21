@@ -109,6 +109,35 @@ type RegistrationStatus struct {
 	SystemCredentialsSecretRef *corev1.SecretReference `json:"systemCredentialsSecretRef,omitempty"`
 	// +optional
 	OfflineRegistrationRequest *corev1.SecretReference `json:"offlineRegistrationRequest,omitempty"`
+	// +optional
+	SubscriptionInfo *SubscriptionInfo `json:"subscriptionInfo,omitempty"`
+}
+
+type SubscriptionInfo struct {
+	// +optional
+	Kind string `json:"kind,omitempty"`
+	// +optional
+	Name string `json:"name,omitempty"`
+	// +optional
+	StartsAt *metav1.Time `json:"startsAt,omitempty"`
+	// +optional
+	ExpiresAt *metav1.Time `json:"expiresAt,omitempty"`
+	// +optional
+	Limit int `json:"limit,omitempty"`
+	// +optional
+	Notifications string `json:"notifications,omitempty"`
+	// +optional
+	// +listType=atomic
+	ProductClasses []ProductClass `json:"productClasses,omitempty"`
+	// +optional
+	RegCodeHash string `json:"regCodeHash,omitempty"`
+}
+
+type ProductClass struct {
+	// +optional
+	Name string `json:"name,omitempty"`
+	// +optional
+	Description string `json:"description,omitempty"`
 }
 
 type SystemActivationState struct {
