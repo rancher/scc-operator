@@ -106,15 +106,7 @@ func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.
 	}
 
 	// Restore cached SubscriptionInfo from RegCode secret if missing in status
-	if registrationObj.Status.SubscriptionInfo == nil && registrationObj.Spec.RegistrationRequest != nil && registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef != nil {
-		secretRef := registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef
-		regSecret, getErr := s.secretRepo.Get(secretRef.Namespace, secretRef.Name)
-		if getErr == nil && regSecret != nil {
-			if subInfo, parseErr := getSubscriptionInfoFromSecret(regSecret); parseErr == nil {
-				registrationObj.Status.SubscriptionInfo = subInfo
-			}
-		}
-	}
+	s.restoreSubscriptionInfo(registrationObj)
 
 	needRefresh := false
 	if registrationCode != "" {
@@ -139,54 +131,7 @@ func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.
 			}
 
 			// Update the RegCode secret with annotations/data or clean them up
-			if registrationObj.Spec.RegistrationRequest != nil && registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef != nil {
-				secretRef := registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef
-				regSecret, getErr := s.secretRepo.Get(secretRef.Namespace, secretRef.Name)
-				if getErr == nil && regSecret != nil {
-					regSecretCopy := regSecret.DeepCopy()
-					changed := false
-					if registrationObj.Status.SubscriptionInfo != nil {
-						if regSecretCopy.Annotations == nil {
-							regSecretCopy.Annotations = make(map[string]string)
-						}
-						// JSON marshaled SubscriptionInfo
-						if infoBytes, marshalErr := json.Marshal(registrationObj.Status.SubscriptionInfo); marshalErr == nil {
-							newAnn := string(infoBytes)
-							if regSecretCopy.Annotations["scc.cattle.io/subscription-info"] != newAnn {
-								regSecretCopy.Annotations["scc.cattle.io/subscription-info"] = newAnn
-								changed = true
-							}
-						}
-						// Comma-separated list of product classes in Data as well (per "metadata on the Reg Code secret")
-						productListStr := strings.Join(coveredProductNames, ", ")
-						if regSecretCopy.Data == nil {
-							regSecretCopy.Data = make(map[string][]byte)
-						}
-						if string(regSecretCopy.Data[consts.SecretKeyCoveredProducts]) != productListStr {
-							regSecretCopy.Data[consts.SecretKeyCoveredProducts] = []byte(productListStr)
-							changed = true
-						}
-					} else {
-						if regSecretCopy.Annotations != nil && regSecretCopy.Annotations["scc.cattle.io/subscription-info"] != "" {
-							delete(regSecretCopy.Annotations, "scc.cattle.io/subscription-info")
-							changed = true
-						}
-						if regSecretCopy.Data != nil && len(regSecretCopy.Data[consts.SecretKeyCoveredProducts]) > 0 {
-							delete(regSecretCopy.Data, consts.SecretKeyCoveredProducts)
-							changed = true
-						}
-					}
-
-					if changed {
-						_, updateSecretErr := s.secretRepo.CreateOrUpdateSecret(regSecretCopy)
-						if updateSecretErr != nil {
-							s.log.Warnf("failed to update RegCode secret: %v", updateSecretErr)
-						}
-					}
-				} else {
-					s.log.Warnf("failed to get RegCode secret for updating: %v", getErr)
-				}
-			}
+			s.updateRegistrationSecret(registrationObj, coveredProductNames)
 		}
 	}
 
@@ -270,15 +215,7 @@ func (s *sccOnlineMode) reconcileNonRecoverableHTTPError(registrationIn *v1.Regi
 
 func (s *sccOnlineMode) ReconcileRegisterError(registrationObj *v1.Registration, registerErr error, phase types.RegistrationPhase) *v1.Registration {
 	// Attempt to restore SubscriptionInfo from RegCode secret
-	if registrationObj.Spec.RegistrationRequest != nil && registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef != nil {
-		secretRef := registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef
-		regSecret, err := s.secretRepo.Get(secretRef.Namespace, secretRef.Name)
-		if err == nil && regSecret != nil {
-			if subInfo, parseErr := getSubscriptionInfoFromSecret(regSecret); parseErr == nil {
-				registrationObj.Status.SubscriptionInfo = subInfo
-			}
-		}
-	}
+	s.restoreSubscriptionInfo(registrationObj)
 
 	registrationObj = lifecycle.PrepareFailed(registrationObj, registerErr)
 
@@ -518,13 +455,7 @@ func (s *sccOnlineMode) Deregister() error {
 }
 
 func subscriptionInfoNeedsRefresh(subInfo *v1.SubscriptionInfo, regCodeHash string) bool {
-	if subInfo == nil {
-		return true
-	}
-	if subInfo.RegCodeHash != regCodeHash {
-		return true
-	}
-	return false
+	return subInfo == nil || subInfo.RegCodeHash != regCodeHash
 }
 
 func enrichRegistrationError(regErr error, subInfo *v1.SubscriptionInfo) error {
@@ -549,7 +480,7 @@ func getSubscriptionInfoFromSecret(regSecret *corev1.Secret) (*v1.SubscriptionIn
 	if regSecret == nil || regSecret.Annotations == nil {
 		return nil, fmt.Errorf("secret or annotations is nil")
 	}
-	infoStr, ok := regSecret.Annotations["scc.cattle.io/subscription-info"]
+	infoStr, ok := regSecret.Annotations[consts.AnnotationSubscriptionInfo]
 	if !ok {
 		return nil, fmt.Errorf("annotation not found")
 	}
@@ -564,8 +495,8 @@ func mapSubscriptionInfo(subInfo *sccreg.SubscriptionInfo, regCodeHash string) (
 	if subInfo == nil {
 		return nil, nil
 	}
-	pcs := []v1.ProductClass{}
-	var coveredProductNames []string
+	pcs := make([]v1.ProductClass, 0, len(subInfo.ProductClasses))
+	coveredProductNames := make([]string, 0, len(subInfo.ProductClasses))
 	for i, pc := range subInfo.ProductClasses {
 		if i < maxProductClassLength {
 			pcs = append(pcs, v1.ProductClass{
@@ -600,6 +531,71 @@ func mapSubscriptionInfo(subInfo *sccreg.SubscriptionInfo, regCodeHash string) (
 		RegCodeHash:    regCodeHash,
 	}
 	return res, coveredProductNames
+}
+
+func (s *sccOnlineMode) restoreSubscriptionInfo(registrationObj *v1.Registration) {
+	if registrationObj.Status.SubscriptionInfo != nil || registrationObj.Spec.RegistrationRequest == nil || registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef == nil {
+		return
+	}
+	secretRef := registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef
+	regSecret, err := s.secretRepo.Get(secretRef.Namespace, secretRef.Name)
+	if err != nil || regSecret == nil {
+		return
+	}
+	if subInfo, parseErr := getSubscriptionInfoFromSecret(regSecret); parseErr == nil {
+		registrationObj.Status.SubscriptionInfo = subInfo
+	}
+}
+
+func (s *sccOnlineMode) updateRegistrationSecret(registrationObj *v1.Registration, coveredProductNames []string) {
+	if registrationObj.Spec.RegistrationRequest == nil || registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef == nil {
+		return
+	}
+	secretRef := registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef
+	regSecret, getErr := s.secretRepo.Get(secretRef.Namespace, secretRef.Name)
+	if getErr != nil || regSecret == nil {
+		s.log.Warnf("failed to get RegCode secret for updating: %v", getErr)
+		return
+	}
+
+	regSecretCopy := regSecret.DeepCopy()
+	changed := false
+
+	if registrationObj.Status.SubscriptionInfo != nil {
+		if regSecretCopy.Annotations == nil {
+			regSecretCopy.Annotations = make(map[string]string)
+		}
+		if infoBytes, marshalErr := json.Marshal(registrationObj.Status.SubscriptionInfo); marshalErr == nil {
+			newAnn := string(infoBytes)
+			if regSecretCopy.Annotations[consts.AnnotationSubscriptionInfo] != newAnn {
+				regSecretCopy.Annotations[consts.AnnotationSubscriptionInfo] = newAnn
+				changed = true
+			}
+		}
+		productListStr := strings.Join(coveredProductNames, ", ")
+		if regSecretCopy.Data == nil {
+			regSecretCopy.Data = make(map[string][]byte)
+		}
+		if string(regSecretCopy.Data[consts.SecretKeyCoveredProducts]) != productListStr {
+			regSecretCopy.Data[consts.SecretKeyCoveredProducts] = []byte(productListStr)
+			changed = true
+		}
+	} else {
+		if regSecretCopy.Annotations != nil && regSecretCopy.Annotations[consts.AnnotationSubscriptionInfo] != "" {
+			delete(regSecretCopy.Annotations, consts.AnnotationSubscriptionInfo)
+			changed = true
+		}
+		if regSecretCopy.Data != nil && len(regSecretCopy.Data[consts.SecretKeyCoveredProducts]) > 0 {
+			delete(regSecretCopy.Data, consts.SecretKeyCoveredProducts)
+			changed = true
+		}
+	}
+
+	if changed {
+		if _, updateSecretErr := s.secretRepo.CreateOrUpdateSecret(regSecretCopy); updateSecretErr != nil {
+			s.log.Warnf("failed to update RegCode secret: %v", updateSecretErr)
+		}
+	}
 }
 
 var _ SCCHandler = &sccOnlineMode{}
