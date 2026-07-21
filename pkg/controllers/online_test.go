@@ -8,8 +8,13 @@ import (
 
 	"github.com/SUSE/connect-ng/pkg/connection"
 	sccreg "github.com/SUSE/connect-ng/pkg/registration"
+	"github.com/rancher/scc-operator/internal/consts"
+	"github.com/rancher/scc-operator/internal/logging"
+	"github.com/rancher/scc-operator/internal/repos/secretrepo"
 	v1 "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1"
+	"github.com/rancher/wrangler/v3/pkg/generic/fake"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -400,4 +405,133 @@ func TestMapSubscriptionInfo(t *testing.T) {
 	asserts.NotNil(res)
 	asserts.Nil(res.StartsAt)
 	asserts.Nil(res.ExpiresAt)
+}
+
+func TestRestoreSubscriptionInfo(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockController := fake.NewMockControllerInterface[*corev1.Secret, *corev1.SecretList](ctrl)
+	mockCache := fake.NewMockCacheInterface[*corev1.Secret](ctrl)
+	repo := &secretrepo.SecretRepository{Controller: mockController, Cache: mockCache}
+
+	sccOnline := &sccOnlineMode{
+		secretRepo: repo,
+		log:        logging.NewLog(),
+	}
+
+	// Case 1: SubscriptionInfo already present
+	reg1 := &v1.Registration{
+		Status: v1.RegistrationStatus{
+			SubscriptionInfo: &v1.SubscriptionInfo{Name: "Existing"},
+		},
+	}
+	sccOnline.restoreSubscriptionInfo(reg1)
+	assert.Equal(t, "Existing", reg1.Status.SubscriptionInfo.Name)
+
+	// Case 2: Spec.RegistrationRequest or SecretRef is nil
+	reg2 := &v1.Registration{}
+	sccOnline.restoreSubscriptionInfo(reg2)
+	assert.Nil(t, reg2.Status.SubscriptionInfo)
+
+	// Case 3: Secret exists and contains subscription info annotation
+	reg3 := &v1.Registration{
+		Spec: v1.RegistrationSpec{
+			RegistrationRequest: &v1.RegistrationRequest{
+				RegistrationCodeSecretRef: &corev1.SecretReference{
+					Namespace: "ns",
+					Name:      "secret-name",
+				},
+			},
+		},
+	}
+	secretWithAnnotation := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "ns",
+			Name:      "secret-name",
+			Annotations: map[string]string{
+				consts.AnnotationSubscriptionInfo: `{"kind":"subscription","name":"My Sub"}`,
+			},
+		},
+	}
+	mockCache.EXPECT().Get("ns", "secret-name").Return(secretWithAnnotation, nil).Times(1)
+
+	sccOnline.restoreSubscriptionInfo(reg3)
+	assert.NotNil(t, reg3.Status.SubscriptionInfo)
+	assert.Equal(t, "My Sub", reg3.Status.SubscriptionInfo.Name)
+}
+
+func TestUpdateRegistrationSecret(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockController := fake.NewMockControllerInterface[*corev1.Secret, *corev1.SecretList](ctrl)
+	mockCache := fake.NewMockCacheInterface[*corev1.Secret](ctrl)
+	repo := &secretrepo.SecretRepository{Controller: mockController, Cache: mockCache}
+
+	sccOnline := &sccOnlineMode{
+		secretRepo: repo,
+		log:        logging.NewLog(),
+	}
+
+	// Case 1: No secret reference
+	reg1 := &v1.Registration{}
+	sccOnline.updateRegistrationSecret(reg1, nil) // Should do nothing and not fail
+
+	// Case 2: Secret has no changes
+	reg2 := &v1.Registration{
+		Spec: v1.RegistrationSpec{
+			RegistrationRequest: &v1.RegistrationRequest{
+				RegistrationCodeSecretRef: &corev1.SecretReference{
+					Namespace: "ns",
+					Name:      "secret-name",
+				},
+			},
+		},
+		Status: v1.RegistrationStatus{
+			SubscriptionInfo: &v1.SubscriptionInfo{
+				Name: "Sub",
+			},
+		},
+	}
+	existingSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "ns",
+			Name:      "secret-name",
+			Annotations: map[string]string{
+				consts.AnnotationSubscriptionInfo: `{"name":"Sub"}`,
+			},
+		},
+		Data: map[string][]byte{
+			consts.SecretKeyCoveredProducts: []byte("ProdA, ProdB"),
+		},
+	}
+	// Called once by secretRepo.Get (CreateOrUpdateSecret is not called since changed is false)
+	mockCache.EXPECT().Get("ns", "secret-name").Return(existingSecret, nil).Times(1)
+
+	// Since annotations and data match, no update should be performed
+	sccOnline.updateRegistrationSecret(reg2, []string{"ProdA", "ProdB"})
+
+	// Case 3: Secret has changes and is updated
+	reg3 := &v1.Registration{
+		Spec: v1.RegistrationSpec{
+			RegistrationRequest: &v1.RegistrationRequest{
+				RegistrationCodeSecretRef: &corev1.SecretReference{
+					Namespace: "ns",
+					Name:      "secret-name",
+				},
+			},
+		},
+		Status: v1.RegistrationStatus{
+			SubscriptionInfo: &v1.SubscriptionInfo{
+				Name: "New Sub Name",
+			},
+		},
+	}
+	// Called once by secretRepo.Get, and again by secretRepo.CreateOrUpdateSecret (since changed is true)
+	mockCache.EXPECT().Get("ns", "secret-name").Return(existingSecret, nil).Times(2)
+	// We expect Patch to be called on controller during update
+	mockController.EXPECT().Patch("ns", "secret-name", gomock.Any(), gomock.Any()).Return(existingSecret, nil).Times(1)
+
+	sccOnline.updateRegistrationSecret(reg3, []string{"ProdNew"})
 }
