@@ -210,6 +210,35 @@ spec:
                 type: string
               sccSystemID:
                 type: integer
+              subscriptionInfo:
+                properties:
+                  expiresAt:
+                    format: date-time
+                    type: string
+                  kind:
+                    type: string
+                  limit:
+                    type: integer
+                  name:
+                    type: string
+                  notifications:
+                    type: string
+                  productClasses:
+                    items:
+                      properties:
+                        description:
+                          type: string
+                        name:
+                          type: string
+                      type: object
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  regCodeHash:
+                    type: string
+                  startsAt:
+                    format: date-time
+                    type: string
+                type: object
               systemCredentialsSecretRef:
                 description: |-
                   SecretReference represents a Secret Reference. It has enough information to retrieve secret

@@ -29,11 +29,13 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.ProductClass":          schema_pkg_apis_scccattleio_v1_ProductClass(ref),
 		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.Registration":          schema_pkg_apis_scccattleio_v1_Registration(ref),
 		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationList":      schema_pkg_apis_scccattleio_v1_RegistrationList(ref),
 		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationRequest":   schema_pkg_apis_scccattleio_v1_RegistrationRequest(ref),
 		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationSpec":      schema_pkg_apis_scccattleio_v1_RegistrationSpec(ref),
 		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.RegistrationStatus":    schema_pkg_apis_scccattleio_v1_RegistrationStatus(ref),
+		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.SubscriptionInfo":      schema_pkg_apis_scccattleio_v1_SubscriptionInfo(ref),
 		"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.SystemActivationState": schema_pkg_apis_scccattleio_v1_SystemActivationState(ref),
 		v1.APIGroup{}.OpenAPIModelName():                                                  schema_pkg_apis_meta_v1_APIGroup(ref),
 		v1.APIGroupList{}.OpenAPIModelName():                                              schema_pkg_apis_meta_v1_APIGroupList(ref),
@@ -84,6 +86,30 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		v1.TypeMeta{}.OpenAPIModelName():                                                  schema_pkg_apis_meta_v1_TypeMeta(ref),
 		v1.UpdateOptions{}.OpenAPIModelName():                                             schema_pkg_apis_meta_v1_UpdateOptions(ref),
 		v1.WatchEvent{}.OpenAPIModelName():                                                schema_pkg_apis_meta_v1_WatchEvent(ref),
+	}
+}
+
+func schema_pkg_apis_scccattleio_v1_ProductClass(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -323,11 +349,88 @@ func schema_pkg_apis_scccattleio_v1_RegistrationStatus(ref common.ReferenceCallb
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},
+					"subscriptionInfo": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.SubscriptionInfo"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.SystemActivationState", "github.com/rancher/wrangler/v3/pkg/genericcondition.GenericCondition", "k8s.io/api/core/v1.SecretReference", v1.Time{}.OpenAPIModelName()},
+			"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.SubscriptionInfo", "github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.SystemActivationState", "github.com/rancher/wrangler/v3/pkg/genericcondition.GenericCondition", "k8s.io/api/core/v1.SecretReference", v1.Time{}.OpenAPIModelName()},
+	}
+}
+
+func schema_pkg_apis_scccattleio_v1_SubscriptionInfo(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"startsAt": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(v1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"expiresAt": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref(v1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"limit": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+					"notifications": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"productClasses": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.ProductClass"),
+									},
+								},
+							},
+						},
+					},
+					"regCodeHash": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/rancher/scc-operator/pkg/apis/scc.cattle.io/v1.ProductClass", v1.Time{}.OpenAPIModelName()},
 	}
 }
 
