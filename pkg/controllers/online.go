@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/SUSE/connect-ng/pkg/connection"
 	sccreg "github.com/SUSE/connect-ng/pkg/registration"
@@ -100,38 +101,37 @@ func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.
 	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
 	var regCodeHash string
-	if registrationCode != "" {
+	if registrationCode == "" {
+		registrationObj.Status.SubscriptionInfo = nil
+		s.updateRegistrationSecret(registrationObj, nil)
+	} else {
 		hash := sha256.Sum256([]byte(registrationCode))
 		regCodeHash = hex.EncodeToString(hash[:])
-	}
 
-	// Restore cached SubscriptionInfo from RegCode secret if missing in status
-	s.restoreSubscriptionInfo(registrationObj)
+		// Restore cached SubscriptionInfo from RegCode secret if missing in status
+		// in case the registration failed after fetching the subscription info
+		s.restoreSubscriptionInfo(registrationObj)
 
-	needRefresh := false
-	if registrationCode != "" {
-		needRefresh = subscriptionInfoNeedsRefresh(registrationObj.Status.SubscriptionInfo, regCodeHash)
-		if needRefresh && registrationObj.Status.SubscriptionInfo != nil && registrationObj.Status.SubscriptionInfo.RegCodeHash != regCodeHash {
-			registrationObj.Status.SubscriptionInfo = nil
-		}
-	} else {
-		registrationObj.Status.SubscriptionInfo = nil
-	}
-
-	if needRefresh {
-		subInfo, err := sccConnection.SubscriptionInfo(registrationCode)
-		if err != nil {
-			// Degrade gracefully for all subscription info fetch errors to prevent blocking registration
-			s.log.Warnf("failed to fetch subscription info: %v. continuing with registration.", err)
-		} else {
-			mappedInfo, coveredProductNames := mapSubscriptionInfo(subInfo, regCodeHash)
-			registrationObj.Status.SubscriptionInfo = mappedInfo
-			if len(coveredProductNames) > maxProductClassLength && subInfo != nil {
-				s.log.Warnf("product classes list is too large (%d items), truncating list to %d items.", len(subInfo.ProductClasses), maxProductClassLength)
+		if subscriptionInfoNeedsRefresh(registrationObj.Status.SubscriptionInfo, regCodeHash) {
+			// Only clear if the registration code has actually changed.
+			if registrationObj.Status.SubscriptionInfo != nil && registrationObj.Status.SubscriptionInfo.RegCodeHash != regCodeHash {
+				registrationObj.Status.SubscriptionInfo = nil
 			}
 
-			// Update the RegCode secret with annotations/data or clean them up
-			s.updateRegistrationSecret(registrationObj, coveredProductNames)
+			subInfo, err := sccConnection.SubscriptionInfo(registrationCode)
+			if err != nil {
+				// warn all subscription info fetch errors to prevent blocking registration
+				s.log.Warnf("failed to fetch subscription info: %v. continuing with registration.", err)
+			} else {
+				mappedInfo, coveredProductNames := mapSubscriptionInfo(subInfo, regCodeHash)
+				registrationObj.Status.SubscriptionInfo = mappedInfo
+				if len(coveredProductNames) > maxProductClassLength && subInfo != nil {
+					s.log.Warnf("product classes list is too large (%d items), truncating list to %d items.", len(subInfo.ProductClasses), maxProductClassLength)
+				}
+
+				// Update the RegCode secret with annotations/data or clean them up
+				s.updateRegistrationSecret(registrationObj, coveredProductNames)
+			}
 		}
 	}
 
@@ -455,7 +455,16 @@ func (s *sccOnlineMode) Deregister() error {
 }
 
 func subscriptionInfoNeedsRefresh(subInfo *v1.SubscriptionInfo, regCodeHash string) bool {
-	return subInfo == nil || subInfo.RegCodeHash != regCodeHash
+	if regCodeHash == "" {
+		return false
+	}
+	if subInfo == nil || subInfo.RegCodeHash != regCodeHash {
+		return true
+	}
+	if subInfo.ExpiresAt != nil && !subInfo.ExpiresAt.IsZero() && time.Now().After(subInfo.ExpiresAt.Time) {
+		return true
+	}
+	return false
 }
 
 func enrichRegistrationError(regErr error, subInfo *v1.SubscriptionInfo) error {
@@ -477,13 +486,18 @@ func enrichRegistrationError(regErr error, subInfo *v1.SubscriptionInfo) error {
 }
 
 func getSubscriptionInfoFromSecret(regSecret *corev1.Secret) (*v1.SubscriptionInfo, error) {
-	if regSecret == nil || regSecret.Annotations == nil {
-		return nil, fmt.Errorf("secret or annotations is nil")
+	if regSecret == nil {
+		return nil, errors.New("no secret specified")
 	}
+	if regSecret.Annotations == nil {
+		return nil, errors.New("no annotations found")
+	}
+
 	infoStr, ok := regSecret.Annotations[consts.AnnotationSubscriptionInfo]
 	if !ok {
-		return nil, fmt.Errorf("annotation not found")
+		return nil, errors.New("subscription info annotation not found")
 	}
+
 	var subInfo *v1.SubscriptionInfo
 	if err := json.Unmarshal([]byte(infoStr), &subInfo); err != nil {
 		return nil, err
@@ -537,12 +551,14 @@ func (s *sccOnlineMode) restoreSubscriptionInfo(registrationObj *v1.Registration
 	if registrationObj.Status.SubscriptionInfo != nil || registrationObj.Spec.RegistrationRequest == nil || registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef == nil {
 		return
 	}
+
 	secretRef := registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef
 	regSecret, err := s.secretRepo.Get(secretRef.Namespace, secretRef.Name)
 	if err != nil || regSecret == nil {
 		return
 	}
-	if subInfo, parseErr := getSubscriptionInfoFromSecret(regSecret); parseErr == nil {
+
+	if subInfo, err := getSubscriptionInfoFromSecret(regSecret); err == nil {
 		registrationObj.Status.SubscriptionInfo = subInfo
 	}
 }
