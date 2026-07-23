@@ -2,7 +2,7 @@ module github.com/rancher/scc-operator
 
 go 1.25.0
 
-toolchain go1.25.11
+toolchain go1.25.12
 
 replace (
 	k8s.io/api => k8s.io/api v0.35.4
@@ -31,7 +31,7 @@ replace (
 )
 
 require (
-	github.com/SUSE/connect-ng v1.22.1
+	github.com/SUSE/connect-ng v1.22.2-0.20260720053934-b30f9a056fb0
 	github.com/ehazlett/simplelog v0.0.0-20200226020431-d374894e92a4
 	github.com/evanphx/json-patch/v5 v5.9.11
 	github.com/google/uuid v1.6.0
