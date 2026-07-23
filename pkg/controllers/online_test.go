@@ -53,6 +53,33 @@ func TestSubscriptionInfoNeedsRefresh(t *testing.T) {
 			regCodeHash: hashMatches,
 			want:        false,
 		},
+		{
+			name: "has match and non-expired returns false",
+			subInfo: &v1.SubscriptionInfo{
+				RegCodeHash: hashMatches,
+				ExpiresAt:   &metav1.Time{Time: time.Now().Add(1 * time.Hour)},
+			},
+			regCodeHash: hashMatches,
+			want:        false,
+		},
+		{
+			name: "has match but expired returns true",
+			subInfo: &v1.SubscriptionInfo{
+				RegCodeHash: hashMatches,
+				ExpiresAt:   &metav1.Time{Time: time.Now().Add(-1 * time.Hour)},
+			},
+			regCodeHash: hashMatches,
+			want:        true,
+		},
+		{
+			name: "has match and zero expiresAt returns false",
+			subInfo: &v1.SubscriptionInfo{
+				RegCodeHash: hashMatches,
+				ExpiresAt:   &metav1.Time{},
+			},
+			regCodeHash: hashMatches,
+			want:        false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -308,14 +335,14 @@ func TestSubscriptionInfoClearing(t *testing.T) {
 				},
 			}
 
-			needRefresh := false
-			if tt.registrationCode != "" {
-				needRefresh = subscriptionInfoNeedsRefresh(registrationObj.Status.SubscriptionInfo, tt.regCodeHash)
-				if needRefresh && registrationObj.Status.SubscriptionInfo != nil && registrationObj.Status.SubscriptionInfo.RegCodeHash != tt.regCodeHash {
-					registrationObj.Status.SubscriptionInfo = nil
-				}
-			} else {
+			if tt.registrationCode == "" {
 				registrationObj.Status.SubscriptionInfo = nil
+			} else {
+				if subscriptionInfoNeedsRefresh(registrationObj.Status.SubscriptionInfo, tt.regCodeHash) {
+					if registrationObj.Status.SubscriptionInfo != nil && registrationObj.Status.SubscriptionInfo.RegCodeHash != tt.regCodeHash {
+						registrationObj.Status.SubscriptionInfo = nil
+					}
+				}
 			}
 
 			if tt.wantSubInfoNil {
