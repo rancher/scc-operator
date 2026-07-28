@@ -509,18 +509,16 @@ func mapSubscriptionInfo(subInfo *sccreg.SubscriptionInfo, regCodeHash string) *
 	if subInfo == nil {
 		return nil
 	}
-	limit := len(subInfo.ProductClasses)
-	if limit > maxProductClassLength {
-		limit = maxProductClassLength
-	}
-	pcs := make([]v1.ProductClass, 0, limit)
+	pcsLimit := min(len(subInfo.ProductClasses), maxProductClassLength)
+	pcs := make([]v1.ProductClass, 0, pcsLimit)
 	for i, pc := range subInfo.ProductClasses {
-		if i < maxProductClassLength {
-			pcs = append(pcs, v1.ProductClass{
-				Name:        pc.Name,
-				Description: pc.Description,
-			})
+		if i >= maxProductClassLength {
+			break
 		}
+		pcs = append(pcs, v1.ProductClass{
+			Name:        pc.Name,
+			Description: pc.Description,
+		})
 	}
 
 	var startsAt *metav1.Time
