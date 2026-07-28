@@ -6,7 +6,6 @@ const (
 	SecretKeyOfflineRegRequest = "request"
 	SecretKeyOfflineRegCert    = "certificate"
 	RegistrationURL            = "registrationUrl"
-	SecretKeyCoveredProducts   = "coveredProducts"
 )
 
 type SecretRole string

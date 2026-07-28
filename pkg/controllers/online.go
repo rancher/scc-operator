@@ -103,7 +103,7 @@ func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.
 	var regCodeHash string
 	if registrationCode == "" {
 		registrationObj.Status.SubscriptionInfo = nil
-		s.updateRegistrationSecret(registrationObj, nil)
+		s.updateRegistrationSecret(registrationObj)
 	} else {
 		hash := sha256.Sum256([]byte(registrationCode))
 		regCodeHash = hex.EncodeToString(hash[:])
@@ -123,14 +123,14 @@ func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.
 				// warn all subscription info fetch errors to prevent blocking registration
 				s.log.Warnf("failed to fetch subscription info: %v. continuing with registration.", err)
 			} else {
-				mappedInfo, coveredProductNames := mapSubscriptionInfo(subInfo, regCodeHash)
+				mappedInfo := mapSubscriptionInfo(subInfo, regCodeHash)
 				registrationObj.Status.SubscriptionInfo = mappedInfo
-				if len(coveredProductNames) > maxProductClassLength && subInfo != nil {
+				if subInfo != nil && len(subInfo.ProductClasses) > maxProductClassLength {
 					s.log.Warnf("product classes list is too large (%d items), truncating list to %d items.", len(subInfo.ProductClasses), maxProductClassLength)
 				}
 
 				// Update the RegCode secret with annotations/data or clean them up
-				s.updateRegistrationSecret(registrationObj, coveredProductNames)
+				s.updateRegistrationSecret(registrationObj)
 			}
 		}
 	}
@@ -505,23 +505,21 @@ func getSubscriptionInfoFromSecret(regSecret *corev1.Secret) (*v1.SubscriptionIn
 	return subInfo, nil
 }
 
-func mapSubscriptionInfo(subInfo *sccreg.SubscriptionInfo, regCodeHash string) (*v1.SubscriptionInfo, []string) {
+func mapSubscriptionInfo(subInfo *sccreg.SubscriptionInfo, regCodeHash string) *v1.SubscriptionInfo {
 	if subInfo == nil {
-		return nil, nil
+		return nil
 	}
-	pcs := make([]v1.ProductClass, 0, len(subInfo.ProductClasses))
-	coveredProductNames := make([]string, 0, len(subInfo.ProductClasses))
+	limit := len(subInfo.ProductClasses)
+	if limit > maxProductClassLength {
+		limit = maxProductClassLength
+	}
+	pcs := make([]v1.ProductClass, 0, limit)
 	for i, pc := range subInfo.ProductClasses {
 		if i < maxProductClassLength {
 			pcs = append(pcs, v1.ProductClass{
 				Name:        pc.Name,
 				Description: pc.Description,
 			})
-		}
-		if pc.Description != "" {
-			coveredProductNames = append(coveredProductNames, pc.Description)
-		} else {
-			coveredProductNames = append(coveredProductNames, pc.Name)
 		}
 	}
 
@@ -544,7 +542,7 @@ func mapSubscriptionInfo(subInfo *sccreg.SubscriptionInfo, regCodeHash string) (
 		ProductClasses: pcs,
 		RegCodeHash:    regCodeHash,
 	}
-	return res, coveredProductNames
+	return res
 }
 
 func (s *sccOnlineMode) restoreSubscriptionInfo(registrationObj *v1.Registration) {
@@ -563,7 +561,7 @@ func (s *sccOnlineMode) restoreSubscriptionInfo(registrationObj *v1.Registration
 	}
 }
 
-func (s *sccOnlineMode) updateRegistrationSecret(registrationObj *v1.Registration, coveredProductNames []string) {
+func (s *sccOnlineMode) updateRegistrationSecret(registrationObj *v1.Registration) {
 	if registrationObj.Spec.RegistrationRequest == nil || registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef == nil {
 		return
 	}
@@ -588,21 +586,9 @@ func (s *sccOnlineMode) updateRegistrationSecret(registrationObj *v1.Registratio
 				changed = true
 			}
 		}
-		productListStr := strings.Join(coveredProductNames, ", ")
-		if regSecretCopy.Data == nil {
-			regSecretCopy.Data = make(map[string][]byte)
-		}
-		if string(regSecretCopy.Data[consts.SecretKeyCoveredProducts]) != productListStr {
-			regSecretCopy.Data[consts.SecretKeyCoveredProducts] = []byte(productListStr)
-			changed = true
-		}
 	} else {
 		if regSecretCopy.Annotations != nil && regSecretCopy.Annotations[consts.AnnotationSubscriptionInfo] != "" {
 			delete(regSecretCopy.Annotations, consts.AnnotationSubscriptionInfo)
-			changed = true
-		}
-		if regSecretCopy.Data != nil && len(regSecretCopy.Data[consts.SecretKeyCoveredProducts]) > 0 {
-			delete(regSecretCopy.Data, consts.SecretKeyCoveredProducts)
 			changed = true
 		}
 	}

@@ -362,9 +362,8 @@ func TestMapSubscriptionInfo(t *testing.T) {
 	regCodeHash := "hash123"
 
 	// Case 1: Nil input
-	res, covered := mapSubscriptionInfo(nil, regCodeHash)
+	res := mapSubscriptionInfo(nil, regCodeHash)
 	asserts.Nil(res)
-	asserts.Nil(covered)
 
 	// Case 2: Standard input (< 50 product classes)
 	subInfoSmall := &sccreg.SubscriptionInfo{
@@ -380,7 +379,7 @@ func TestMapSubscriptionInfo(t *testing.T) {
 		},
 	}
 
-	res, covered = mapSubscriptionInfo(subInfoSmall, regCodeHash)
+	res = mapSubscriptionInfo(subInfoSmall, regCodeHash)
 	asserts.NotNil(res)
 	asserts.Equal("subscription", res.Kind)
 	asserts.Equal("Small Sub", res.Name)
@@ -396,10 +395,6 @@ func TestMapSubscriptionInfo(t *testing.T) {
 	asserts.Equal("SUMA", res.ProductClasses[1].Name)
 	asserts.Equal("", res.ProductClasses[1].Description)
 
-	asserts.Len(covered, 2)
-	asserts.Equal("SUSE Linux Enterprise Server", covered[0])
-	asserts.Equal("SUMA", covered[1])
-
 	// Case 3: Overflow input (> 50 product classes)
 	largeProductClasses := []sccreg.ProductClass{}
 	for i := 1; i <= 55; i++ {
@@ -414,21 +409,17 @@ func TestMapSubscriptionInfo(t *testing.T) {
 		ProductClasses: largeProductClasses,
 	}
 
-	res, covered = mapSubscriptionInfo(subInfoLarge, regCodeHash)
+	res = mapSubscriptionInfo(subInfoLarge, regCodeHash)
 	asserts.NotNil(res)
 	// pcs should be truncated (length 50)
 	asserts.Len(res.ProductClasses, 50)
-	// coveredProductNames should still be fully populated (all 55 elements)
-	asserts.Len(covered, 55)
-	asserts.Equal("Desc-1", covered[0])
-	asserts.Equal("Desc-55", covered[54])
 
 	// Case 4: Zero times
 	subInfoZeroTime := &sccreg.SubscriptionInfo{
 		StartsAt:  time.Time{},
 		ExpiresAt: time.Time{},
 	}
-	res, _ = mapSubscriptionInfo(subInfoZeroTime, regCodeHash)
+	res = mapSubscriptionInfo(subInfoZeroTime, regCodeHash)
 	asserts.NotNil(res)
 	asserts.Nil(res.StartsAt)
 	asserts.Nil(res.ExpiresAt)
@@ -503,7 +494,7 @@ func TestUpdateRegistrationSecret(t *testing.T) {
 
 	// Case 1: No secret reference
 	reg1 := &v1.Registration{}
-	sccOnline.updateRegistrationSecret(reg1, nil) // Should do nothing and not fail
+	sccOnline.updateRegistrationSecret(reg1) // Should do nothing and not fail
 
 	// Case 2: Secret has no changes
 	reg2 := &v1.Registration{
@@ -529,17 +520,14 @@ func TestUpdateRegistrationSecret(t *testing.T) {
 				consts.AnnotationSubscriptionInfo: `{"name":"Sub"}`,
 			},
 		},
-		Data: map[string][]byte{
-			consts.SecretKeyCoveredProducts: []byte("ProdA, ProdB"),
-		},
 	}
 	// Called once by secretRepo.Get (CreateOrUpdateSecret is not called since changed is false)
 	mockCache.EXPECT().Get("ns", "secret-name").Return(existingSecret, nil).Times(1)
 
-	// Since annotations and data match, no update should be performed
-	sccOnline.updateRegistrationSecret(reg2, []string{"ProdA", "ProdB"})
+	// Since annotations match no update should be performed
+	sccOnline.updateRegistrationSecret(reg2)
 
-	// Case 3: Secret has changes and is updated
+	// Case 3: Secret has changes (annotations) and is updated
 	reg3 := &v1.Registration{
 		Spec: v1.RegistrationSpec{
 			RegistrationRequest: &v1.RegistrationRequest{
@@ -560,5 +548,5 @@ func TestUpdateRegistrationSecret(t *testing.T) {
 	// We expect Patch to be called on controller during update
 	mockController.EXPECT().Patch("ns", "secret-name", gomock.Any(), gomock.Any()).Return(existingSecret, nil).Times(1)
 
-	sccOnline.updateRegistrationSecret(reg3, []string{"ProdNew"})
+	sccOnline.updateRegistrationSecret(reg3)
 }
