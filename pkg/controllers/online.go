@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
@@ -43,11 +44,17 @@ func (s *sccOnlineMode) prepareSCCOnlineConnection(
 	rancherMetrics telemetry.MetricsWrapper,
 	registrationURL string,
 ) suseconnect.SccWrapper {
+	// Fetch the registration URL certificate if provided
+	var cert *x509.Certificate
+	if s.registration.Spec.RegistrationRequest.RegistrationAPICertificateSecretRef != nil {
+		cert = suseconnect.FetchRegistrationURLCertFrom(s.secretRepo, s.registration.Spec.RegistrationRequest.RegistrationAPICertificateSecretRef)
+	}
+
 	return suseconnect.OnlineRancherConnection(
 		suseconnect.OnlineConnectionParams{
 			RancherURL:      s.rancherURL,
 			RegistrationURL: registrationURL,
-			Options:         suseconnect.DefaultConnectionOptions(s.options.OperatorName, s.options.OperatorMetadata.Version),
+			Options:         suseconnect.DefaultConnectionOptions(s.options.OperatorName, s.options.OperatorMetadata.Version, cert),
 		},
 		s.sccCredentials.SccCredentials(),
 		rancherMetrics,
@@ -387,7 +394,7 @@ func (s *sccOnlineMode) Deregister() error {
 	if regCodeErr != nil && !apierrors.IsNotFound(regCodeErr) {
 		return regCodeErr
 	}
-	if lifecycle.SecretHasRegCodeFinalizer(regCodeSecret) {
+	if regCodeSecret != nil && lifecycle.SecretHasRegCodeFinalizer(regCodeSecret) {
 		updateRegCodeSecret := regCodeSecret.DeepCopy()
 		updateRegCodeSecret = lifecycle.SecretRemoveRegCodeFinalizer(updateRegCodeSecret)
 
@@ -397,8 +404,30 @@ func (s *sccOnlineMode) Deregister() error {
 		}
 	}
 
-	if err := s.secretRepo.Controller.Delete(regCodeSecretRef.Namespace, regCodeSecretRef.Name, &metav1.DeleteOptions{}); err != nil {
+	if err := s.secretRepo.Controller.Delete(regCodeSecretRef.Namespace, regCodeSecretRef.Name, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		return err
+	}
+
+	// Clean up registration URL certificate secret if it exists
+	regURLCertSecretRef := s.registration.Spec.RegistrationRequest.RegistrationAPICertificateSecretRef
+	if regURLCertSecretRef != nil {
+		regURLCertSecret, regURLCertErr := s.secretRepo.Get(regURLCertSecretRef.Namespace, regURLCertSecretRef.Name)
+		if regURLCertErr != nil && !apierrors.IsNotFound(regURLCertErr) {
+			return regURLCertErr
+		}
+		if regURLCertSecret != nil && lifecycle.SecretHasRegURLCertFinalizer(regURLCertSecret) {
+			updateRegURLCertSecret := regURLCertSecret.DeepCopy()
+			updateRegURLCertSecret = lifecycle.SecretRemoveRegURLCertFinalizer(updateRegURLCertSecret)
+
+			_, regURLCertErr = s.secretRepo.Controller.Update(updateRegURLCertSecret)
+			if regURLCertErr != nil {
+				return regURLCertErr
+			}
+		}
+
+		if err := s.secretRepo.Controller.Delete(regURLCertSecretRef.Namespace, regURLCertSecretRef.Name, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	return nil

@@ -284,8 +284,7 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 		return incomingObj, nil
 	}
 
-	// If secret hash has changed make sure that we submit objects that correspond to that hash
-	// are cleaned up
+	// Upon secret hash changes ensure that objects which correspond to that hash are cleaned up
 	// TODO: make it so that changes to the incoming Salt (which changes the nameID) are correctly handled
 	// Note that change would affect both name and content hashes - however something seems to not.
 	if incomingNameHash != params.nameID {
@@ -343,6 +342,18 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 
 		if _, err := h.secretRepo.CreateOrUpdateSecret(regCodeSecret); err != nil {
 			return incomingObj, err
+		}
+
+		// TODO - maybe pull this out if RMT expects to support offline certs too?
+		if params.hasRegURLCertData {
+			regURLCertSecret, err := h.regURLCertFromSecretEntrypoint(params)
+			if err != nil {
+				return incomingObj, err
+			}
+
+			if _, err := h.secretRepo.CreateOrUpdateSecret(regURLCertSecret); err != nil {
+				return incomingObj, err
+			}
 		}
 	}
 
