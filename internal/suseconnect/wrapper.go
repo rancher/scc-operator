@@ -155,6 +155,10 @@ func (sw *SccWrapper) ProductInfo() (*registration.Product, error) {
 	return registration.FetchProductInfo(sw.conn, identifier, version, arch)
 }
 
+func (sw *SccWrapper) SubscriptionInfo(regCode string) (*registration.SubscriptionInfo, error) {
+	return registration.FetchSubscriptionInfo(sw.conn, regCode)
+}
+
 func (sw *SccWrapper) Deregister() error {
 	return registration.Deregister(sw.conn)
 }
