@@ -19,7 +19,7 @@ RANCHER_BRANCHES=(
   "release/v2.12"
   "release/v2.13"
   "release/v2.14"
-#  "release/v2.15"
+  "release/v2.15"
   "main"
 )
 
