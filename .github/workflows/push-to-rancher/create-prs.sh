@@ -40,8 +40,10 @@ for TARGET_BRANCH in "${RANCHER_BRANCHES[@]}"; do
     continue
   fi
 
-  # Create feature branch
-  BRANCH_NAME="bot/scc-operator-${TAG}-$(date +%s)"
+  # Create feature branch with target branch name for clarity
+  # Convert release/v2.12 -> v2.12, main -> main
+  TARGET_SUFFIX="${TARGET_BRANCH#release/}"
+  BRANCH_NAME="bot/scc-operator-${TAG}-${TARGET_SUFFIX}-$(date +%s)"
   if ! git -C "$RANCHER_DIR" checkout -b "$BRANCH_NAME" 2>&1; then
     summary "  ⚠️  Failed to create branch \`$BRANCH_NAME\` - skipping"
     FAILED_BRANCHES+=("$TARGET_BRANCH (branch creation failed)")
