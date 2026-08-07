@@ -28,7 +28,7 @@ jobs:
     container:
       image: ghcr.io/rancher/ci-image/go1.25
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - run: git fetch --force --tags
@@ -52,7 +52,7 @@ jobs:
           echo "artifacts=$(tr -d '\n\r' < dist/artifacts.json)" >> "${GITHUB_OUTPUT}"
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: dist/scc-operator_*
 
@@ -67,7 +67,7 @@ jobs:
       image: ghcr.io/rancher/ci-image/go1.25
     steps:
       - name : Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: "Read Secrets"
         if: github.repository == 'rancher/scc-operator'
@@ -82,7 +82,7 @@ jobs:
 
         # This encapsulates: login, qemu, build/push
       - name: Build and push scc-operator image (dockerhub and prime stg)
-        uses: rancher/ecm-distro-tools/actions/publish-image@49656efa72e90062a70fac1a85ad121f4873a6a0 # v0.74.4
+        uses: rancher/ecm-distro-tools/actions/publish-image@b558c3371d4a363f131e31a87d5c47dae2bbebe7 # v0.75.1
         with:
           image: 'scc-operator'
           tag: ${{ github.ref_name }}
@@ -114,7 +114,7 @@ jobs:
 
       - name: Build and push scc-operator image (prod)
         if: ${{github.repository == 'rancher/scc-operator' && steps.semver_check.outputs.HAS_PRERELEASE == 'false'}}
-        uses: rancher/ecm-distro-tools/actions/publish-image@49656efa72e90062a70fac1a85ad121f4873a6a0 # v0.74.4
+        uses: rancher/ecm-distro-tools/actions/publish-image@b558c3371d4a363f131e31a87d5c47dae2bbebe7 # v0.75.1
         with:
           image: 'scc-operator'
           tag: ${{ github.ref_name }}
@@ -129,9 +129,18 @@ jobs:
     name: Un-draft release
     runs-on: ubuntu-latest
     needs: [ ci, goreleaser, image ]
+    outputs:
+      is_stable: ${{ steps.semver_check.outputs.HAS_PRERELEASE == 'false' }}
     permissions:
       contents: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check SemVer Characteristics
+        id: semver_check
+        run: bash ./.github/scripts/check-semver "${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+
       - name: Fully publish release (retry until visible)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -139,7 +148,7 @@ jobs:
         run: |
           set -euo pipefail
           tag="${{ github.ref_name }}"
-          
+
           for i in {1..12}; do
             if gh release view -R "${{ github.repository }}" "$tag" >/dev/null 2>&1; then
               gh release edit -R "${{ github.repository }}" "$tag" --draft=false
@@ -148,6 +157,14 @@ jobs:
             echo "Release '$tag' not found yet (attempt $i/12). Sleeping 10s..."
             sleep 10
           done
-          
+
           echo "Release '$tag' still not found after retries; failing."
           exit 1
+
+  push-to-rancher:
+    name: Push to rancher/rancher
+    needs: [ release ]
+    if: ${{ github.repository == 'rancher/scc-operator' && needs.release.outputs.is_stable == 'true' }}
+    uses: ./.github/workflows/push-to-rancher.yml
+    with:
+      tag: ${{ github.ref_name }}

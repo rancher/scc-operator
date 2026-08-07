@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-cd $(dirname $0)/..
+cd "$(dirname "$0")/.."
 
 echo "Validating go.mod versions across main and gotools..."
 
@@ -47,7 +47,7 @@ for modfile in gotools/*/go.mod; do
     fi
 done
 
-if [ $ERRORS -eq 0 ]; then
+if [ "$ERRORS" -eq 0 ]; then
     echo "✓ All go.mod files are in sync"
     exit 0
 else
