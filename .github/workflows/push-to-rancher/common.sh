@@ -30,6 +30,7 @@ if [ -n "${RANCHER_BRANCHES_OVERRIDE:-}" ]; then
 else
   RANCHER_BRANCHES=("${DEFAULT_RANCHER_BRANCHES[@]}")
 fi
+export RANCHER_BRANCHES
 
 # Docker registry to validate image existence
 IMAGE_REGISTRY="${IMAGE_REGISTRY:-docker.io}"

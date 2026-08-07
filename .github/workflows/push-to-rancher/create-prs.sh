@@ -97,7 +97,7 @@ Created-by: scc-operator-release-integration"
 
   if ! commit_if_changed "$COMMIT_MSG"; then
     exit_code=$?
-    if [ $exit_code -eq 1 ]; then
+    if [ "$exit_code" -eq 1 ]; then
       summary "  ℹ️  No changes detected - skipping"
     else
       summary "  ⚠️  Failed to commit changes - skipping"
