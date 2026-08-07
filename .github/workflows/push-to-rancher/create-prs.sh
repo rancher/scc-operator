@@ -18,10 +18,6 @@ require_rancher_dir
 
 SOURCE_REPO="${SOURCE_REPO:-rancher/scc-operator}"
 
-# Configure git in rancher clone
-git -C "$RANCHER_DIR" config user.name "github-actions[bot]"
-git -C "$RANCHER_DIR" config user.email "github-actions[bot]@users.noreply.github.com"
-
 summary ""
 summary "## Processing branches"
 
@@ -86,7 +82,10 @@ for TARGET_BRANCH in "${RANCHER_BRANCHES[@]}"; do
   # Commit changes
   COMMIT_MSG="Update SCC Operator to ${TAG}
 
-Automated update from ${SOURCE_REPO} release ${TAG}"
+Automated update from ${SOURCE_REPO} release ${TAG}
+
+Automation: push-to-rancher
+Created-by: scc-operator-release-integration"
 
   if ! commit_if_changed "$COMMIT_MSG"; then
     summary "  ℹ️  No changes detected - skipping"

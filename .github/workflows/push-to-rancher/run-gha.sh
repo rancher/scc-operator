@@ -31,6 +31,10 @@ validate_image_exists "$TAG"
 summary "- Cloning rancher/rancher..."
 git clone "https://oauth2:${GH_TOKEN}@github.com/rancher/rancher.git" "$RANCHER_DIR"
 
+# Configure git identity for commits (GHA only - fresh clone deleted at workflow end)
+git -C "$RANCHER_DIR" config user.name "github-actions[bot]"
+git -C "$RANCHER_DIR" config user.email "github-actions[bot]@users.noreply.github.com"
+
 summary ""
 summary "## Creating PRs"
 
