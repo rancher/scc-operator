@@ -25,10 +25,10 @@ For each target Rancher branch:
 
 ## Target branches
 
-Edit `common.sh` and update `RANCHER_BRANCHES` array:
+Default branches are defined in `common.sh`:
 
 ```bash
-RANCHER_BRANCHES=(
+DEFAULT_RANCHER_BRANCHES=(
   "release/v2.12"
   "release/v2.13"
   "release/v2.14"
@@ -39,6 +39,28 @@ RANCHER_BRANCHES=(
 
 Add new Rancher versions as they're released. Remove EOL versions.
 
+### Filtering branches at runtime
+
+Override which branches to process using `RANCHER_BRANCHES_OVERRIDE`:
+
+**Local usage:**
+```bash
+# Only v2.15 and main
+./run-local.sh --tag v0.4.2 --rancher-dir ~/rancher \
+  --branches "release/v2.15,main"
+
+# Single branch
+./run-local.sh --tag v0.4.2 --rancher-dir ~/rancher \
+  --branches "main"
+```
+
+**GHA usage:**
+Set `RANCHER_BRANCHES_OVERRIDE` in the workflow file or as a workflow input:
+```yaml
+env:
+  RANCHER_BRANCHES_OVERRIDE: "release/v2.15 main"
+```
+
 ## Local usage
 
 ```bash
@@ -46,10 +68,14 @@ Add new Rancher versions as they're released. Remove EOL versions.
   --tag v0.4.2 \
   --rancher-dir /path/to/rancher \
   [--dry-run] \
-  [--remote upstream]
+  [--remote upstream] \
+  [--branches "release/v2.15,main"]
 ```
 
-`--dry-run` runs all local git work (commits to your rancher clone) but skips push and PR creation.
+Options:
+- `--dry-run` - runs all local git work (commits to your rancher clone) but skips push and PR creation
+- `--remote` - git remote name in your rancher clone (default: `origin`)
+- `--branches` - comma-separated list of branches to process (overrides default list)
 
 ## Step sequence
 
@@ -67,6 +93,7 @@ Add new Rancher versions as they're released. Remove EOL versions.
 | `TAG` | SCC Operator tag (e.g. `v0.4.2`) |
 | `RANCHER_DIR` | Path to local rancher/rancher clone |
 | `RANCHER_REMOTE` | Remote name in `RANCHER_DIR` (default: `origin`) |
+| `RANCHER_BRANCHES_OVERRIDE` | Space or comma-separated list of branches to process (overrides default) |
 | `DRY_RUN` | Set to `true` to skip push and PR creation |
 | `SOURCE_REPO` | Source repo for PR body (default: `rancher/scc-operator`) |
 

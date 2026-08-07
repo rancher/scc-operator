@@ -14,14 +14,22 @@ RANCHER_REMOTE="${RANCHER_REMOTE:-origin}"
 # Skip git commits, push, and PR creation when true
 DRY_RUN="${DRY_RUN:-false}"
 
-# Target branches in rancher/rancher to update
-RANCHER_BRANCHES=(
+# Target branches in rancher/rancher to update (default)
+DEFAULT_RANCHER_BRANCHES=(
   "release/v2.12"
   "release/v2.13"
   "release/v2.14"
   "release/v2.15"
   "main"
 )
+
+# Allow override via RANCHER_BRANCHES_OVERRIDE (comma or space separated)
+if [ -n "${RANCHER_BRANCHES_OVERRIDE:-}" ]; then
+  # Convert to array, handling both comma and space separators
+  IFS=',' read -ra RANCHER_BRANCHES <<< "${RANCHER_BRANCHES_OVERRIDE// /,}"
+else
+  RANCHER_BRANCHES=("${DEFAULT_RANCHER_BRANCHES[@]}")
+fi
 
 # Docker registry to validate image existence
 IMAGE_REGISTRY="${IMAGE_REGISTRY:-docker.io}"

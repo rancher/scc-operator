@@ -13,6 +13,7 @@ TAG=""
 RANCHER_DIR=""
 DRY_RUN="false"
 RANCHER_REMOTE="origin"
+RANCHER_BRANCHES_OVERRIDE=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -33,9 +34,13 @@ while [[ $# -gt 0 ]]; do
       RANCHER_REMOTE="$2"
       shift 2
       ;;
+    --branches)
+      RANCHER_BRANCHES_OVERRIDE="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown option: $1" >&2
-      echo "Usage: $0 --tag TAG --rancher-dir DIR [--dry-run] [--remote REMOTE]" >&2
+      echo "Usage: $0 --tag TAG --rancher-dir DIR [--dry-run] [--remote REMOTE] [--branches BRANCHES]" >&2
       exit 1
       ;;
   esac
@@ -58,7 +63,7 @@ if [ ! -d "$RANCHER_DIR" ]; then
 fi
 
 # Set up environment
-export TAG RANCHER_DIR RANCHER_REMOTE DRY_RUN
+export TAG RANCHER_DIR RANCHER_REMOTE DRY_RUN RANCHER_BRANCHES_OVERRIDE
 export GH_TOKEN="${GH_TOKEN:-$(gh auth token)}"
 
 # Source common for validation functions
@@ -69,6 +74,7 @@ echo "- Tag: $TAG"
 echo "- Rancher dir: $RANCHER_DIR"
 echo "- Remote: $RANCHER_REMOTE"
 echo "- Dry run: $DRY_RUN"
+echo "- Target branches: ${RANCHER_BRANCHES[*]}"
 echo ""
 
 # Validate image exists

@@ -8,6 +8,9 @@
 #   SOURCE_REPO  - source repo (github.repository)
 #   SCC_DIR      - path to scc-operator workspace ($GITHUB_WORKSPACE)
 #   RANCHER_DIR  - path to clone rancher/rancher into
+#
+# Optional env vars:
+#   RANCHER_BRANCHES_OVERRIDE - space or comma-separated list of branches to process
 
 set -euo pipefail
 
@@ -17,7 +20,7 @@ source "$SCRIPT_DIR/common.sh"
 require_var TAG
 require_var GH_TOKEN
 
-export SCC_DIR RANCHER_DIR DRY_RUN
+export SCC_DIR RANCHER_DIR DRY_RUN RANCHER_BRANCHES_OVERRIDE
 
 summary "## Push to rancher/rancher"
 summary "- Tag: \`$TAG\`"
