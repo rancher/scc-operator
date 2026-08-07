@@ -75,11 +75,11 @@ validate_image_exists() {
   summary "  ✓ Image validated"
 }
 
-# Commit all changes in RANCHER_DIR if any exist. Does nothing if tree is clean.
+# Commit all changes in RANCHER_DIR if any exist. Returns 1 if no changes, 0 on success.
 commit_if_changed() {
   local message="$1"
   if git -C "$RANCHER_DIR" diff --quiet --exit-code && [ -z "$(git -C "$RANCHER_DIR" status --porcelain)" ]; then
-    return 0
+    return 1
   fi
   git -C "$RANCHER_DIR" add .
   git -C "$RANCHER_DIR" commit -m "$message"

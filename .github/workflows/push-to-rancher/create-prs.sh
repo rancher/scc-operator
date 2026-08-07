@@ -34,11 +34,19 @@ for TARGET_BRANCH in "${RANCHER_BRANCHES[@]}"; do
     continue
   fi
 
-  git -C "$RANCHER_DIR" checkout -B "$TARGET_BRANCH" "$RANCHER_REMOTE/$TARGET_BRANCH"
+  if ! git -C "$RANCHER_DIR" checkout -B "$TARGET_BRANCH" "$RANCHER_REMOTE/$TARGET_BRANCH" 2>&1; then
+    summary "  ⚠️  Failed to checkout branch \`$TARGET_BRANCH\` - skipping"
+    FAILED_BRANCHES+=("$TARGET_BRANCH (checkout failed)")
+    continue
+  fi
 
   # Create feature branch
   BRANCH_NAME="bot/scc-operator-${TAG}-$(date +%s)"
-  git -C "$RANCHER_DIR" checkout -b "$BRANCH_NAME"
+  if ! git -C "$RANCHER_DIR" checkout -b "$BRANCH_NAME" 2>&1; then
+    summary "  ⚠️  Failed to create branch \`$BRANCH_NAME\` - skipping"
+    FAILED_BRANCHES+=("$TARGET_BRANCH (branch creation failed)")
+    continue
+  fi
 
   # Update build.yaml
   export TAG RANCHER_DIR
@@ -88,7 +96,13 @@ Automation: push-to-rancher
 Created-by: scc-operator-release-integration"
 
   if ! commit_if_changed "$COMMIT_MSG"; then
-    summary "  ℹ️  No changes detected - skipping"
+    exit_code=$?
+    if [ $exit_code -eq 1 ]; then
+      summary "  ℹ️  No changes detected - skipping"
+    else
+      summary "  ⚠️  Failed to commit changes - skipping"
+      FAILED_BRANCHES+=("$TARGET_BRANCH (commit failed)")
+    fi
     git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
     git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
     continue
