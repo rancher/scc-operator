@@ -2,7 +2,7 @@ module github.com/rancher/rancher/gotools/controller-gen
 
 go 1.25.1
 
-toolchain go1.26.5
+toolchain go1.26.6
 
 tool sigs.k8s.io/controller-tools/cmd/controller-gen
 
