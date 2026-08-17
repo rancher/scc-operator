@@ -2,7 +2,7 @@ module github.com/rancher/scc-operator
 
 go 1.25.1
 
-toolchain go1.26.5
+toolchain go1.26.6
 
 replace (
 	k8s.io/api => k8s.io/api v0.35.4
