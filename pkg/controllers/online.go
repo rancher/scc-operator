@@ -34,6 +34,8 @@ var (
 
 const (
 	maxProductClassLength = 50
+	// Product identifier for Rancher activations
+	rancherProductIdentifier = "rancher"
 )
 
 type sccOnlineMode struct {
@@ -76,6 +78,7 @@ func (s *sccOnlineMode) PrepareForRegister(registration *v1.Registration) (*v1.R
 	if registration.Status.SystemCredentialsSecretRef == nil {
 		err := s.sccCredentials.InitSecret()
 		if err != nil {
+			s.log.Debugf("failed to initialize SCC credentials secret for registration %s: %v", registration.Name, err)
 			return registration, err
 		}
 		s.sccCredentials.SetRegistrationCredentialsSecretRef(registration)
@@ -85,9 +88,11 @@ func (s *sccOnlineMode) PrepareForRegister(registration *v1.Registration) (*v1.R
 }
 
 func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.RegistrationSystemID, error) {
+	s.log.Debugf("registering %s with SCC", registrationObj.Name)
 	// We must always refresh the sccCredentials - this ensures they are current from the secrets
 	credentialsErr := s.sccCredentials.Refresh()
 	if credentialsErr != nil {
+		s.log.Debugf("failed to refresh SCC credentials for registration %s: %v", registrationObj.Name, credentialsErr)
 		return suseconnect.EmptyRegistrationSystemID, credentialsErr
 	}
 
@@ -136,13 +141,16 @@ func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.
 	}
 
 	// Register this Rancher cluster to SCC
+	s.log.Debugf("calling SCC RegisterOrKeepAlive for registration %s", registrationObj.Name)
 	id, regErr := sccConnection.RegisterOrKeepAlive(registrationCode)
 	if regErr != nil {
+		s.log.Debugf("SCC RegisterOrKeepAlive failed for registration %s: %v", registrationObj.Name, regErr)
 		regErr = enrichRegistrationError(regErr, registrationObj.Status.SubscriptionInfo)
 		// TODO(scc) do we error different based on ID type?
 		return id, regErr
 	}
 
+	s.log.Debugf("registration %s successfully registered with SCC (system ID: %d)", registrationObj.Name, id)
 	return id, nil
 }
 
@@ -283,50 +291,137 @@ func (s *sccOnlineMode) ReadyForActivation(registrationObj *v1.Registration) boo
 }
 
 func (s *sccOnlineMode) Activate(registrationObj *v1.Registration) error {
-	s.log.Debugf("received registration ready for activations %q", registrationObj.Name)
-	s.log.Debug("registration ", registrationObj)
+	s.log.Debugf("activating registration %s", registrationObj.Name)
 
 	credentialsErr := s.sccCredentials.Refresh()
 	if credentialsErr != nil {
+		s.log.Debugf("failed to refresh SCC credentials for registration %s: %v", registrationObj.Name, credentialsErr)
 		return fmt.Errorf("cannot load scc credentials: %w", credentialsErr)
 	}
 
 	registrationCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
 	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
+	s.log.Debugf("calling SCC Activate for registration %s", registrationObj.Name)
 	metaData, product, err := sccConnection.Activate(registrationCode)
 	if err != nil {
+		s.log.Debugf("SCC Activate failed for registration %s: %v", registrationObj.Name, err)
 		return err
 	}
-	s.log.Info(metaData)
-	s.log.Info(product)
+	s.log.Debugf("activation metadata for %s: %v", registrationObj.Name, metaData)
+	s.log.Debugf("activation product for %s: %v", registrationObj.Name, product)
 
-	s.log.Info("Successfully registered activation")
+	s.log.Infof("Successfully activated registration %s", registrationObj.Name)
 
 	return nil
 }
 
+// selectBestActivation selects the most appropriate activation from a list based on:
+// 1. Product identifier match (prefer Rancher product)
+// 2. Version match with current Rancher version (if available)
+// 3. Most recent StartsAt timestamp (newest activation)
+func (s *sccOnlineMode) selectBestActivation(activations []*sccreg.Activation, registrationName string) *sccreg.Activation {
+	if len(activations) == 0 {
+		return nil
+	}
+	if len(activations) == 1 {
+		return activations[0]
+	}
+
+	s.log.Debugf("registration %s has %d activations, selecting best match", registrationName, len(activations))
+
+	// Get current Rancher version if available
+	var currentVersion string
+	if s.rancherMetrics.Data != nil {
+		_, version, _ := s.rancherMetrics.GetProductIdentifier()
+		currentVersion = version
+		s.log.Debugf("current Rancher version: %s", currentVersion)
+	}
+
+	// Filter for Rancher product activations only
+	var rancherActivations []*sccreg.Activation
+	for _, activation := range activations {
+		if activation.Product != nil && activation.Product.Identifier == rancherProductIdentifier {
+			rancherActivations = append(rancherActivations, activation)
+		}
+	}
+
+	// If we filtered down to Rancher-only activations, use that list
+	candidateActivations := activations
+	if len(rancherActivations) > 0 {
+		s.log.Debugf("found %d Rancher product activations out of %d total", len(rancherActivations), len(activations))
+		candidateActivations = rancherActivations
+	}
+
+	// Try to find exact version match if we have current version
+	if currentVersion != "" {
+		for _, activation := range candidateActivations {
+			if activation.Product != nil && activation.Product.Version == currentVersion {
+				s.log.Debugf("selected activation with exact version match: %s v%s (started %v, expires %v)",
+					activation.Product.FriendlyName, activation.Product.Version,
+					activation.StartsAt, activation.ExpiresAt)
+				return activation
+			}
+		}
+		s.log.Debugf("no exact version match for %s, falling back to newest activation", currentVersion)
+	}
+
+	// Fall back to newest activation by StartsAt
+	newestActivation := candidateActivations[0]
+	for _, activation := range candidateActivations[1:] {
+		if activation.StartsAt.After(newestActivation.StartsAt) {
+			s.log.Debugf("found newer activation: %s v%s (started %v) vs %s v%s (started %v)",
+				activation.Product.FriendlyName, activation.Product.Version, activation.StartsAt,
+				newestActivation.Product.FriendlyName, newestActivation.Product.Version, newestActivation.StartsAt)
+			newestActivation = activation
+		}
+	}
+
+	s.log.Debugf("selected newest activation: %s v%s (started %v, expires %v)",
+		newestActivation.Product.FriendlyName, newestActivation.Product.Version,
+		newestActivation.StartsAt, newestActivation.ExpiresAt)
+
+	return newestActivation
+}
+
 func (s *sccOnlineMode) PrepareActivatedForKeepalive(registrationObj *v1.Registration) (*v1.Registration, error) {
+	s.log.Debugf("preparing keepalive for registration %s", registrationObj.Name)
 	v1.RegistrationConditionSccURLReady.True(registrationObj)
 
 	credentialsErr := s.sccCredentials.Refresh()
 	if credentialsErr != nil {
+		s.log.Debugf("failed to refresh SCC credentials for registration %s: %v", registrationObj.Name, credentialsErr)
 		return nil, fmt.Errorf("cannot load scc credentials: %w", credentialsErr)
 	}
 	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
+	s.log.Debugf("fetching activation status for registration %s", registrationObj.Name)
 	activations, err := sccConnection.ActivationStatus()
 	if err != nil {
+		s.log.Debugf("failed to fetch activation status for registration %s: %v", registrationObj.Name, err)
 		return nil, err
 	}
 	if len(activations) == 0 {
+		s.log.Debugf("no activations found for registration %s", registrationObj.Name)
 		return nil, fmt.Errorf("no activations found for registration %q", registrationObj.Name)
 	}
-	// TODO: what if there are more than 1?
-	firstActivation := activations[0]
 
-	registrationObj.Status.RegistrationExpiresAt = &metav1.Time{Time: firstActivation.ExpiresAt}
-	registrationObj.Status.RegisteredProduct = &firstActivation.Product.FriendlyName
+	// Select the best activation based on product, version, and timestamp
+	selectedActivation := s.selectBestActivation(activations, registrationObj.Name)
+	if selectedActivation == nil {
+		return nil, fmt.Errorf("failed to select activation for registration %q", registrationObj.Name)
+	}
+
+	s.log.Debugf("registration %s: using product %s v%s (expires at %v)",
+		registrationObj.Name, selectedActivation.Product.FriendlyName,
+		selectedActivation.Product.Version, selectedActivation.ExpiresAt)
+
+	// TODO: both RegistrationExpiresAt and RegisteredProduct are not being refreshed correctly today and only set here.
+	// We should improve this by either: a) extracting this into a new interface func with meaningful name in the "state machine flow", (for easier re-use)
+	// or b) add similar updates/changes in the existnig funcs where it should be getting updated.
+	// This lack of refresh to these fields is what causes the Rancher Product info on Registration page to be outdated after Rancher updates
+	registrationObj.Status.RegistrationExpiresAt = &metav1.Time{Time: selectedActivation.ExpiresAt}
+	registrationObj.Status.RegisteredProduct = &selectedActivation.Product.FriendlyName
 	return registrationObj, nil
 }
 
@@ -356,28 +451,34 @@ func (s *sccOnlineMode) ReconcileActivateError(registration *v1.Registration, ac
 }
 
 func (s *sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
+	s.log.Debugf("performing keepalive for registration %s", registrationObj.Name)
 	credRefreshErr := s.sccCredentials.Refresh() // We must always refresh the sccCredentials - this ensures they are current from the secrets
 	if credRefreshErr != nil {
+		s.log.Debugf("failed to refresh SCC credentials for registration %s: %v", registrationObj.Name, credRefreshErr)
 		return fmt.Errorf("cannot refresh credentials: %w", credRefreshErr)
 	}
 
 	regCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
 	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
+	s.log.Debugf("calling SCC Activate for keepalive of registration %s", registrationObj.Name)
 	metaData, product, err := sccConnection.Activate(regCode)
 	if err != nil {
+		s.log.Debugf("SCC Activate failed during keepalive for registration %s: %v", registrationObj.Name, err)
 		return err
 	}
-	s.log.Info(metaData)
-	s.log.Info(product)
+	s.log.Debugf("activation metadata for %s: %v", registrationObj.Name, metaData)
+	s.log.Debugf("activation product for %s: %v", registrationObj.Name, product)
 
 	// If no error, then system is still registered with valid activation status...
+	s.log.Debugf("calling SCC KeepAlive for registration %s", registrationObj.Name)
 	keepAliveErr := sccConnection.KeepAlive()
 	if keepAliveErr != nil {
+		s.log.Debugf("SCC KeepAlive failed for registration %s: %v", registrationObj.Name, keepAliveErr)
 		return keepAliveErr
 	}
 
-	s.log.Info("Successfully checked in with SCC")
+	s.log.Infof("Successfully checked in with SCC for registration %s", registrationObj.Name)
 
 	return nil
 }
@@ -435,6 +536,7 @@ func (s *sccOnlineMode) Deregister() error {
 	regCodeSecretRef := s.registration.Spec.RegistrationRequest.RegistrationCodeSecretRef
 	regCodeSecret, regCodeErr := s.secretRepo.Get(regCodeSecretRef.Namespace, regCodeSecretRef.Name)
 	if regCodeErr != nil && !apierrors.IsNotFound(regCodeErr) {
+		s.log.Debugf("failed to get registration code secret %s/%s during cleanup: %v", regCodeSecretRef.Namespace, regCodeSecretRef.Name, regCodeErr)
 		return regCodeErr
 	}
 	if lifecycle.SecretHasRegCodeFinalizer(regCodeSecret) {
@@ -443,11 +545,13 @@ func (s *sccOnlineMode) Deregister() error {
 
 		_, regCodeErr = s.secretRepo.Controller.Update(updateRegCodeSecret)
 		if regCodeErr != nil {
+			s.log.Debugf("failed to remove finalizer from registration code secret %s/%s: %v", regCodeSecretRef.Namespace, regCodeSecretRef.Name, regCodeErr)
 			return regCodeErr
 		}
 	}
 
 	if err := s.secretRepo.Controller.Delete(regCodeSecretRef.Namespace, regCodeSecretRef.Name, &metav1.DeleteOptions{}); err != nil {
+		s.log.Debugf("failed to delete registration code secret %s/%s: %v", regCodeSecretRef.Namespace, regCodeSecretRef.Name, err)
 		return err
 	}
 
