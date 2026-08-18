@@ -34,8 +34,9 @@ var (
 
 const (
 	maxProductClassLength = 50
-	// Product identifier for Rancher activations
-	rancherProductIdentifier = "rancher"
+	// Product identifiers for Rancher activations
+	rancherProductIdentifier      = "rancher"
+	rancherPrimeProductIdentifier = "rancher-prime"
 )
 
 type sccOnlineMode struct {
@@ -338,11 +339,16 @@ func (s *sccOnlineMode) selectBestActivation(activations []*sccreg.Activation, r
 		s.log.Debugf("current Rancher version: %s", currentVersion)
 	}
 
-	// Filter for Rancher product activations only
+	// Filter for Rancher product activations only (both "rancher" and "rancher-prime")
 	var rancherActivations []*sccreg.Activation
 	for _, activation := range activations {
-		if activation.Product != nil && activation.Product.Identifier == rancherProductIdentifier {
-			rancherActivations = append(rancherActivations, activation)
+		if activation.Product != nil {
+			s.log.Debugf("activation: identifier=%s, version=%s, friendlyName=%s",
+				activation.Product.Identifier, activation.Product.Version, activation.Product.FriendlyName)
+			if activation.Product.Identifier == rancherProductIdentifier ||
+				activation.Product.Identifier == rancherPrimeProductIdentifier {
+				rancherActivations = append(rancherActivations, activation)
+			}
 		}
 	}
 
@@ -392,9 +398,10 @@ func (s *sccOnlineMode) checkVersionMismatch(sccConnection suseconnect.SccWrappe
 		return false, err
 	}
 
-	// Check if current version exists in Rancher product activations
+	// Check if current version exists in Rancher product activations (both "rancher" and "rancher-prime")
 	for _, activation := range activations {
-		if activation.Product.Identifier == rancherProductIdentifier &&
+		if (activation.Product.Identifier == rancherProductIdentifier ||
+			activation.Product.Identifier == rancherPrimeProductIdentifier) &&
 			activation.Product.Version == currentVersion {
 			s.log.Debugf("current Rancher version %s found in activations", currentVersion)
 			return false, nil // Current version already activated
