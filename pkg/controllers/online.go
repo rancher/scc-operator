@@ -384,44 +384,62 @@ func (s *sccOnlineMode) selectBestActivation(activations []*sccreg.Activation, r
 	return newestActivation
 }
 
+// refreshProductMetadata fetches current activation status and updates product-related fields.
+// This is called both after initial activation and during keepalive to ensure the registration
+// status reflects the current product information from SCC.
+func (s *sccOnlineMode) refreshProductMetadata(registration *v1.Registration) error {
+	s.log.Debugf("refreshing product metadata for registration %s", registration.Name)
+
+	// Refresh credentials to ensure we have current secrets
+	credentialsErr := s.sccCredentials.Refresh()
+	if credentialsErr != nil {
+		s.log.Debugf("failed to refresh SCC credentials for registration %s: %v", registration.Name, credentialsErr)
+		return fmt.Errorf("cannot load scc credentials: %w", credentialsErr)
+	}
+
+	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registration))
+
+	// Fetch current activations from SCC
+	s.log.Debugf("fetching activation status for registration %s", registration.Name)
+	activations, err := sccConnection.ActivationStatus()
+	if err != nil {
+		s.log.Debugf("failed to fetch activation status for registration %s: %v", registration.Name, err)
+		return err
+	}
+
+	if len(activations) == 0 {
+		s.log.Debugf("no activations found for registration %s", registration.Name)
+		return fmt.Errorf("no activations found for registration %q", registration.Name)
+	}
+
+	// Select the best activation based on product, version, and timestamp
+	selectedActivation := s.selectBestActivation(activations, registration.Name)
+	if selectedActivation == nil {
+		return fmt.Errorf("failed to select activation for registration %q", registration.Name)
+	}
+
+	s.log.Debugf("registration %s: using product %s v%s (expires at %v)",
+		registration.Name, selectedActivation.Product.FriendlyName,
+		selectedActivation.Product.Version, selectedActivation.ExpiresAt)
+
+	// Update product metadata fields
+	registration.Status.RegistrationExpiresAt = &metav1.Time{Time: selectedActivation.ExpiresAt}
+	registration.Status.RegisteredProduct = &selectedActivation.Product.FriendlyName
+
+	return nil
+}
+
 func (s *sccOnlineMode) PrepareActivatedForKeepalive(registrationObj *v1.Registration) (*v1.Registration, error) {
 	s.log.Debugf("preparing keepalive for registration %s", registrationObj.Name)
 	v1.RegistrationConditionSccURLReady.True(registrationObj)
 
-	credentialsErr := s.sccCredentials.Refresh()
-	if credentialsErr != nil {
-		s.log.Debugf("failed to refresh SCC credentials for registration %s: %v", registrationObj.Name, credentialsErr)
-		return nil, fmt.Errorf("cannot load scc credentials: %w", credentialsErr)
-	}
-	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
-
-	s.log.Debugf("fetching activation status for registration %s", registrationObj.Name)
-	activations, err := sccConnection.ActivationStatus()
+	// Refresh product metadata (expiration date and product name) from SCC
+	// Use fatal error handling for initial activation preparation
+	err := s.refreshProductMetadata(registrationObj)
 	if err != nil {
-		s.log.Debugf("failed to fetch activation status for registration %s: %v", registrationObj.Name, err)
 		return nil, err
 	}
-	if len(activations) == 0 {
-		s.log.Debugf("no activations found for registration %s", registrationObj.Name)
-		return nil, fmt.Errorf("no activations found for registration %q", registrationObj.Name)
-	}
 
-	// Select the best activation based on product, version, and timestamp
-	selectedActivation := s.selectBestActivation(activations, registrationObj.Name)
-	if selectedActivation == nil {
-		return nil, fmt.Errorf("failed to select activation for registration %q", registrationObj.Name)
-	}
-
-	s.log.Debugf("registration %s: using product %s v%s (expires at %v)",
-		registrationObj.Name, selectedActivation.Product.FriendlyName,
-		selectedActivation.Product.Version, selectedActivation.ExpiresAt)
-
-	// TODO: both RegistrationExpiresAt and RegisteredProduct are not being refreshed correctly today and only set here.
-	// We should improve this by either: a) extracting this into a new interface func with meaningful name in the "state machine flow", (for easier re-use)
-	// or b) add similar updates/changes in the existnig funcs where it should be getting updated.
-	// This lack of refresh to these fields is what causes the Rancher Product info on Registration page to be outdated after Rancher updates
-	registrationObj.Status.RegistrationExpiresAt = &metav1.Time{Time: selectedActivation.ExpiresAt}
-	registrationObj.Status.RegisteredProduct = &selectedActivation.Product.FriendlyName
 	return registrationObj, nil
 }
 
@@ -458,19 +476,9 @@ func (s *sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 		return fmt.Errorf("cannot refresh credentials: %w", credRefreshErr)
 	}
 
-	regCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
 	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
-	s.log.Debugf("calling SCC Activate for keepalive of registration %s", registrationObj.Name)
-	metaData, product, err := sccConnection.Activate(regCode)
-	if err != nil {
-		s.log.Debugf("SCC Activate failed during keepalive for registration %s: %v", registrationObj.Name, err)
-		return err
-	}
-	s.log.Debugf("activation metadata for %s: %v", registrationObj.Name, metaData)
-	s.log.Debugf("activation product for %s: %v", registrationObj.Name, product)
-
-	// If no error, then system is still registered with valid activation status...
+	// Perform keepalive heartbeat with SCC
 	s.log.Debugf("calling SCC KeepAlive for registration %s", registrationObj.Name)
 	keepAliveErr := sccConnection.KeepAlive()
 	if keepAliveErr != nil {
@@ -486,8 +494,16 @@ func (s *sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 func (s *sccOnlineMode) PrepareKeepaliveSucceeded(registration *v1.Registration) (*v1.Registration, error) {
 	v1.RegistrationConditionSccURLReady.True(registration)
 
-	// TODO take any post keepalive success steps
 	s.log.Debug("preparing keepalive succeeded")
+
+	// Refresh product metadata to ensure status reflects current product information
+	// Use non-fatal error handling - keepalive already succeeded, metadata refresh is supplementary
+	err := s.refreshProductMetadata(registration)
+	if err != nil {
+		// This should never happen with fatalErrors=false, but handle defensively
+		s.log.Warnf("unexpected error during metadata refresh for registration %s: %v", registration.Name, err)
+	}
+
 	return registration, nil
 }
 
