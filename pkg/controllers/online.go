@@ -384,6 +384,27 @@ func (s *sccOnlineMode) selectBestActivation(activations []*sccreg.Activation, r
 	return newestActivation
 }
 
+// checkVersionMismatch determines if the current Rancher version matches any existing activation.
+// Returns true if an upgrade is needed (current version not found in activations).
+func (s *sccOnlineMode) checkVersionMismatch(sccConnection suseconnect.SccWrapper, currentVersion string) (bool, error) {
+	activations, err := sccConnection.ActivationStatus()
+	if err != nil {
+		return false, err
+	}
+
+	// Check if current version exists in Rancher product activations
+	for _, activation := range activations {
+		if activation.Product.Identifier == rancherProductIdentifier &&
+			activation.Product.Version == currentVersion {
+			s.log.Debugf("current Rancher version %s found in activations", currentVersion)
+			return false, nil // Current version already activated
+		}
+	}
+
+	s.log.Debugf("current Rancher version %s not found in activations, upgrade needed", currentVersion)
+	return true, nil // Version mismatch - need upgrade
+}
+
 // refreshProductMetadata fetches current activation status and updates product-related fields.
 // This is called both after initial activation and during keepalive to ensure the registration
 // status reflects the current product information from SCC.
@@ -477,6 +498,24 @@ func (s *sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 	}
 
 	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
+
+	// Check if Rancher version has changed and upgrade activation if needed
+	_, currentVersion, _ := s.rancherMetrics.GetProductIdentifier()
+	needsUpgrade, err := s.checkVersionMismatch(sccConnection, currentVersion)
+	if err != nil {
+		s.log.Warnf("failed to check for version mismatch for registration %s: %v", registrationObj.Name, err)
+		// Continue with keepalive - upgrade check is supplementary
+	} else if needsUpgrade {
+		s.log.Infof("Rancher version changed to %s for registration %s, upgrading activation", currentVersion, registrationObj.Name)
+		metaData, product, upgradeErr := sccConnection.Upgrade()
+		if upgradeErr != nil {
+			s.log.Warnf("activation upgrade failed for registration %s: %v - will retry on next keepalive", registrationObj.Name, upgradeErr)
+			// Continue with keepalive - upgrade will retry next time
+		} else {
+			s.log.Infof("Successfully upgraded activation to %s v%s for registration %s", product.FriendlyName, product.Version, registrationObj.Name)
+			s.log.Debugf("upgrade metadata for %s: %v", registrationObj.Name, metaData)
+		}
+	}
 
 	// Perform keepalive heartbeat with SCC
 	s.log.Debugf("calling SCC KeepAlive for registration %s", registrationObj.Name)
