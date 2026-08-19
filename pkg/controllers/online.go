@@ -390,26 +390,24 @@ func (s *sccOnlineMode) selectBestActivation(activations []*sccreg.Activation, r
 	return newestActivation
 }
 
-// checkVersionMismatch determines if the current Rancher version matches any existing activation.
-// Returns true if an upgrade is needed (current version not found in activations).
-func (s *sccOnlineMode) checkVersionMismatch(sccConnection suseconnect.SccWrapper, currentVersion string) (bool, error) {
-	activations, err := sccConnection.ActivationStatus()
-	if err != nil {
-		return false, err
+// needsVersionUpgrade determines if the current Rancher version differs from what's saved in the registration status.
+// Returns true if an upgrade is needed (current version differs from ProductVersion in status).
+// This avoids an SCC API call by using the locally stored ProductVersion field.
+func (s *sccOnlineMode) needsVersionUpgrade(registration *v1.Registration, currentVersion string) bool {
+	// If we've never set a product version, no upgrade needed (initial activation will handle it)
+	if registration.Status.ActivationStatus.ProductVersion == nil {
+		s.log.Debugf("no product version saved in status, skipping version check")
+		return false
 	}
 
-	// Check if current version exists in Rancher product activations (both "rancher" and "rancher-prime")
-	for _, activation := range activations {
-		if (activation.Product.Identifier == rancherProductIdentifier ||
-			activation.Product.Identifier == rancherPrimeProductIdentifier) &&
-			activation.Product.Version == currentVersion {
-			s.log.Debugf("current Rancher version %s found in activations", currentVersion)
-			return false, nil // Current version already activated
-		}
+	savedVersion := *registration.Status.ActivationStatus.ProductVersion
+	if savedVersion != currentVersion {
+		s.log.Debugf("version mismatch detected: saved=%s, current=%s - upgrade needed", savedVersion, currentVersion)
+		return true
 	}
 
-	s.log.Debugf("current Rancher version %s not found in activations, upgrade needed", currentVersion)
-	return true, nil // Version mismatch - need upgrade
+	s.log.Debugf("version match: saved=%s, current=%s - no upgrade needed", savedVersion, currentVersion)
+	return false
 }
 
 // refreshProductMetadata fetches current activation status and updates product-related fields.
@@ -453,6 +451,7 @@ func (s *sccOnlineMode) refreshProductMetadata(registration *v1.Registration) er
 	// Update product metadata fields
 	registration.Status.RegistrationExpiresAt = &metav1.Time{Time: selectedActivation.ExpiresAt}
 	registration.Status.RegisteredProduct = &selectedActivation.Product.FriendlyName
+	registration.Status.ActivationStatus.ProductVersion = &selectedActivation.Product.Version
 
 	return nil
 }
@@ -508,12 +507,9 @@ func (s *sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 
 	// Check if Rancher version has changed and upgrade activation if needed
 	_, currentVersion, _ := s.rancherMetrics.GetProductIdentifier()
-	needsUpgrade, err := s.checkVersionMismatch(sccConnection, currentVersion)
-	if err != nil {
-		s.log.Warnf("failed to check for version mismatch for registration %s: %v", registrationObj.Name, err)
-		// Continue with keepalive - upgrade check is supplementary
-	} else if needsUpgrade {
-		s.log.Infof("Rancher version changed to %s for registration %s, upgrading activation", currentVersion, registrationObj.Name)
+	if s.needsVersionUpgrade(registrationObj, currentVersion) {
+		s.log.Infof("Rancher version changed from %s to %s for registration %s, upgrading activation",
+			*registrationObj.Status.ActivationStatus.ProductVersion, currentVersion, registrationObj.Name)
 		metaData, product, upgradeErr := sccConnection.Upgrade()
 		if upgradeErr != nil {
 			s.log.Warnf("activation upgrade failed for registration %s: %v - will retry on next keepalive", registrationObj.Name, upgradeErr)

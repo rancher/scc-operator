@@ -17,6 +17,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/retry"
 
@@ -218,6 +219,11 @@ func mergeLabelsPreservingHelm(secret *corev1.Secret, paramsLabels map[string]st
 func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.Secret, error) {
 	if incomingObj == nil || incomingObj.DeletionTimestamp != nil {
 		return incomingObj, nil
+	}
+
+	// Handle metrics secret updates - check if Rancher version changed
+	if h.isMetricsSecret(incomingObj) {
+		return h.handleMetricsSecretUpdate(incomingObj)
 	}
 
 	if !h.isSCCEntrypointSecret(incomingObj) {
@@ -862,4 +868,72 @@ func (h *handler) OnRegistrationRemove(name string, registrationObj *v1.Registra
 	}
 
 	return nil, nil
+}
+
+// handleMetricsSecretUpdate checks if the Rancher version in the metrics secret has changed
+// and triggers an immediate sync for any registrations that have a different saved version.
+func (h *handler) handleMetricsSecretUpdate(metricsSecret *corev1.Secret) (*corev1.Secret, error) {
+	h.log.Debugf("metrics secret updated, checking for version changes")
+
+	// Parse the metrics secret to extract the current Rancher version
+	systemMetrics, metricsErr := h.secretRepo.FetchMetricsSecret()
+	if metricsErr != nil {
+		h.log.Warnf("failed to parse metrics secret: %v", metricsErr)
+		return metricsSecret, nil // Don't block on metrics parsing errors
+	}
+
+	_, currentVersion, _ := systemMetrics.GetProductIdentifier()
+	if currentVersion == "" {
+		h.log.Debugf("no version found in metrics secret, skipping version check")
+		return metricsSecret, nil
+	}
+
+	h.log.Debugf("current Rancher version from metrics secret: %s", currentVersion)
+
+	// Get all online registrations and check if any need a version upgrade
+	registrationsList, listErr := h.registrationCache.List(labels.Everything())
+	if listErr != nil {
+		h.log.Errorf("failed to list registrations during metrics secret update: %v", listErr)
+		return metricsSecret, nil // Don't block on list errors
+	}
+
+	for _, registration := range registrationsList {
+		// Skip offline mode registrations
+		if registration.Spec.Mode == v1.RegistrationModeOffline {
+			continue
+		}
+
+		// Skip registrations that haven't been activated yet
+		if !registration.Status.ActivationStatus.Activated {
+			continue
+		}
+
+		// Skip if no product version saved yet (will be set during next activation/keepalive)
+		if registration.Status.ActivationStatus.ProductVersion == nil {
+			continue
+		}
+
+		savedVersion := *registration.Status.ActivationStatus.ProductVersion
+		if savedVersion != currentVersion {
+			h.log.Infof("version mismatch detected for registration %s: saved=%s, current=%s - triggering sync",
+				registration.Name, savedVersion, currentVersion)
+
+			// Trigger immediate sync by setting syncNow flag
+			updated := registration.DeepCopy()
+			syncNow := true
+			updated.Spec.SyncNow = &syncNow
+
+			_, updateErr := h.registrations.Update(updated)
+			if updateErr != nil {
+				h.log.Errorf("failed to trigger sync for registration %s: %v", registration.Name, updateErr)
+				// Continue with other registrations even if one fails
+			} else {
+				h.log.Debugf("triggered sync for registration %s due to version change", registration.Name)
+			}
+		} else {
+			h.log.Debugf("registration %s version matches current version %s, no sync needed", registration.Name, currentVersion)
+		}
+	}
+
+	return metricsSecret, nil
 }
