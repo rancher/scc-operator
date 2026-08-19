@@ -147,6 +147,8 @@ type SystemActivationState struct {
 	LastValidatedTS *metav1.Time `json:"lastValidatedTS"`
 	// +optional
 	SystemURL *string `json:"systemURL,omitempty"`
+	// +optional
+	ProductVersion *string `json:"productVersion,omitempty"`
 }
 
 func (r *Registration) HasCondition(matchCond condition.Cond) bool {

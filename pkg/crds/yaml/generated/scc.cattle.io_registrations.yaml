@@ -123,6 +123,8 @@ spec:
                   lastValidatedTS:
                     format: date-time
                     type: string
+                  productVersion:
+                    type: string
                   systemURL:
                     type: string
                 required:
