@@ -26,7 +26,7 @@ jobs:
     needs: [ ci ]
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/rancher/ci-image/go1.25
+      image: ghcr.io/rancher/ci-image/go1.26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -64,7 +64,7 @@ jobs:
       id-token: write
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/rancher/ci-image/go1.25
+      image: ghcr.io/rancher/ci-image/go1.26
     steps:
       - name : Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -18,7 +18,7 @@ jobs:
     name : Build, test  & validate
     runs-on : ubuntu-latest
     container:
-      image: ghcr.io/rancher/ci-image/go1.25
+      image: ghcr.io/rancher/ci-image/go1.26
     strategy:
       matrix:
           include:
