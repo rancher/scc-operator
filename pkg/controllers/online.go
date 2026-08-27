@@ -510,7 +510,13 @@ func (s *sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 	if s.needsVersionUpgrade(registrationObj, currentVersion) {
 		s.log.Infof("Rancher version changed from %s to %s for registration %s, upgrading activation",
 			*registrationObj.Status.ActivationStatus.ProductVersion, currentVersion, registrationObj.Name)
-		metaData, product, upgradeErr := sccConnection.Upgrade()
+
+		// Fetch the SCC registration code; for 80% of users this should be a real code
+		// The other cases are either:
+		//	a. an error and should have had a code, OR
+		//	b. BAYG/RMT/etc based Registration and will not use a code
+		registrationCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
+		metaData, product, upgradeErr := sccConnection.Activate(registrationCode)
 		if upgradeErr != nil {
 			s.log.Warnf("activation upgrade failed for registration %s: %v - will retry on next keepalive", registrationObj.Name, upgradeErr)
 			// Continue with keepalive - upgrade will retry next time

@@ -150,15 +150,6 @@ func (sw *SccWrapper) ActivationStatus() ([]*registration.Activation, error) {
 	return activations, nil
 }
 
-func (sw *SccWrapper) Upgrade() (*registration.Metadata, *registration.Product, error) {
-	identifier, version, arch := sw.rancherMetrics.GetProductIdentifier()
-	metaData, product, err := registration.Upgrade(sw.conn, identifier, version, arch)
-	if err != nil {
-		return nil, nil, err
-	}
-	return metaData, product, nil
-}
-
 func (sw *SccWrapper) ProductInfo() (*registration.Product, error) {
 	identifier, version, arch := sw.rancherMetrics.GetProductIdentifier()
 	return registration.FetchProductInfo(sw.conn, identifier, version, arch)
