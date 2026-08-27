@@ -50,6 +50,13 @@ func (h *handler) isSCCEntrypointSecret(secretObj *corev1.Secret) bool {
 	return true
 }
 
+func (h *handler) isMetricsSecret(secretObj *corev1.Secret) bool {
+	if secretObj.Name != consts.SCCMetricsOutputSecretName || secretObj.Namespace != h.options.SystemNamespace() {
+		return false
+	}
+	return true
+}
+
 // prepareSecretSalt applies an instance salt onto an entrypoint secret used to create randomness in hashes
 func (h *handler) prepareSecretSalt(secret *corev1.Secret) (*corev1.Secret, error) {
 	h.log.Debugf("Preparing salt for secret %s/%s", secret.Namespace, secret.Name)

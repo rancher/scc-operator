@@ -17,6 +17,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/retry"
 
@@ -220,6 +221,11 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 		return incomingObj, nil
 	}
 
+	// Handle metrics secret updates - check if Rancher version changed
+	if h.isMetricsSecret(incomingObj) {
+		return h.handleMetricsSecretUpdate(incomingObj)
+	}
+
 	if !h.isSCCEntrypointSecret(incomingObj) {
 		return incomingObj, nil
 	}
@@ -289,7 +295,7 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 	// TODO: make it so that changes to the incoming Salt (which changes the nameID) are correctly handled
 	// Note that change would affect both name and content hashes - however something seems to not.
 	if incomingNameHash != params.nameID {
-		h.log.Info("must cleanup existing registration managed by secret")
+		h.log.Debugf("cleaning up existing registration for changed name hash (old: %s, new: %s)", incomingNameHash, params.nameID)
 		if cleanUpErr := h.cleanupRegistrationByHash(hashCleanupRequest{
 			incomingNameHash,
 			NameHash,
@@ -301,14 +307,14 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 
 	// TODO: rework stuff around this as this shouldn't be necessary
 	if incomingContentHash != params.contentHash {
-		h.log.Info("must cleanup existing registration managed by secret")
+		h.log.Debugf("cleaning up existing registration for changed content hash (old: %s, new: %s)", incomingContentHash, params.contentHash)
 		if cleanUpErr := h.cleanupRelatedSecretsByHash(incomingContentHash); cleanUpErr != nil {
 			h.log.Errorf("failed to cleanup registrations for hash %s: %v", incomingNameHash, cleanUpErr)
 			return incomingObj, cleanUpErr
 		}
 	}
 
-	h.log.Info("create or update registration managed by secret")
+	h.log.Debugf("creating or updating registration for secret %s/%s", incomingObj.Namespace, incomingObj.Name)
 
 	// update secret with useful annotations & labels
 	newSecret := incomingObj.DeepCopy()
@@ -561,31 +567,41 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		return nil, nil
 	}
 
+	h.log.Debugf("reconciling registration %s (generation: %d, resourceVersion: %s)",
+		registrationObj.Name, registrationObj.Generation, registrationObj.ResourceVersion)
+
 	rancherURL := rancher.GetServerURL(h.ctx, h.settings)
 	if rancherURL == "" {
-		h.log.Info("Server URL not set")
+		h.log.Warn("Server URL not set - registration reconciliation blocked until server URL is configured")
 		return registrationObj, errors.New("no server url found in the system info")
 	}
 
 	// TODO: if there are more than one operators per cluster (for other products) check managedBy status
 
 	registrationHandler := h.prepareHandler(registrationObj, rancherURL)
+	h.log.Debugf("registration %s: mode=%s", registrationObj.Name, registrationObj.Spec.Mode)
 
 	if registrationHandler.NeedsPreprocessRegistration(registrationObj) {
+		h.log.Debugf("registration %s needs preprocessing", registrationObj.Name)
 		processed := registrationObj.DeepCopy()
 		processed, _ = registrationHandler.PreprocessRegistration(processed)
 
 		var err error
 		processed, err = h.registrations.UpdateStatus(processed)
 		if err != nil {
+			h.log.Debugf("failed to update status during preprocessing for %s: %v", registrationObj.Name, err)
 			return registrationObj, err
 		}
 
 		_, err = h.registrations.Update(processed)
+		if err != nil {
+			h.log.Debugf("failed to update spec during preprocessing for %s: %v", registrationObj.Name, err)
+		}
 		return registrationObj, err
 	}
 
 	if lifecycle.RegistrationIsFailed(registrationObj) {
+		h.log.Debugf("registration %s is in failed state, skipping reconciliation", registrationObj.Name)
 		failedCondition := registrationObj.Status.CurrentCondition
 		if failedCondition != nil {
 			h.log.Errorf("registration `%s` has the Failure status condition from: %v", registrationObj.Name, failedCondition)
@@ -608,6 +624,9 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		registrationObj.Spec.SyncNow == nil {
 		if !registrationObj.Status.ActivationStatus.LastValidatedTS.IsZero() &&
 			registrationObj.Status.ActivationStatus.LastValidatedTS.Time.After(minResyncInterval()) {
+			timeSinceValidation := time.Since(registrationObj.Status.ActivationStatus.LastValidatedTS.Time)
+			h.log.Debugf("registration %s: skipping keepalive (last validated %v ago, threshold: %v)",
+				registrationObj.Name, timeSinceValidation.Round(time.Minute), time.Since(minResyncInterval()).Round(time.Minute))
 			return registrationObj, nil
 		}
 	}
@@ -625,7 +644,9 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	// Only on the first time an object passes through here should it need to be registered
 	// The logical default condition should always be to try activation, unless we know it's not registered.
 	if registrationHandler.NeedsRegistration(registrationObj) {
+		h.log.Debugf("registration %s needs registration with SCC", registrationObj.Name)
 		if !registrationObj.HasCondition(v1.ResourceConditionProgressing) || v1.ResourceConditionProgressing.IsFalse(registrationObj) {
+			h.log.Debugf("registration %s: setting to progressing state", registrationObj.Name)
 			progressingObj := registrationObj.DeepCopy()
 			// Set object to progressing
 			progressingUpdateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -637,6 +658,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 				return err
 			})
 			if progressingUpdateErr != nil {
+				h.log.Debugf("failed to set progressing state for %s: %v", registrationObj.Name, progressingUpdateErr)
 				return registrationObj, progressingUpdateErr
 			}
 
@@ -644,9 +666,11 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		}
 
 		// Start of initial registration/announce of cluster
+		h.log.Debugf("registration %s: starting SCC registration", registrationObj.Name)
 		regForAnnounce := registrationObj.DeepCopy()
 		preparedForRegister, prepareErr := registrationHandler.PrepareForRegister(regForAnnounce)
 		if prepareErr != nil {
+			h.log.Debugf("registration %s: prepare for register failed: %v", registrationObj.Name, prepareErr)
 			err := h.reconcileRegistration(registrationHandler, preparedForRegister, prepareErr, types.RegistrationPrepare)
 			return registrationObj, err
 		}
@@ -697,17 +721,21 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	}
 
 	if registrationHandler.NeedsActivation(registrationObj) {
+		h.log.Debugf("registration %s needs activation", registrationObj.Name)
 		if !registrationHandler.ReadyForActivation(registrationObj) {
-			h.log.Debugf("registration needs to be activated, but not yet ready; %v", registrationObj)
+			h.log.Debugf("registration %s needs activation but not yet ready", registrationObj.Name)
 			return registrationObj, nil
 		}
+		h.log.Debugf("registration %s: starting activation", registrationObj.Name)
 		activationErr := registrationHandler.Activate(registrationObj)
 		// reconcile error state - must be able to handle Auth errors (or other SCC sourced errors)
 		if activationErr != nil {
+			h.log.Debugf("registration %s: activation failed: %v", registrationObj.Name, activationErr)
 			err := h.reconcileActivation(registrationHandler, registrationObj, activationErr, types.ActivationMain)
 			return registrationObj, err
 		}
 
+		h.log.Debugf("registration %s: activation succeeded, preparing for keepalive", registrationObj.Name)
 		activatedUpdateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			var retryErr, updateErr error
 			registrationObj, retryErr = h.registrations.Get(registrationObj.Name, metav1.GetOptions{})
@@ -719,6 +747,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 			activated = lifecycle.PrepareSuccessfulActivation(activated)
 			prepared, err := registrationHandler.PrepareActivatedForKeepalive(activated)
 			if err != nil {
+				h.log.Debugf("registration %s: failed to prepare for keepalive: %v", registrationObj.Name, err)
 				err := h.reconcileActivation(registrationHandler, registrationObj, activationErr, types.ActivationPrepForKeepalive)
 				return err
 			}
@@ -726,40 +755,48 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 			return updateErr
 		})
 		if activatedUpdateErr != nil {
+			h.log.Debugf("registration %s: failed to update status after activation: %v", registrationObj.Name, activatedUpdateErr)
 			return registrationObj, activatedUpdateErr
 		}
 
+		h.log.Debugf("registration %s: activation complete", registrationObj.Name)
 		return registrationObj, nil
 	}
 
-	// Handle what to do when CheckNow is used...
+	// Handle what to do when syncNow is used...
+	// syncNow means: force an immediate keepalive check with SCC, bypassing the 20-hour throttle
 	if lifecycle.RegistrationNeedsSyncNow(registrationObj) {
+		h.log.Debugf("registration %s: syncNow requested, forcing immediate keepalive check", registrationObj.Name)
+
+		// For offline mode, refresh the certificate first
 		if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
-			// First refresh the offline secret
+			h.log.Debugf("registration %s: refreshing offline certificate before sync", registrationObj.Name)
 			offlineHandler := registrationHandler.(*sccOfflineMode)
 			if refreshErr := offlineHandler.RefreshOfflineRequestSecret(); refreshErr != nil {
+				h.log.Debugf("registration %s: failed to refresh offline certificate: %v", registrationObj.Name, refreshErr)
 				return registrationObj, refreshErr
 			}
 		}
 
-		// After offline specific action, do the interface based reset
+		// Clear the syncNow flag - we're handling it now
 		updated := registrationObj.DeepCopy()
 		updated.Spec = registrationObj.Spec.WithoutSyncNow()
-		updated, _ = registrationHandler.ResetToReadyForActivation(updated)
 
-		var err error
-		updated, err = h.registrations.UpdateStatus(updated)
+		updated, err := h.registrations.Update(updated)
 		if err != nil {
-			// TODO handle this error better via ReconcileSyncNow
+			h.log.Debugf("failed to clear syncNow flag for registration %s: %v", registrationObj.Name, err)
 			return registrationObj, err
 		}
+		h.log.Debugf("cleared syncNow flag for registration %s, proceeding with keepalive", updated.Name)
 
-		updated, err = h.registrations.Update(updated)
-		return registrationObj, err
+		// Update our reference to the cleared version and fall through to keepalive below
+		registrationObj = updated
 	}
 
+	h.log.Debugf("registration %s: performing keepalive", registrationObj.Name)
 	keepaliveErr := registrationHandler.Keepalive(registrationObj)
 	if keepaliveErr != nil {
+		h.log.Debugf("registration %s: keepalive failed: %v", registrationObj.Name, keepaliveErr)
 		reconcileErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			curReg, getErr := h.registrations.Get(registrationObj.Name, metav1.GetOptions{})
 			if getErr != nil {
@@ -781,6 +818,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		return registrationObj, err
 	}
 
+	h.log.Debugf("registration %s: keepalive succeeded, updating status", registrationObj.Name)
 	keepaliveUpdateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		var retryErr, updateErr error
 		registrationObj, retryErr = h.registrations.Get(registrationObj.Name, metav1.GetOptions{})
@@ -793,15 +831,18 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		v1.RegistrationConditionKeepalive.True(keepalive)
 		prepared, err := registrationHandler.PrepareKeepaliveSucceeded(keepalive)
 		if err != nil {
+			h.log.Debugf("registration %s: failed to prepare keepalive success: %v", registrationObj.Name, err)
 			return err
 		}
 		_, updateErr = h.registrations.UpdateStatus(prepared)
 		return updateErr
 	})
 	if keepaliveUpdateErr != nil {
+		h.log.Debugf("registration %s: failed to update status after keepalive: %v", registrationObj.Name, keepaliveUpdateErr)
 		return registrationObj, keepaliveUpdateErr
 	}
 
+	h.log.Debugf("registration %s: reconciliation complete", registrationObj.Name)
 	return registrationObj, nil
 }
 
@@ -812,7 +853,7 @@ func (h *handler) OnRegistrationRemove(name string, registrationObj *v1.Registra
 
 	rancherURL := rancher.GetServerURL(h.ctx, h.settings)
 	if rancherURL == "" {
-		h.log.Info("Server URL not set")
+		h.log.Warn("Server URL not set - registration reconciliation blocked until server URL is configured")
 		return registrationObj, errors.New("no server url found in the system info")
 	}
 	regHandler := h.prepareHandler(registrationObj, rancherURL)
@@ -827,4 +868,72 @@ func (h *handler) OnRegistrationRemove(name string, registrationObj *v1.Registra
 	}
 
 	return nil, nil
+}
+
+// handleMetricsSecretUpdate checks if the Rancher version in the metrics secret has changed
+// and triggers an immediate sync for any registrations that have a different saved version.
+func (h *handler) handleMetricsSecretUpdate(metricsSecret *corev1.Secret) (*corev1.Secret, error) {
+	h.log.Debugf("metrics secret updated, checking for version changes")
+
+	// Parse the metrics secret to extract the current Rancher version
+	systemMetrics, metricsErr := h.secretRepo.FetchMetricsSecret()
+	if metricsErr != nil {
+		h.log.Warnf("failed to parse metrics secret: %v", metricsErr)
+		return metricsSecret, nil // Don't block on metrics parsing errors
+	}
+
+	_, currentVersion, _ := systemMetrics.GetProductIdentifier()
+	if currentVersion == "" {
+		h.log.Debugf("no version found in metrics secret, skipping version check")
+		return metricsSecret, nil
+	}
+
+	h.log.Debugf("current Rancher version from metrics secret: %s", currentVersion)
+
+	// Get all online registrations and check if any need a version upgrade
+	registrationsList, listErr := h.registrationCache.List(labels.Everything())
+	if listErr != nil {
+		h.log.Errorf("failed to list registrations during metrics secret update: %v", listErr)
+		return metricsSecret, nil // Don't block on list errors
+	}
+
+	for _, registration := range registrationsList {
+		// Skip offline mode registrations
+		if registration.Spec.Mode == v1.RegistrationModeOffline {
+			continue
+		}
+
+		// Skip registrations that haven't been activated yet
+		if !registration.Status.ActivationStatus.Activated {
+			continue
+		}
+
+		// Skip if no product version saved yet (will be set during next activation/keepalive)
+		if registration.Status.ActivationStatus.ProductVersion == nil {
+			continue
+		}
+
+		savedVersion := *registration.Status.ActivationStatus.ProductVersion
+		if savedVersion != currentVersion {
+			h.log.Infof("version mismatch detected for registration %s: saved=%s, current=%s - triggering sync",
+				registration.Name, savedVersion, currentVersion)
+
+			// Trigger immediate sync by setting syncNow flag
+			updated := registration.DeepCopy()
+			syncNow := true
+			updated.Spec.SyncNow = &syncNow
+
+			_, updateErr := h.registrations.Update(updated)
+			if updateErr != nil {
+				h.log.Errorf("failed to trigger sync for registration %s: %v", registration.Name, updateErr)
+				// Continue with other registrations even if one fails
+			} else {
+				h.log.Debugf("triggered sync for registration %s due to version change", registration.Name)
+			}
+		} else {
+			h.log.Debugf("registration %s version matches current version %s, no sync needed", registration.Name, currentVersion)
+		}
+	}
+
+	return metricsSecret, nil
 }

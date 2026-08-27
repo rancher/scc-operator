@@ -458,6 +458,12 @@ func schema_pkg_apis_scccattleio_v1_SystemActivationState(ref common.ReferenceCa
 							Format: "",
 						},
 					},
+					"productVersion": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 				},
 				Required: []string{"activated"},
 			},

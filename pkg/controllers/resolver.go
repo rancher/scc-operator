@@ -52,7 +52,7 @@ func (h *handler) resolveEntrypointSecret(namespace, name string, obj runtime.Ob
 		return relatedKeys, err
 	}
 
-	h.log.Infof("resolved entrypoint secret to : %d registrations", len(regs))
+	h.log.Debugf("resolved entrypoint secret to %d registrations", len(regs))
 	for _, reg := range regs {
 		if reg == nil {
 			continue

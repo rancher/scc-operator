@@ -35,11 +35,13 @@ func (h *handler) patchUpdateRegistration(incoming, target *v1.Registration) (*v
 func (h *handler) createOrUpdateRegistration(reg *v1.Registration) error {
 	if _, err := h.registrations.Get(reg.Name, metav1.GetOptions{}); err != nil {
 		if apierrors.IsNotFound(err) {
+			h.log.Debugf("creating new registration %s", reg.Name)
 			_, createErr := h.registrations.Create(reg)
 			return createErr
 		}
 	}
 
+	h.log.Debugf("updating existing registration %s", reg.Name)
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		currentReg, err := h.registrations.Get(reg.Name, metav1.GetOptions{})
 		if err != nil {

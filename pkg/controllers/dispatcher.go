@@ -48,9 +48,16 @@ func (h *handler) RunLifecycleManager(
 				registrationHandler := h.prepareHandler(registrationObj, rancherURL)
 
 				// Always skip offline mode registrations, or Registrations that haven't progressed to activation
-				if registrationObj.Spec.Mode == v1.RegistrationModeOffline ||
-					registrationHandler.NeedsRegistration(registrationObj) ||
-					registrationObj.Status.ActivationStatus.LastValidatedTS.IsZero() {
+				if registrationObj.Spec.Mode == v1.RegistrationModeOffline {
+					h.log.Debugf("lifecycle: skipping offline registration %s", registrationObj.Name)
+					continue
+				}
+				if registrationHandler.NeedsRegistration(registrationObj) {
+					h.log.Debugf("lifecycle: skipping registration %s (not yet activated)", registrationObj.Name)
+					continue
+				}
+				if registrationObj.Status.ActivationStatus.LastValidatedTS.IsZero() {
+					h.log.Debugf("lifecycle: skipping registration %s (never validated)", registrationObj.Name)
 					continue
 				}
 
@@ -60,6 +67,8 @@ func (h *handler) RunLifecycleManager(
 				// If the time since last validation is after the daily trigger (which includes jitter), we revalidate.
 				// Also, ensure that when a registration is over the strictDeadline it is checked.
 				if timeSinceLastValidation >= nextTrigger || timeSinceLastValidation >= strictDeadline {
+					h.log.Debugf("lifecycle: triggering keepalive for %s (last validated %v ago, next trigger: %v, deadline: %v)",
+						registrationObj.Name, timeSinceLastValidation.Round(time.Minute), nextTrigger.Round(time.Minute), strictDeadline.Round(time.Minute))
 					checkInWasTriggered = true
 					syncNowReg := registrationObj.DeepCopy()
 					syncNow := true

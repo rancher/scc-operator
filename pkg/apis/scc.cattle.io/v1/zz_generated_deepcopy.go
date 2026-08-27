@@ -267,6 +267,11 @@ func (in *SystemActivationState) DeepCopyInto(out *SystemActivationState) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.ProductVersion != nil {
+		in, out := &in.ProductVersion, &out.ProductVersion
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 
