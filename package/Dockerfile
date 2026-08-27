@@ -7,9 +7,12 @@ ENV TAG=$TAG REPO=$REPO
 
 WORKDIR /usr/src/app
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 COPY . .
-RUN ./scripts/build
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    ./scripts/build
 
 FROM registry.suse.com/bci/bci-base:latest AS user-setup
 RUN useradd -u 1000 -U -m -s /sbin/nologin operator
