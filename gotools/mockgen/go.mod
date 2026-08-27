@@ -1,6 +1,6 @@
-module github.com/rancher/rancher/gotools/mockgen
+module github.com/rancher/scc-operator/gotools/mockgen
 
-go 1.25.1
+go 1.26.0
 
 toolchain go1.26.6
 
