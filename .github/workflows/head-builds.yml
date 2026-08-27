@@ -65,3 +65,5 @@ jobs:
           tags: |
             ${{ vars.REPO_OWNER || env.REPO_OWNER || github.repository_owner }}/${{ vars.IMAGE_NAME || env.IMAGE_NAME }}:${{ steps.set-vars.outputs.branch_static_tag }}
             ${{ vars.REPO_OWNER || env.REPO_OWNER || github.repository_owner }}/${{ vars.IMAGE_NAME || env.IMAGE_NAME }}:${{ steps.set-vars.outputs.branch_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

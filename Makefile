@@ -52,6 +52,8 @@ build-image: buildx-machine ## build (and load) the container image targeting th
 		--builder $(MACHINE) $(IMAGE_ARGS) \
 		--build-arg VERSION=$(VERSION) \
 		--platform=$(TARGET_PLATFORMS) \
+		--cache-from type=gha \
+		--cache-to type=gha,mode=max \
 		-t "$(FULL_IMAGE_TAG)" $(BUILD_ACTION) .
 	@echo "Built $(FULL_IMAGE_TAG)"
 
@@ -60,6 +62,8 @@ push-image: validate buildx-machine ## build the container image targeting all p
 		--builder $(MACHINE) $(IMAGE_ARGS) $(IID_FILE_FLAG) $(BUILDX_ARGS) \
 		--build-arg VERSION=$(VERSION) \
 		--platform=$(TARGET_PLATFORMS) \
+		--cache-from type=gha \
+		--cache-to type=gha,mode=max \
 		-t "$(FULL_IMAGE_TAG)" --push .
 	@echo "Pushed $(FULL_IMAGE_TAG)"
 
