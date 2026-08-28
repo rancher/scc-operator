@@ -32,24 +32,36 @@ jobs:
         uses: rancher-eio/read-vault-secrets@0da85151ad1f19ed7986c41587e45aac1ace74b6 # v3
         with:
           secrets: |
-            secret/data/github/repo/${{ github.repository }}/github/app-credentials appId | APPID;
-            secret/data/github/repo/${{ github.repository }}/github/app-credentials privateKey | PRIVATEKEY
+            secret/data/github/repo/${{ github.repository }}/github/app-credentials appId | APP_ID ;
+            secret/data/github/repo/${{ github.repository }}/github/app-credentials privateKey | PRIVATE_KEY
 
+      # Fetch github token just for the rancher repository
       - name: Generate GitHub App Token
         if: github.repository == 'rancher/scc-operator'
         id: generate_token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          app-id: ${{ env.APPID }}
-          private-key: ${{ env.PRIVATEKEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: rancher
+          app-id: ${{ env.APP_ID }}
+          private-key: ${{ env.PRIVATE_KEY }}
+          repositories: |
+            rancher
+
+      - name: Checkout rancher repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.repository_owner }}/rancher
+          ref: "${{ env.RANCHER_REF }}"
+          token: ${{ steps.generate_token.outputs.token }}
+          path: ${{ github.workspace }}/rancher-repo
+          # Allow making git push request later on
+          persist-credentials: true
 
       - name: Push updates to rancher/rancher
         if: github.repository == 'rancher/scc-operator'
         env:
           TAG: ${{ inputs.tag }}
           GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+          APP_USER: "${{ steps.generate_token.outputs.app-slug }}[bot]"
           SOURCE_REPO: ${{ github.repository }}
           SCC_DIR: ${{ github.workspace }}
           RANCHER_DIR: ${{ github.workspace }}/rancher-repo
