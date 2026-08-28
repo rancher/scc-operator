@@ -15,12 +15,14 @@ RANCHER_REMOTE="${RANCHER_REMOTE:-origin}"
 DRY_RUN="${DRY_RUN:-false}"
 
 # Target branches in rancher/rancher to update (default)
+# Ordered newest-first: main, then descending release versions
+# This ensures branches with the latest fixes are processed first
 DEFAULT_RANCHER_BRANCHES=(
-  "release/v2.12"
-  "release/v2.13"
-  "release/v2.14"
-  "release/v2.15"
   "main"
+  "release/v2.15"
+  "release/v2.14"
+  "release/v2.13"
+  "release/v2.12"
 )
 
 # Allow override via RANCHER_BRANCHES_OVERRIDE (comma or space separated)
