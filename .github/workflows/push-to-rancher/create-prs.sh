@@ -81,8 +81,11 @@ for TARGET_BRANCH in "${RANCHER_BRANCHES[@]}"; do
   fi
 
   summary "  - Running: \`$GENERATE_CMD\`"
-  if ! (cd "$RANCHER_DIR" && eval "$GENERATE_CMD"); then
-    summary "  ⚠️  go generate failed - skipping"
+  GENERATE_OUTPUT=$(cd "$RANCHER_DIR" && eval "$GENERATE_CMD" 2>&1) || GENERATE_EXIT=$?
+  if [ "${GENERATE_EXIT:-0}" -ne 0 ]; then
+    summary "  ⚠️  go generate failed with exit code ${GENERATE_EXIT}"
+    summary "  Error output:"
+    echo "$GENERATE_OUTPUT" | sed 's/^/    /'
     FAILED_BRANCHES+=("$TARGET_BRANCH (go generate failed)")
     git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
