@@ -55,7 +55,7 @@ for TARGET_BRANCH in "${RANCHER_BRANCHES[@]}"; do
   if ! bash "$SCRIPT_DIR/update-build-yaml.sh"; then
     summary "  ⚠️  Failed to update build.yaml - skipping"
     FAILED_BRANCHES+=("$TARGET_BRANCH (update failed)")
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
     continue
   fi
@@ -65,7 +65,7 @@ for TARGET_BRANCH in "${RANCHER_BRANCHES[@]}"; do
   if [ ! -f "$GENERATE_FILE" ]; then
     summary "  ⚠️  generate.go not found - skipping"
     FAILED_BRANCHES+=("$TARGET_BRANCH (no generate.go)")
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
     continue
   fi
@@ -75,7 +75,7 @@ for TARGET_BRANCH in "${RANCHER_BRANCHES[@]}"; do
   if [ -z "$GENERATE_CMD" ]; then
     summary "  ⚠️  No go:generate directive found in generate.go - skipping"
     FAILED_BRANCHES+=("$TARGET_BRANCH (no generate directive)")
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
     continue
   fi
@@ -84,7 +84,7 @@ for TARGET_BRANCH in "${RANCHER_BRANCHES[@]}"; do
   if ! (cd "$RANCHER_DIR" && eval "$GENERATE_CMD"); then
     summary "  ⚠️  go generate failed - skipping"
     FAILED_BRANCHES+=("$TARGET_BRANCH (go generate failed)")
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
     continue
   fi
@@ -105,14 +105,14 @@ Created-by: scc-operator-release-integration"
       summary "  ⚠️  Failed to commit changes - skipping"
       FAILED_BRANCHES+=("$TARGET_BRANCH (commit failed)")
     fi
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
     continue
   fi
 
   if [ "$DRY_RUN" = "true" ]; then
     summary "  ✓ Changes committed (dry-run, not pushing)"
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     continue
   fi
 
@@ -121,7 +121,7 @@ Created-by: scc-operator-release-integration"
   if ! git -C "$RANCHER_DIR" push -u "$RANCHER_REMOTE" "$BRANCH_NAME"; then
     summary "  ⚠️  Failed to push branch - skipping PR creation"
     FAILED_BRANCHES+=("$TARGET_BRANCH (push failed)")
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     continue
   fi
 
@@ -152,7 +152,7 @@ Update SCC Operator image to [\`${TAG}\`](https://github.com/${SOURCE_REPO}/rele
   fi
 
   # Return to target branch for next iteration
-  git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+  git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
 done
 
 summary ""
