@@ -4,6 +4,11 @@
 # Required env vars:
 #   TAG          - SCC Operator tag (e.g. v0.4.2)
 #   RANCHER_DIR  - Path to rancher/rancher clone
+#
+# Exit codes:
+#   0 - Update successful
+#   1 - Error occurred
+#   2 - No update needed (version already matches)
 
 set -euo pipefail
 
@@ -22,9 +27,19 @@ fi
 
 # Remove leading 'v' if present for consistency
 TAG_NO_V="${TAG#v}"
+TARGET_IMAGE="rancher/scc-operator:v${TAG_NO_V}"
+
+# Read current value from build.yaml
+CURRENT_IMAGE=$(yq eval '.defaultSccOperatorImage' "$BUILD_YAML")
+
+# Check if version already matches
+if [ "$CURRENT_IMAGE" = "$TARGET_IMAGE" ]; then
+  log "  ℹ️  build.yaml already has \`${TARGET_IMAGE}\` - no update needed"
+  exit 2
+fi
 
 # Update the defaultSccOperatorImage field
 # Use yq for safe YAML editing
-yq eval ".defaultSccOperatorImage = \"rancher/scc-operator:v${TAG_NO_V}\"" -i "$BUILD_YAML"
+yq eval ".defaultSccOperatorImage = \"${TARGET_IMAGE}\"" -i "$BUILD_YAML"
 
-summary "  - Updated build.yaml: \`defaultSccOperatorImage: rancher/scc-operator:v${TAG_NO_V}\`"
+log "  - Updated build.yaml: \`defaultSccOperatorImage: ${TARGET_IMAGE}\`"
