@@ -22,6 +22,8 @@ summary ""
 summary "## Processing branches"
 
 FAILED_BRANCHES=()
+CREATED_PRS=()
+CREATED_PR_BRANCHES=()
 
 for TARGET_BRANCH in "${RANCHER_BRANCHES[@]}"; do
   summary ""
@@ -52,10 +54,20 @@ for TARGET_BRANCH in "${RANCHER_BRANCHES[@]}"; do
 
   # Update build.yaml
   export TAG RANCHER_DIR
-  if ! bash "$SCRIPT_DIR/update-build-yaml.sh"; then
+  UPDATE_EXIT=0
+  bash "$SCRIPT_DIR/update-build-yaml.sh" || UPDATE_EXIT=$?
+
+  if [ "$UPDATE_EXIT" -eq 2 ]; then
+    # No update needed - version already matches
+    summary "  ℹ️  Version already up-to-date - skipping"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
+    continue
+  elif [ "$UPDATE_EXIT" -ne 0 ]; then
+    # Update failed
     summary "  ⚠️  Failed to update build.yaml - skipping"
     FAILED_BRANCHES+=("$TARGET_BRANCH (update failed)")
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
     continue
   fi
@@ -65,7 +77,7 @@ for TARGET_BRANCH in "${RANCHER_BRANCHES[@]}"; do
   if [ ! -f "$GENERATE_FILE" ]; then
     summary "  ⚠️  generate.go not found - skipping"
     FAILED_BRANCHES+=("$TARGET_BRANCH (no generate.go)")
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
     continue
   fi
@@ -75,16 +87,19 @@ for TARGET_BRANCH in "${RANCHER_BRANCHES[@]}"; do
   if [ -z "$GENERATE_CMD" ]; then
     summary "  ⚠️  No go:generate directive found in generate.go - skipping"
     FAILED_BRANCHES+=("$TARGET_BRANCH (no generate directive)")
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
     continue
   fi
 
-  summary "  - Running: \`$GENERATE_CMD\`"
-  if ! (cd "$RANCHER_DIR" && eval "$GENERATE_CMD"); then
-    summary "  ⚠️  go generate failed - skipping"
+  log "  - Running: \`$GENERATE_CMD\`"
+  GENERATE_OUTPUT=$(cd "$RANCHER_DIR" && eval "$GENERATE_CMD" 2>&1) || GENERATE_EXIT=$?
+  if [ "${GENERATE_EXIT:-0}" -ne 0 ]; then
+    summary "  ⚠️  go generate failed with exit code ${GENERATE_EXIT}"
+    summary "  Error output:"
+    echo "$GENERATE_OUTPUT" | sed 's/^/    /'
     FAILED_BRANCHES+=("$TARGET_BRANCH (go generate failed)")
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
     continue
   fi
@@ -105,28 +120,28 @@ Created-by: scc-operator-release-integration"
       summary "  ⚠️  Failed to commit changes - skipping"
       FAILED_BRANCHES+=("$TARGET_BRANCH (commit failed)")
     fi
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     git -C "$RANCHER_DIR" branch -D "$BRANCH_NAME" || true
     continue
   fi
 
   if [ "$DRY_RUN" = "true" ]; then
     summary "  ✓ Changes committed (dry-run, not pushing)"
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     continue
   fi
 
   # Push branch
-  summary "  - Pushing branch \`$BRANCH_NAME\`"
+  log "  - Pushing branch \`$BRANCH_NAME\`"
   if ! git -C "$RANCHER_DIR" push -u "$RANCHER_REMOTE" "$BRANCH_NAME"; then
     summary "  ⚠️  Failed to push branch - skipping PR creation"
     FAILED_BRANCHES+=("$TARGET_BRANCH (push failed)")
-    git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+    git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
     continue
   fi
 
   # Create PR
-  summary "  - Creating PR..."
+  log "  - Creating PR..."
 
   # Format branch name for title: strip "release/" prefix
   BRANCH_LABEL="${TARGET_BRANCH#release/}"
@@ -138,22 +153,38 @@ Update SCC Operator image to [\`${TAG}\`](https://github.com/${SOURCE_REPO}/rele
 - Updated \`defaultSccOperatorImage\` in \`build.yaml\`
 - Ran \`go generate ./pkg/...\` to update generated files"
 
-  if gh pr create \
+  PR_OUTPUT=$(gh pr create \
     --repo rancher/rancher \
     --base "$TARGET_BRANCH" \
     --head "$BRANCH_NAME" \
     --title "[${BRANCH_LABEL}] Update SCC Operator to ${TAG}" \
     --body "$PR_BODY" \
-    --label "status/auto-created" 2>&1; then
-    summary "  ✓ PR created successfully"
+    --label "status/auto-created" 2>&1)
+
+  if [ $? -eq 0 ]; then
+    PR_URL=$(echo "$PR_OUTPUT" | tail -1)
+    summary "  ✓ PR created: $PR_URL"
+    CREATED_PRS+=("$PR_URL")
+    CREATED_PR_BRANCHES+=("$TARGET_BRANCH")
   else
     summary "  ⚠️  Failed to create PR"
+    echo "$PR_OUTPUT" | sed 's/^/    /' >&2
     FAILED_BRANCHES+=("$TARGET_BRANCH (PR creation failed)")
   fi
 
   # Return to target branch for next iteration
-  git -C "$RANCHER_DIR" checkout "$TARGET_BRANCH"
+  git -C "$RANCHER_DIR" checkout -f "$TARGET_BRANCH"
 done
+
+summary ""
+summary "## Pull Requests Created"
+if [ ${#CREATED_PRS[@]} -gt 0 ]; then
+  for i in "${!CREATED_PRS[@]}"; do
+    summary "- **${CREATED_PR_BRANCHES[$i]}**: ${CREATED_PRS[$i]}"
+  done
+else
+  summary "_No PRs were created in this run_"
+fi
 
 summary ""
 summary "## Summary"
