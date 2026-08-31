@@ -47,7 +47,7 @@ sources:
           replacement: '$1-b.$2'
         # Group 1 extracts the full strict SemVer string ('1.26.7-b.2')
         regex: '^([0-9]+\.[0-9]+\.[0-9]+-b\.[0-9]+)$'
-        pattern: "~{{ source \"current_minor\" }}.0-0"
+        pattern: '~{{ source "current_minor" }}.0-0'
 
 targets:
   dockerfile:
@@ -61,7 +61,7 @@ targets:
         keyword: ARG
         matcher: "GO_IMAGE"
     transformers:
-      - addprefix: "rancher/hardened-build-base:v"
+      - addprefix: "rancher/hardened-build-base:"
       # Converts "1.26.7-b.2" back to the exact tag format "1.26.7b2"
       - replacer:
           pattern: '^([0-9]+\.[0-9]+\.[0-9]+)-b\.([0-9]+)$'
