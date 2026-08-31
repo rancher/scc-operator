@@ -38,11 +38,20 @@ export RANCHER_BRANCHES
 IMAGE_REGISTRY="${IMAGE_REGISTRY:-docker.io}"
 IMAGE_REPO="${IMAGE_REPO:-rancher/scc-operator}"
 
+# Prime registry URLs (allow anonymous read access for validation)
+PRIME_STG_REGISTRY="${PRIME_STG_REGISTRY:-stgregistry.suse.com}"
+PRIME_REGISTRY="${PRIME_REGISTRY:-registry.suse.com}"
+
 # Write to GitHub step summary if available, and always print to stdout
 summary() {
   if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     echo "$@" >> "$GITHUB_STEP_SUMMARY"
   fi
+  echo "$@"
+}
+
+# Write only to stdout (detailed logs, not in GH summary)
+log() {
   echo "$@"
 }
 
@@ -62,20 +71,75 @@ require_rancher_dir() {
   fi
 }
 
-# Validate that the SCC Operator image exists in the registry
+# Detect if tag is a stable release (no prerelease suffix)
+# Returns 0 if stable, 1 if prerelease
+is_stable_release() {
+  local tag="$1"
+  # Strip leading 'v' if present
+  tag="${tag#v}"
+  # Check if tag matches semver with prerelease (has dash after version numbers)
+  if echo "$tag" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-'; then
+    return 1  # Has prerelease suffix
+  else
+    return 0  # Stable release
+  fi
+}
+
+# Validate that the SCC Operator image exists in required registries
+# All registries checked support anonymous read access via docker manifest inspect
 validate_image_exists() {
   local tag="$1"
-  local full_image="${IMAGE_REGISTRY}/${IMAGE_REPO}:${tag}"
+  local validation_failed=0
 
-  summary "- Validating image exists: \`$full_image\`"
+  summary ""
+  summary "## Image Validation"
 
-  if ! docker manifest inspect "$full_image" >/dev/null 2>&1; then
-    echo "ERROR: Image $full_image does not exist in registry" >&2
-    echo "ERROR: Cannot proceed with PR creation until image is published" >&2
+  # Determine which registries to check based on release type
+  local registries=()
+  local registry_labels=()
+
+  # Always validate Docker Hub
+  registries+=("${IMAGE_REGISTRY}")
+  registry_labels+=("Docker Hub")
+
+  # Always validate Prime Staging
+  registries+=("${PRIME_STG_REGISTRY}")
+  registry_labels+=("Prime Staging")
+
+  # Validate Prime Production only for stable releases
+  if is_stable_release "$tag"; then
+    registries+=("${PRIME_REGISTRY}")
+    registry_labels+=("Prime Production")
+    log "ℹ️  Stable release detected - will validate Prime Production registry"
+  else
+    log "ℹ️  Prerelease detected - skipping Prime Production validation"
+  fi
+
+  # Validate each registry (no authentication needed - anonymous read access)
+  for i in "${!registries[@]}"; do
+    local registry="${registries[$i]}"
+    local label="${registry_labels[$i]}"
+    local full_image="${registry}/${IMAGE_REPO}:${tag}"
+
+    summary "- **${label}**: \`${full_image}\`"
+
+    if docker manifest inspect "$full_image" >/dev/null 2>&1; then
+      summary "  ✓ Image found"
+    else
+      summary "  ✗ Image NOT found"
+      validation_failed=1
+    fi
+  done
+
+  if [ $validation_failed -eq 1 ]; then
+    echo "" >&2
+    echo "ERROR: Image validation failed for one or more registries" >&2
+    echo "ERROR: Cannot proceed with PR creation until images are published" >&2
     exit 1
   fi
 
-  summary "  ✓ Image validated"
+  summary ""
+  summary "✅ All registry validations passed"
 }
 
 # Commit all changes in RANCHER_DIR if any exist. Returns 1 if no changes, 0 on success.
