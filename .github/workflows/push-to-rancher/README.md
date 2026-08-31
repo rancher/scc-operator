@@ -63,6 +63,15 @@ env:
 
 ## Local usage
 
+### Prerequisites
+
+- **Bash**: All scripts require `bash` (not POSIX sh). They use bash-specific features like arrays, `[[`, and `BASH_SOURCE` for safety and clarity.
+- **yq**: YAML processor for updating build.yaml
+- **gh**: GitHub CLI for creating PRs
+- **docker**: For validating images exist in registries
+
+### Running locally
+
 ```bash
 ./.github/workflows/push-to-rancher/run-local.sh \
   --tag v0.4.2 \
