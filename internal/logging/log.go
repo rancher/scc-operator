@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ehazlett/simplelog"
 	"github.com/sirupsen/logrus"
 )
 
@@ -76,7 +75,7 @@ func SetLogFormat(format Format) {
 		})
 		rootLogger.Debugf("Log format set to: %s", FormatJSON)
 	case FormatSimple:
-		rootLogger.SetFormatter(&simplelog.StandardFormatter{})
+		rootLogger.SetFormatter(&OptimizedSimpleFormatter{})
 	case FormatText:
 		fallthrough
 	default:

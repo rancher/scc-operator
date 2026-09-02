@@ -32,7 +32,6 @@ replace (
 
 require (
 	github.com/SUSE/connect-ng v1.23.0
-	github.com/ehazlett/simplelog v0.0.0-20200226020431-d374894e92a4
 	github.com/evanphx/json-patch/v5 v5.9.11
 	github.com/google/uuid v1.6.0
 	github.com/pkg/errors v0.9.1
