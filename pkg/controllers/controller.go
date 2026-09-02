@@ -820,6 +820,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	}
 
 	h.log.Debugf("registration %s: keepalive succeeded, updating status", registrationObj.Name)
+	var updatedRegistration *v1.Registration
 	keepaliveUpdateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		var retryErr, updateErr error
 		registrationObj, retryErr = h.registrations.Get(registrationObj.Name, metav1.GetOptions{})
@@ -835,7 +836,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 			h.log.Debugf("registration %s: failed to prepare keepalive success: %v", registrationObj.Name, err)
 			return err
 		}
-		_, updateErr = h.registrations.UpdateStatus(prepared)
+		updatedRegistration, updateErr = h.registrations.UpdateStatus(prepared)
 		return updateErr
 	})
 	if keepaliveUpdateErr != nil {
@@ -844,7 +845,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	}
 
 	h.log.Debugf("registration %s: reconciliation complete", registrationObj.Name)
-	return registrationObj, nil
+	return updatedRegistration, nil
 }
 
 func (h *handler) OnRegistrationRemove(name string, registrationObj *v1.Registration) (*v1.Registration, error) {
