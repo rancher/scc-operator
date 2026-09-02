@@ -736,6 +736,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		}
 
 		h.log.Debugf("registration %s: activation succeeded, preparing for keepalive", registrationObj.Name)
+		var updatedRegistration *v1.Registration
 		activatedUpdateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			var retryErr, updateErr error
 			registrationObj, retryErr = h.registrations.Get(registrationObj.Name, metav1.GetOptions{})
@@ -751,7 +752,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 				err := h.reconcileActivation(registrationHandler, registrationObj, activationErr, types.ActivationPrepForKeepalive)
 				return err
 			}
-			_, updateErr = h.registrations.UpdateStatus(prepared)
+			updatedRegistration, updateErr = h.registrations.UpdateStatus(prepared)
 			return updateErr
 		})
 		if activatedUpdateErr != nil {
@@ -760,7 +761,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 		}
 
 		h.log.Debugf("registration %s: activation complete", registrationObj.Name)
-		return registrationObj, nil
+		return updatedRegistration, nil
 	}
 
 	// Handle what to do when syncNow is used...
@@ -819,6 +820,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	}
 
 	h.log.Debugf("registration %s: keepalive succeeded, updating status", registrationObj.Name)
+	var updatedRegistration *v1.Registration
 	keepaliveUpdateErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		var retryErr, updateErr error
 		registrationObj, retryErr = h.registrations.Get(registrationObj.Name, metav1.GetOptions{})
@@ -834,7 +836,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 			h.log.Debugf("registration %s: failed to prepare keepalive success: %v", registrationObj.Name, err)
 			return err
 		}
-		_, updateErr = h.registrations.UpdateStatus(prepared)
+		updatedRegistration, updateErr = h.registrations.UpdateStatus(prepared)
 		return updateErr
 	})
 	if keepaliveUpdateErr != nil {
@@ -843,7 +845,7 @@ func (h *handler) OnRegistrationChange(_ string, registrationObj *v1.Registratio
 	}
 
 	h.log.Debugf("registration %s: reconciliation complete", registrationObj.Name)
-	return registrationObj, nil
+	return updatedRegistration, nil
 }
 
 func (h *handler) OnRegistrationRemove(name string, registrationObj *v1.Registration) (*v1.Registration, error) {
@@ -919,16 +921,16 @@ func (h *handler) handleMetricsSecretUpdate(metricsSecret *corev1.Secret) (*core
 				registration.Name, savedVersion, currentVersion)
 
 			// Trigger immediate sync by setting syncNow flag
-			updated := registration.DeepCopy()
+			toUpdate := registration.DeepCopy()
 			syncNow := true
-			updated.Spec.SyncNow = &syncNow
+			toUpdate.Spec.SyncNow = &syncNow
 
-			_, updateErr := h.registrations.Update(updated)
+			updated, updateErr := h.registrations.Update(toUpdate)
 			if updateErr != nil {
 				h.log.Errorf("failed to trigger sync for registration %s: %v", registration.Name, updateErr)
 				// Continue with other registrations even if one fails
 			} else {
-				h.log.Debugf("triggered sync for registration %s due to version change", registration.Name)
+				h.log.Debugf("triggered sync for registration %s due to version change (new resourceVersion: %s)", updated.Name, updated.ResourceVersion)
 			}
 		} else {
 			h.log.Debugf("registration %s version matches current version %s, no sync needed", registration.Name, currentVersion)
