@@ -128,22 +128,12 @@ sync_go_versions() {
         return 1
     fi
 
-    # Update go version
-    sed -i.bak "s/^go .*/go $GO_VERSION/" "$modfile"
-
-    # Update toolchain version (or add it if missing)
+    # Use go mod edit instead of sed
     if [ -n "$TOOLCHAIN_VERSION" ]; then
-        if grep -q '^toolchain ' "$modfile"; then
-            sed -i.bak "s/^toolchain .*/toolchain $TOOLCHAIN_VERSION/" "$modfile"
-        else
-            # Add toolchain line after go line
-            sed -i.bak "/^go /a\\
-toolchain $TOOLCHAIN_VERSION
-" "$modfile"
-        fi
+        go mod edit -go="$GO_VERSION" -toolchain="$TOOLCHAIN_VERSION" "$modfile"
+    else
+        go mod edit -go="$GO_VERSION" "$modfile"
     fi
-
-    rm -f "${modfile}.bak"
 }
 
 cmd_init() {
