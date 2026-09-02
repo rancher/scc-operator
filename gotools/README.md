@@ -20,75 +20,39 @@ scripts/gotools-validate
 
 ## Managing tools
 
-The `scripts/gotools-manage` script provides a convenient wrapper for managing Go tools with isolated `go.mod` files.
+Use `scripts/gotools-manage` to manage tools. Run `scripts/gotools-manage --help` for details.
 
-**List installed tools**
+**Common tasks:**
 
 ```sh
+# List tools
 scripts/gotools-manage list
+
+# Update CVE patches (golang.org/x/* only for controller-gen)
+scripts/gotools-update-all-deps
+
+# Update tool version
+scripts/gotools-manage update mockgen v0.7.0
+
+# Add new tool
+scripts/gotools-manage init <name> <module>[@version]
 ```
 
-**Add a new tool**
+**Update dependencies for CVE patches:**
 
 ```sh
-# Using known tool definitions (controller-gen, mockgen)
-scripts/gotools-manage init controller-gen
+# All tools at once
+scripts/gotools-update-all-deps
 
-# With specific version
-scripts/gotools-manage init controller-gen sigs.k8s.io/controller-tools/cmd/controller-gen@v0.21.0
+# Individual tool (controller-gen: golang.org/x/* only by default)
+scripts/gotools-manage update-deps controller-gen
 
-# Custom tool with module path
-scripts/gotools-manage init mytool example.com/path/to/tool@v1.0.0
+# Include k8s.io/* for controller-gen (may change codegen behavior)
+scripts/gotools-manage update-deps controller-gen --all
 ```
 
-**Update a tool to a new version**
-
-```sh
-# Update to latest version
-scripts/gotools-manage update controller-gen
-
-# Update to specific version
-scripts/gotools-manage update controller-gen v0.22.0
-```
-
-**Reinitialize a tool (clean dependencies)**
-
-This is useful when you want to clean up the `go.mod`/`go.sum` files and regenerate them:
-
-```sh
-# Reinitialize with current version (clean deps)
-scripts/gotools-manage reinit controller-gen
-
-# Reinitialize and update to latest version
-scripts/gotools-manage reinit controller-gen --latest
-```
-
-**Remove a tool**
-
-```sh
-scripts/gotools-manage clean controller-gen
-```
-
-**Using a tool**
-
-```sh
-go tool -modfile <path to modfile> <tool>
-```
-
-For example, to use controller-gen:
+**Using tools:**
 
 ```sh
 go tool -modfile gotools/controller-gen/go.mod controller-gen -h
-```
-
-**Check tool version**
-
-```sh
-# Check installed version
-go run -modfile=gotools/controller-gen/go.mod sigs.k8s.io/controller-tools/cmd/controller-gen --version
-go run -modfile=gotools/mockgen/go.mod go.uber.org/mock/mockgen -version
-
-# List available versions
-go list -m -versions sigs.k8s.io/controller-tools
-go list -m -versions go.uber.org/mock
 ```
