@@ -1,0 +1,97 @@
+#!/bin/bash
+set -e
+
+cd "$(dirname "$0")/.."
+
+PATCH_ONLY=false
+
+# Parse flags
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --patch)
+            PATCH_ONLY=true
+            shift
+            ;;
+        --help)
+            cat <<EOF
+Usage: $(basename "$0") [--patch]
+
+Update all transitive dependencies for all gotools.
+
+Options:
+    --patch     Only update to latest patch versions (more conservative)
+
+This script loops through all tools in gotools/ and runs 'gotools-manage update-deps'
+on each one. Useful for applying CVE patches across all tools at once.
+
+Examples:
+    # Update all dependencies to latest compatible versions
+    $(basename "$0")
+
+    # Update only to latest patch versions
+    $(basename "$0") --patch
+EOF
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+echo "Updating dependencies for all gotools..."
+echo ""
+
+TOOLS_UPDATED=0
+TOOLS_FAILED=0
+
+for tool_dir in gotools/*/; do
+    if [ ! -d "$tool_dir" ]; then
+        continue
+    fi
+
+    if [ ! -f "${tool_dir}go.mod" ]; then
+        continue
+    fi
+
+    tool_name=$(basename "$tool_dir")
+    echo "=== Updating $tool_name ==="
+
+    if [ "$PATCH_ONLY" = true ]; then
+        if scripts/gotools-manage update-deps "$tool_name" --patch; then
+            TOOLS_UPDATED=$((TOOLS_UPDATED + 1))
+        else
+            TOOLS_FAILED=$((TOOLS_FAILED + 1))
+            echo "⚠ Failed to update $tool_name"
+        fi
+    else
+        if scripts/gotools-manage update-deps "$tool_name"; then
+            TOOLS_UPDATED=$((TOOLS_UPDATED + 1))
+        else
+            TOOLS_FAILED=$((TOOLS_FAILED + 1))
+            echo "⚠ Failed to update $tool_name"
+        fi
+    fi
+    echo ""
+done
+
+echo "================================================"
+echo "Summary:"
+echo "  Tools updated: $TOOLS_UPDATED"
+if [ "$TOOLS_FAILED" -gt 0 ]; then
+    echo "  Tools failed:  $TOOLS_FAILED"
+fi
+echo ""
+
+if [ "$TOOLS_FAILED" -eq 0 ]; then
+    echo "✓ All tools updated successfully!"
+    echo ""
+    echo "Review all changes with:"
+    echo "  git diff gotools/"
+    exit 0
+else
+    echo "⚠ Some tools failed to update"
+    exit 1
+fi

@@ -1,0 +1,473 @@
+#!/bin/bash
+set -e
+
+cd "$(dirname "$0")/.."
+
+SCRIPT_NAME="$(basename "$0")"
+
+# Tool definitions: tool_name|module_path[@version]
+# If version is omitted, it will install the latest
+KNOWN_TOOLS=(
+    "controller-gen|sigs.k8s.io/controller-tools/cmd/controller-gen"
+    "mockgen|go.uber.org/mock/mockgen"
+)
+
+usage() {
+    cat <<EOF
+Usage: $SCRIPT_NAME <command> [options]
+
+Commands:
+    init <tool-name> [module[@version]]
+        Initialize a new tool with its own go.mod
+        If module is not provided, uses known tool definitions
+
+    update <tool-name> [version]
+        Update an existing tool to a new version (latest if version not specified)
+
+    reinit <tool-name>
+        Remove and reinitialize a tool (useful for cleaning up dependencies)
+        Preserves the current version unless --latest is specified
+
+    update-deps <tool-name>
+        Update transitive dependencies to latest compatible versions
+        For controller-gen: only updates golang.org/x/* by default (use --all for k8s.io/*)
+        For other tools: updates all indirect dependencies
+
+    list
+        List all installed tools and their versions
+
+    clean <tool-name>
+        Remove a tool completely
+
+Options:
+    --latest        Use with 'reinit' to update to latest version
+    --patch         Use with 'update-deps' to only update patch versions
+    --all           Use with 'update-deps' to update all deps (including k8s.io/* for controller-gen)
+    --help          Show this help message
+
+Examples:
+    # Initialize a new tool using known definitions
+    $SCRIPT_NAME init controller-gen
+
+    # Initialize with specific version
+    $SCRIPT_NAME init controller-gen sigs.k8s.io/controller-tools/cmd/controller-gen@v0.21.0
+
+    # Update to latest version
+    $SCRIPT_NAME update controller-gen
+
+    # Update to specific version
+    $SCRIPT_NAME update controller-gen v0.22.0
+
+    # Reinitialize with current version (clean deps)
+    $SCRIPT_NAME reinit controller-gen
+
+    # Reinitialize with latest version
+    $SCRIPT_NAME reinit controller-gen --latest
+
+    # Update safe dependencies for CVE patches (golang.org/x/* only for controller-gen)
+    $SCRIPT_NAME update-deps controller-gen
+
+    # Update ALL dependencies including k8s.io/* (may change controller-gen behavior)
+    $SCRIPT_NAME update-deps controller-gen --all
+
+    # Update dependencies to latest patch versions only
+    $SCRIPT_NAME update-deps mockgen --patch
+
+    # List all tools
+    $SCRIPT_NAME list
+
+    # Remove a tool
+    $SCRIPT_NAME clean controller-gen
+
+Known tools:
+EOF
+    for tool_def in "${KNOWN_TOOLS[@]}"; do
+        tool_name="${tool_def%%|*}"
+        module="${tool_def#*|}"
+        echo "    - $tool_name: $module"
+    done
+}
+
+get_known_module() {
+    local tool_name="$1"
+    for tool_def in "${KNOWN_TOOLS[@]}"; do
+        if [[ "${tool_def%%|*}" == "$tool_name" ]]; then
+            echo "${tool_def#*|}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+get_current_version() {
+    local modfile="$1"
+    if [ ! -f "$modfile" ]; then
+        return 1
+    fi
+
+    # Extract the tool line to get the module path
+    local module=$(grep '^tool ' "$modfile" | awk '{print $2}')
+    if [ -z "$module" ]; then
+        return 1
+    fi
+
+    # Find the version in the require section
+    local version=$(grep "^\s*$module " "$modfile" | awk '{print $2}' | sed 's@//.*@@')
+    echo "$version"
+}
+
+sync_go_versions() {
+    local modfile="$1"
+
+    # Extract go and toolchain versions from main go.mod
+    local GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')
+    local TOOLCHAIN_VERSION=$(grep '^toolchain ' go.mod | awk '{print $2}')
+
+    if [ -z "$GO_VERSION" ]; then
+        echo "Error: Could not find go version in main go.mod"
+        return 1
+    fi
+
+    # Use go mod edit instead of sed
+    if [ -n "$TOOLCHAIN_VERSION" ]; then
+        go mod edit -go="$GO_VERSION" -toolchain="$TOOLCHAIN_VERSION" "$modfile"
+    else
+        go mod edit -go="$GO_VERSION" "$modfile"
+    fi
+}
+
+cmd_init() {
+    local tool_name="$1"
+    local module_spec="$2"
+
+    if [ -z "$tool_name" ]; then
+        echo "Error: tool name required"
+        echo "Usage: $SCRIPT_NAME init <tool-name> [module[@version]]"
+        return 1
+    fi
+
+    if [ -d "gotools/$tool_name" ]; then
+        echo "Error: Tool '$tool_name' already exists. Use 'update' or 'reinit' instead."
+        return 1
+    fi
+
+    # If module not provided, try to find it in known tools
+    if [ -z "$module_spec" ]; then
+        module_spec=$(get_known_module "$tool_name")
+        if [ -z "$module_spec" ]; then
+            echo "Error: Module not provided and '$tool_name' not found in known tools"
+            echo "Usage: $SCRIPT_NAME init <tool-name> <module[@version]>"
+            return 1
+        fi
+        echo "Using known module: $module_spec"
+    fi
+
+    echo "Initializing tool: $tool_name"
+    mkdir -p "gotools/$tool_name"
+
+    # Initialize go.mod
+    go mod init -modfile="gotools/$tool_name/go.mod" "github.com/rancher/scc-operator/gotools/$tool_name"
+
+    # Sync go/toolchain versions from main
+    sync_go_versions "gotools/$tool_name/go.mod"
+
+    # Install the tool
+    echo "Installing $module_spec..."
+    go get -tool -modfile="gotools/$tool_name/go.mod" "$module_spec"
+
+    # Run go mod tidy
+    (cd "gotools/$tool_name" && go mod tidy)
+
+    echo "✓ Tool '$tool_name' initialized successfully"
+}
+
+cmd_update() {
+    local tool_name="$1"
+    local version="$2"
+
+    if [ -z "$tool_name" ]; then
+        echo "Error: tool name required"
+        echo "Usage: $SCRIPT_NAME update <tool-name> [version]"
+        return 1
+    fi
+
+    local modfile="gotools/$tool_name/go.mod"
+    if [ ! -f "$modfile" ]; then
+        echo "Error: Tool '$tool_name' not found"
+        return 1
+    fi
+
+    # Get the module path from the tool directive
+    local module=$(grep '^tool ' "$modfile" | awk '{print $2}')
+    if [ -z "$module" ]; then
+        echo "Error: Could not find tool directive in $modfile"
+        return 1
+    fi
+
+    # Construct the module spec with version if provided
+    local module_spec="$module"
+    if [ -n "$version" ]; then
+        # Ensure version has @ prefix
+        if [[ ! "$version" =~ ^@ ]]; then
+            version="@$version"
+        fi
+        module_spec="$module$version"
+    else
+        module_spec="$module@latest"
+    fi
+
+    echo "Updating $tool_name to $module_spec..."
+    go get -tool -modfile="$modfile" "$module_spec"
+
+    # Sync go/toolchain versions and tidy
+    sync_go_versions "$modfile"
+    (cd "gotools/$tool_name" && go mod tidy)
+
+    echo "✓ Tool '$tool_name' updated successfully"
+}
+
+cmd_reinit() {
+    local tool_name="$1"
+    local use_latest=false
+
+    # Check for --latest flag
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --latest)
+                use_latest=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+
+    if [ -z "$tool_name" ]; then
+        echo "Error: tool name required"
+        echo "Usage: $SCRIPT_NAME reinit <tool-name> [--latest]"
+        return 1
+    fi
+
+    local modfile="gotools/$tool_name/go.mod"
+    if [ ! -f "$modfile" ]; then
+        echo "Error: Tool '$tool_name' not found"
+        return 1
+    fi
+
+    # Get the module path and current version
+    local module=$(grep '^tool ' "$modfile" | awk '{print $2}')
+    if [ -z "$module" ]; then
+        echo "Error: Could not find tool directive in $modfile"
+        return 1
+    fi
+
+    local version_spec=""
+    if [ "$use_latest" = false ]; then
+        local current_version=$(get_current_version "$modfile")
+        if [ -n "$current_version" ]; then
+            version_spec="@$current_version"
+            echo "Reinitializing $tool_name with current version ($current_version)..."
+        else
+            echo "Could not determine current version, using latest"
+            use_latest=true
+        fi
+    fi
+
+    if [ "$use_latest" = true ]; then
+        echo "Reinitializing $tool_name with latest version..."
+        version_spec="@latest"
+    fi
+
+    # Remove the tool directory
+    rm -rf "gotools/$tool_name"
+
+    # Reinitialize with the specified version
+    mkdir -p "gotools/$tool_name"
+    go mod init -modfile="gotools/$tool_name/go.mod" "github.com/rancher/scc-operator/gotools/$tool_name"
+    sync_go_versions "gotools/$tool_name/go.mod"
+    go get -tool -modfile="gotools/$tool_name/go.mod" "$module$version_spec"
+    (cd "gotools/$tool_name" && go mod tidy)
+
+    echo "✓ Tool '$tool_name' reinitialized successfully"
+}
+
+cmd_list() {
+    echo "Installed tools:"
+    echo ""
+    for modfile in gotools/*/go.mod; do
+        if [ ! -f "$modfile" ]; then
+            continue
+        fi
+
+        local tool_name=$(basename "$(dirname "$modfile")")
+        local module=$(grep '^tool ' "$modfile" | awk '{print $2}')
+        local version=$(get_current_version "$modfile")
+
+        printf "  %-20s %s" "$tool_name" "$module"
+        if [ -n "$version" ]; then
+            echo " ($version)"
+        else
+            echo ""
+        fi
+    done
+}
+
+cmd_update_deps() {
+    local tool_name="$1"
+    local patch_only=false
+    local all_deps=false
+
+    # Check for flags
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --patch)
+                patch_only=true
+                shift
+                ;;
+            --all)
+                all_deps=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+
+    if [ -z "$tool_name" ]; then
+        echo "Error: tool name required"
+        echo "Usage: $SCRIPT_NAME update-deps <tool-name> [--patch] [--all]"
+        return 1
+    fi
+
+    local modfile="gotools/$tool_name/go.mod"
+    if [ ! -f "$modfile" ]; then
+        echo "Error: Tool '$tool_name' not found"
+        return 1
+    fi
+
+    # Get all indirect dependencies
+    local all_indirect=$(grep '// indirect' "$modfile" | awk '{print $1}')
+
+    if [ -z "$all_indirect" ]; then
+        echo "No indirect dependencies found for $tool_name"
+        return 0
+    fi
+
+    local deps=""
+    local excluded=""
+
+    # For controller-gen, only update golang.org/x/* by default to avoid changing k8s behavior
+    # k8s.io/* and sigs.k8s.io/* versions affect code generation
+    if [ "$tool_name" = "controller-gen" ] && [ "$all_deps" = false ]; then
+        echo "⚠ controller-gen detected: only updating golang.org/x/* dependencies by default"
+        echo "  (k8s.io/* and sigs.k8s.io/* versions affect code generation behavior)"
+        echo "  Use --all to update all dependencies (may change generated code)"
+        echo ""
+
+        # Filter to only golang.org/x/* packages
+        while IFS= read -r dep; do
+            if [[ "$dep" =~ ^golang\.org/x/ ]]; then
+                deps="$deps $dep"
+            else
+                excluded="$excluded $dep"
+            fi
+        done <<< "$all_indirect"
+
+        if [ -n "$excluded" ]; then
+            echo "Excluded (use --all to include):"
+            echo "$excluded" | tr ' ' '\n' | sed 's/^/  - /'
+            echo ""
+        fi
+    else
+        deps="$all_indirect"
+    fi
+
+    if [ -z "$deps" ]; then
+        echo "No dependencies to update for $tool_name"
+        if [ "$tool_name" = "controller-gen" ]; then
+            echo "Tip: Use --all to update k8s.io/* dependencies (may affect code generation)"
+        fi
+        return 0
+    fi
+
+    if [ "$patch_only" = true ]; then
+        echo "Updating dependencies to latest patch versions for $tool_name..."
+        echo "Dependencies: $deps"
+        (cd "gotools/$tool_name" && go get -u=patch $deps)
+    else
+        echo "Updating dependencies to latest versions for $tool_name..."
+        echo "Dependencies: $deps"
+        (cd "gotools/$tool_name" && go get -u $deps)
+    fi
+
+    # Sync go/toolchain versions and tidy
+    sync_go_versions "$modfile"
+    (cd "gotools/$tool_name" && go mod tidy)
+
+    echo ""
+    echo "✓ Dependencies updated for '$tool_name'"
+    echo ""
+    echo "Review the changes with:"
+    echo "  git diff gotools/$tool_name/go.mod gotools/$tool_name/go.sum"
+}
+
+cmd_clean() {
+    local tool_name="$1"
+
+    if [ -z "$tool_name" ]; then
+        echo "Error: tool name required"
+        echo "Usage: $SCRIPT_NAME clean <tool-name>"
+        return 1
+    fi
+
+    if [ ! -d "gotools/$tool_name" ]; then
+        echo "Error: Tool '$tool_name' not found"
+        return 1
+    fi
+
+    echo "Removing tool: $tool_name"
+    rm -rf "gotools/$tool_name"
+    echo "✓ Tool '$tool_name' removed successfully"
+}
+
+# Main command dispatch
+case "${1:-}" in
+    init)
+        shift
+        cmd_init "$@"
+        ;;
+    update)
+        shift
+        cmd_update "$@"
+        ;;
+    reinit)
+        shift
+        cmd_reinit "$@"
+        ;;
+    update-deps)
+        shift
+        cmd_update_deps "$@"
+        ;;
+    list)
+        cmd_list
+        ;;
+    clean)
+        shift
+        cmd_clean "$@"
+        ;;
+    --help|help|"")
+        usage
+        ;;
+    *)
+        echo "Error: Unknown command '$1'"
+        echo ""
+        usage
+        exit 1
+        ;;
+esac

@@ -20,68 +20,39 @@ scripts/gotools-validate
 
 ## Managing tools
 
-**Using a tool**
+Use `scripts/gotools-manage` to manage tools. Run `scripts/gotools-manage --help` for details.
+
+**Common tasks:**
 
 ```sh
-go tool -modfile <path to modfile> <tool>
+# List tools
+scripts/gotools-manage list
+
+# Update CVE patches (golang.org/x/* only for controller-gen)
+scripts/gotools-update-all-deps
+
+# Update tool version
+scripts/gotools-manage update mockgen v0.7.0
+
+# Add new tool
+scripts/gotools-manage init <name> <module>[@version]
 ```
 
-For example, to use controller-gen:
+**Update dependencies for CVE patches:**
+
+```sh
+# All tools at once
+scripts/gotools-update-all-deps
+
+# Individual tool (controller-gen: golang.org/x/* only by default)
+scripts/gotools-manage update-deps controller-gen
+
+# Include k8s.io/* for controller-gen (may change codegen behavior)
+scripts/gotools-manage update-deps controller-gen --all
+```
+
+**Using tools:**
 
 ```sh
 go tool -modfile gotools/controller-gen/go.mod controller-gen -h
-```
-
-**Add a new tool**
-
-From repository root:
-
-```sh
-TOOLNAME=<tool name>
-mkdir -p gotools/"$TOOLNAME"
-go mod init -modfile=gotools/"$TOOLNAME"/go.mod github.com/rancher/rancher/gotools/"$TOOLNAME"
-go get -tool -modfile=gotools/"$TOOLNAME"/go.mod <module>@<version>
-```
-
-For example, controller-gen was added this way:
-
-```
-TOOLNAME=controller-gen
-mkdir -p gotools/"$TOOLNAME"
-go mod init -modfile=gotools/"$TOOLNAME"/go.mod github.com/rancher/rancher/gotools/"$TOOLNAME"
-go get -tool -modfile=gotools/"$TOOLNAME"/go.mod sigs.k8s.io/controller-tools/cmd/controller-gen@v0.17.1
-```
-
-
-**Update existing tool**
-
-From repository root:
-
-```sh
-TOOLNAME=<tool name>
-go get -tool -modfile=gotools/"$TOOLNAME"/go.mod <module>@<new version>
-```
-
-For example, to update controller-gen to v0.20.1:
-
-```sh
-go get -tool -modfile=gotools/controller-gen/go.mod sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.1
-```
-
-To update mockgen to v0.5.0:
-
-```sh
-go get -tool -modfile=gotools/mockgen/go.mod go.uber.org/mock/mockgen@v0.5.0
-```
-
-**Check tool version**
-
-```sh
-# Check installed version
-go run -modfile=gotools/controller-gen/go.mod sigs.k8s.io/controller-tools/cmd/controller-gen --version
-go run -modfile=gotools/mockgen/go.mod go.uber.org/mock/mockgen -version
-
-# List available versions
-go list -m -versions sigs.k8s.io/controller-tools
-go list -m -versions go.uber.org/mock
 ```
