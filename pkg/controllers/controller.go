@@ -919,16 +919,16 @@ func (h *handler) handleMetricsSecretUpdate(metricsSecret *corev1.Secret) (*core
 				registration.Name, savedVersion, currentVersion)
 
 			// Trigger immediate sync by setting syncNow flag
-			updated := registration.DeepCopy()
+			toUpdate := registration.DeepCopy()
 			syncNow := true
-			updated.Spec.SyncNow = &syncNow
+			toUpdate.Spec.SyncNow = &syncNow
 
-			_, updateErr := h.registrations.Update(updated)
+			updated, updateErr := h.registrations.Update(toUpdate)
 			if updateErr != nil {
 				h.log.Errorf("failed to trigger sync for registration %s: %v", registration.Name, updateErr)
 				// Continue with other registrations even if one fails
 			} else {
-				h.log.Debugf("triggered sync for registration %s due to version change", registration.Name)
+				h.log.Debugf("triggered sync for registration %s due to version change (new resourceVersion: %s)", updated.Name, updated.ResourceVersion)
 			}
 		} else {
 			h.log.Debugf("registration %s version matches current version %s, no sync needed", registration.Name, currentVersion)
