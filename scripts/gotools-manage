@@ -28,6 +28,11 @@ Commands:
         Remove and reinitialize a tool (useful for cleaning up dependencies)
         Preserves the current version unless --latest is specified
 
+    update-deps <tool-name>
+        Update transitive dependencies to latest compatible versions
+        For controller-gen: only updates golang.org/x/* by default (use --all for k8s.io/*)
+        For other tools: updates all indirect dependencies
+
     list
         List all installed tools and their versions
 
@@ -36,6 +41,8 @@ Commands:
 
 Options:
     --latest        Use with 'reinit' to update to latest version
+    --patch         Use with 'update-deps' to only update patch versions
+    --all           Use with 'update-deps' to update all deps (including k8s.io/* for controller-gen)
     --help          Show this help message
 
 Examples:
@@ -56,6 +63,15 @@ Examples:
 
     # Reinitialize with latest version
     $SCRIPT_NAME reinit controller-gen --latest
+
+    # Update safe dependencies for CVE patches (golang.org/x/* only for controller-gen)
+    $SCRIPT_NAME update-deps controller-gen
+
+    # Update ALL dependencies including k8s.io/* (may change controller-gen behavior)
+    $SCRIPT_NAME update-deps controller-gen --all
+
+    # Update dependencies to latest patch versions only
+    $SCRIPT_NAME update-deps mockgen --patch
 
     # List all tools
     $SCRIPT_NAME list
@@ -309,6 +325,108 @@ cmd_list() {
     done
 }
 
+cmd_update_deps() {
+    local tool_name="$1"
+    local patch_only=false
+    local all_deps=false
+
+    # Check for flags
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --patch)
+                patch_only=true
+                shift
+                ;;
+            --all)
+                all_deps=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+
+    if [ -z "$tool_name" ]; then
+        echo "Error: tool name required"
+        echo "Usage: $SCRIPT_NAME update-deps <tool-name> [--patch] [--all]"
+        return 1
+    fi
+
+    local modfile="gotools/$tool_name/go.mod"
+    if [ ! -f "$modfile" ]; then
+        echo "Error: Tool '$tool_name' not found"
+        return 1
+    fi
+
+    # Get all indirect dependencies
+    local all_indirect=$(grep '// indirect' "$modfile" | awk '{print $1}')
+
+    if [ -z "$all_indirect" ]; then
+        echo "No indirect dependencies found for $tool_name"
+        return 0
+    fi
+
+    local deps=""
+    local excluded=""
+
+    # For controller-gen, only update golang.org/x/* by default to avoid changing k8s behavior
+    # k8s.io/* and sigs.k8s.io/* versions affect code generation
+    if [ "$tool_name" = "controller-gen" ] && [ "$all_deps" = false ]; then
+        echo "⚠ controller-gen detected: only updating golang.org/x/* dependencies by default"
+        echo "  (k8s.io/* and sigs.k8s.io/* versions affect code generation behavior)"
+        echo "  Use --all to update all dependencies (may change generated code)"
+        echo ""
+
+        # Filter to only golang.org/x/* packages
+        while IFS= read -r dep; do
+            if [[ "$dep" =~ ^golang\.org/x/ ]]; then
+                deps="$deps $dep"
+            else
+                excluded="$excluded $dep"
+            fi
+        done <<< "$all_indirect"
+
+        if [ -n "$excluded" ]; then
+            echo "Excluded (use --all to include):"
+            echo "$excluded" | tr ' ' '\n' | sed 's/^/  - /'
+            echo ""
+        fi
+    else
+        deps="$all_indirect"
+    fi
+
+    if [ -z "$deps" ]; then
+        echo "No dependencies to update for $tool_name"
+        if [ "$tool_name" = "controller-gen" ]; then
+            echo "Tip: Use --all to update k8s.io/* dependencies (may affect code generation)"
+        fi
+        return 0
+    fi
+
+    if [ "$patch_only" = true ]; then
+        echo "Updating dependencies to latest patch versions for $tool_name..."
+        echo "Dependencies: $deps"
+        (cd "gotools/$tool_name" && go get -u=patch $deps)
+    else
+        echo "Updating dependencies to latest versions for $tool_name..."
+        echo "Dependencies: $deps"
+        (cd "gotools/$tool_name" && go get -u $deps)
+    fi
+
+    # Sync go/toolchain versions and tidy
+    sync_go_versions "$modfile"
+    (cd "gotools/$tool_name" && go mod tidy)
+
+    echo ""
+    echo "✓ Dependencies updated for '$tool_name'"
+    echo ""
+    echo "Review the changes with:"
+    echo "  git diff gotools/$tool_name/go.mod gotools/$tool_name/go.sum"
+}
+
 cmd_clean() {
     local tool_name="$1"
 
@@ -341,6 +459,10 @@ case "${1:-}" in
     reinit)
         shift
         cmd_reinit "$@"
+        ;;
+    update-deps)
+        shift
+        cmd_update_deps "$@"
         ;;
     list)
         cmd_list
