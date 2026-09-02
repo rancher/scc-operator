@@ -20,6 +20,55 @@ scripts/gotools-validate
 
 ## Managing tools
 
+The `scripts/gotools-manage` script provides a convenient wrapper for managing Go tools with isolated `go.mod` files.
+
+**List installed tools**
+
+```sh
+scripts/gotools-manage list
+```
+
+**Add a new tool**
+
+```sh
+# Using known tool definitions (controller-gen, mockgen)
+scripts/gotools-manage init controller-gen
+
+# With specific version
+scripts/gotools-manage init controller-gen sigs.k8s.io/controller-tools/cmd/controller-gen@v0.21.0
+
+# Custom tool with module path
+scripts/gotools-manage init mytool example.com/path/to/tool@v1.0.0
+```
+
+**Update a tool to a new version**
+
+```sh
+# Update to latest version
+scripts/gotools-manage update controller-gen
+
+# Update to specific version
+scripts/gotools-manage update controller-gen v0.22.0
+```
+
+**Reinitialize a tool (clean dependencies)**
+
+This is useful when you want to clean up the `go.mod`/`go.sum` files and regenerate them:
+
+```sh
+# Reinitialize with current version (clean deps)
+scripts/gotools-manage reinit controller-gen
+
+# Reinitialize and update to latest version
+scripts/gotools-manage reinit controller-gen --latest
+```
+
+**Remove a tool**
+
+```sh
+scripts/gotools-manage clean controller-gen
+```
+
 **Using a tool**
 
 ```sh
@@ -30,48 +79,6 @@ For example, to use controller-gen:
 
 ```sh
 go tool -modfile gotools/controller-gen/go.mod controller-gen -h
-```
-
-**Add a new tool**
-
-From repository root:
-
-```sh
-TOOLNAME=<tool name>
-mkdir -p gotools/"$TOOLNAME"
-go mod init -modfile=gotools/"$TOOLNAME"/go.mod github.com/rancher/rancher/gotools/"$TOOLNAME"
-go get -tool -modfile=gotools/"$TOOLNAME"/go.mod <module>@<version>
-```
-
-For example, controller-gen was added this way:
-
-```
-TOOLNAME=controller-gen
-mkdir -p gotools/"$TOOLNAME"
-go mod init -modfile=gotools/"$TOOLNAME"/go.mod github.com/rancher/rancher/gotools/"$TOOLNAME"
-go get -tool -modfile=gotools/"$TOOLNAME"/go.mod sigs.k8s.io/controller-tools/cmd/controller-gen@v0.17.1
-```
-
-
-**Update existing tool**
-
-From repository root:
-
-```sh
-TOOLNAME=<tool name>
-go get -tool -modfile=gotools/"$TOOLNAME"/go.mod <module>@<new version>
-```
-
-For example, to update controller-gen to v0.20.1:
-
-```sh
-go get -tool -modfile=gotools/controller-gen/go.mod sigs.k8s.io/controller-tools/cmd/controller-gen@v0.20.1
-```
-
-To update mockgen to v0.5.0:
-
-```sh
-go get -tool -modfile=gotools/mockgen/go.mod go.uber.org/mock/mockgen@v0.5.0
 ```
 
 **Check tool version**
