@@ -2,7 +2,7 @@ module github.com/rancher/scc-operator/gotools/controller-gen
 
 go 1.26.0
 
-toolchain go1.26.6
+toolchain go1.27.1
 
 tool sigs.k8s.io/controller-tools/cmd/controller-gen
 
