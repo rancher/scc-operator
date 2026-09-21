@@ -455,12 +455,16 @@ func (h *handler) cleanupRelatedSecretsByHash(contentHash string) error {
 
 	for _, secret := range secrets {
 		if lifecycle.SecretHasCredentialsFinalizer(secret) ||
-			lifecycle.SecretHasRegCodeFinalizer(secret) {
+			lifecycle.SecretHasRegCodeFinalizer(secret) ||
+			lifecycle.SecretHasRegURLCertFinalizer(secret) ||
+			lifecycle.SecretHasInstanceDataFinalizer(secret) {
 
 			var updateErr error
 			secretUpdated := secret.DeepCopy()
 			secretUpdated = lifecycle.SecretRemoveCredentialsFinalizer(secretUpdated)
 			secretUpdated = lifecycle.SecretRemoveRegCodeFinalizer(secretUpdated)
+			secretUpdated = lifecycle.SecretRemoveRegURLCertFinalizer(secretUpdated)
+			secretUpdated = lifecycle.SecretRemoveInstanceDataFinalizer(secretUpdated)
 			_, updateErr = h.secretRepo.RetryingPatchUpdate(secret, secretUpdated)
 			if updateErr != nil {
 				h.log.Errorf("failed to update secret %s/%s: %v", secret.Namespace, secret.Name, updateErr)

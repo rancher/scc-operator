@@ -70,8 +70,8 @@ func TestParamsToRegSpecWithInstanceData(t *testing.T) {
 		{
 			name: "sets instance data secret ref when hasInstanceData is true",
 			params: RegistrationParams{
-				regType:     v1.RegistrationModeOnline,
-				regURL:      "https://rmt.example.com",
+				regType: v1.RegistrationModeOnline,
+				regURL:  "https://rmt.example.com",
 				regCodeSecretRef: &corev1.SecretReference{
 					Name:      "regcode-secret",
 					Namespace: "test-namespace",
@@ -91,8 +91,8 @@ func TestParamsToRegSpecWithInstanceData(t *testing.T) {
 		{
 			name: "does not set instance data secret ref when hasInstanceData is false",
 			params: RegistrationParams{
-				regType:     v1.RegistrationModeOnline,
-				regURL:      "https://rmt.example.com",
+				regType: v1.RegistrationModeOnline,
+				regURL:  "https://rmt.example.com",
 				regCodeSecretRef: &corev1.SecretReference{
 					Name:      "regcode-secret",
 					Namespace: "test-namespace",
@@ -106,8 +106,8 @@ func TestParamsToRegSpecWithInstanceData(t *testing.T) {
 		{
 			name: "does not overwrite cert ref when setting instance data ref",
 			params: RegistrationParams{
-				regType:     v1.RegistrationModeOnline,
-				regURL:      "https://rmt.example.com",
+				regType: v1.RegistrationModeOnline,
+				regURL:  "https://rmt.example.com",
 				regCodeSecretRef: &corev1.SecretReference{
 					Name:      "regcode-secret",
 					Namespace: "test-namespace",
@@ -139,4 +139,3 @@ func TestParamsToRegSpecWithInstanceData(t *testing.T) {
 		})
 	}
 }
-

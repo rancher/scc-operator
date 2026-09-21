@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -158,7 +159,8 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 	nameData = append(nameData, regCode...)
 	nameData = append(nameData, regURLBytes...)
 	data := append(nameData, offlineRegCertData...)
-	data = append(nameData, rmtInstanceDataBytes...)
+	data = append(data, regCertBytes...)
+	data = append(data, rmtInstanceDataBytes...)
 
 	// Generate a hash for the name data
 	if _, err := hasher.Write(nameData); err != nil {
@@ -312,9 +314,7 @@ func paramsToRegSpec(params RegistrationParams) v1.RegistrationSpec {
 
 // regCodeFromSecretEntrypoint fetches (or prepares) the RegCode secret provided by an entrypoint secret
 func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
-	secretName := params.regCodeSecretRef.Name
-
-	regcodeSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), secretName)
+	regcodeSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), params.regCodeSecretRef.Name)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, err
@@ -323,7 +323,7 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 		regcodeSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: h.options.SystemNamespace(),
-				Name:      secretName,
+				Name:      params.regCodeSecretRef.Name,
 			},
 			Data: map[string][]byte{
 				consts.SecretKeyRegistrationCode: params.regCode,
@@ -347,9 +347,7 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 
 // regURLCertFromSecretEntrypoint extracts and prepares the registration URL Cert data into a secret entrypoint secret fields
 func (h *handler) regURLCertFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
-	secretName := params.regURLCertSecretRef.Name
-
-	regURLCertSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), secretName)
+	regURLCertSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), params.regURLCertSecretRef.Name)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, err
@@ -358,10 +356,7 @@ func (h *handler) regURLCertFromSecretEntrypoint(params RegistrationParams) (*co
 		regURLCertSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: h.options.SystemNamespace(),
-				Name:      secretName,
-			},
-			Data: map[string][]byte{
-				consts.SecretKeyRegistrationURLCert: *params.regURLCertData,
+				Name:      params.regURLCertSecretRef.Name,
 			},
 		}
 	}
@@ -377,14 +372,20 @@ func (h *handler) regURLCertFromSecretEntrypoint(params RegistrationParams) (*co
 		regURLCertSecret = lifecycle.SecretAddRegURLCertFinalizer(regURLCertSecret)
 	}
 
+	expectedData := map[string][]byte{
+		consts.SecretKeyRegistrationURLCert: *params.regURLCertData,
+	}
+
+	if regURLCertSecret.Data == nil || maps.EqualFunc(expectedData, regURLCertSecret.Data, bytes.Equal) {
+		regURLCertSecret.Data = expectedData
+	}
+
 	return regURLCertSecret, nil
 }
 
 // regURLInstanceDataSecretEntrypoint extracts and prepares the registration "instance data" (used for RMT) into a secret entrypoint secret fields
 func (h *handler) regURLInstanceDataSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
-	secretName := params.rmtInstanceDataSecretRef.Name
-
-	instanceDataSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), secretName)
+	instanceDataSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), params.rmtInstanceDataSecretRef.Name)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, err
@@ -393,10 +394,7 @@ func (h *handler) regURLInstanceDataSecretEntrypoint(params RegistrationParams) 
 		instanceDataSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: h.options.SystemNamespace(),
-				Name:      secretName,
-			},
-			Data: map[string][]byte{
-				consts.SecretKeyInstanceData: *params.rmtInstanceData,
+				Name:      params.rmtInstanceDataSecretRef.Name,
 			},
 		}
 	}
@@ -410,6 +408,13 @@ func (h *handler) regURLInstanceDataSecretEntrypoint(params RegistrationParams) 
 
 	if !lifecycle.SecretHasInstanceDataFinalizer(instanceDataSecret) {
 		instanceDataSecret = lifecycle.SecretAddInstanceDataFinalizer(instanceDataSecret)
+	}
+
+	expectedData := map[string][]byte{
+		consts.SecretKeyInstanceData: *params.rmtInstanceData,
+	}
+	if instanceDataSecret.Data == nil || maps.EqualFunc(expectedData, instanceDataSecret.Data, bytes.Equal) {
+		instanceDataSecret.Data = expectedData
 	}
 
 	return instanceDataSecret, nil

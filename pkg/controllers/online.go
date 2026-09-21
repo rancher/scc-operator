@@ -653,10 +653,11 @@ func (s *sccOnlineMode) Deregister() error {
 			if regURLCertErr != nil {
 				return regURLCertErr
 			}
-		}
 
-		if err := s.secretRepo.Controller.Delete(regURLCertSecretRef.Namespace, regURLCertSecretRef.Name, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-			return err
+			// Only delete if the operator owns it (confirmed by presence of the finalizer)
+			if err := s.secretRepo.Controller.Delete(regURLCertSecretRef.Namespace, regURLCertSecretRef.Name, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+				return err
+			}
 		}
 	}
 
@@ -675,10 +676,11 @@ func (s *sccOnlineMode) Deregister() error {
 			if instanceDataErr != nil {
 				return instanceDataErr
 			}
-		}
 
-		if err := s.secretRepo.Controller.Delete(instanceDataSecretRef.Namespace, instanceDataSecretRef.Name, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
-			return err
+			// Only delete if the operator owns it (confirmed by presence of the finalizer)
+			if err := s.secretRepo.Controller.Delete(instanceDataSecretRef.Namespace, instanceDataSecretRef.Name, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+				return err
+			}
 		}
 	}
 
