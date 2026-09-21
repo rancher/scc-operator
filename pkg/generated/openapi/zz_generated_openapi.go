@@ -231,6 +231,11 @@ func schema_pkg_apis_scccattleio_v1_RegistrationRequest(ref common.ReferenceCall
 							Ref: ref("k8s.io/api/core/v1.SecretReference"),
 						},
 					},
+					"RegistrationInstanceDataSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.SecretReference"),
+						},
+					},
 				},
 			},
 		},

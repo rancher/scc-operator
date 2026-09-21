@@ -82,6 +82,8 @@ type RegistrationRequest struct {
 	RegistrationAPIUrl *string `json:"registrationAPIUrl,omitempty"`
 	// +optional
 	RegistrationAPICertificateSecretRef *corev1.SecretReference `json:"registrationAPICertificateSecretRef,omitempty"`
+	// +optional
+	RegistrationInstanceDataSecretRef *corev1.SecretReference `json:"RegistrationInstanceDataSecretRef,omitempty"`
 }
 
 type RegistrationStatus struct {

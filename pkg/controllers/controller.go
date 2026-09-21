@@ -361,6 +361,18 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 				return incomingObj, err
 			}
 		}
+
+		// Create instance data secret if present (for RMT registration)
+		if params.hasInstanceData {
+			instanceDataSecret, err := h.regURLInstanceDataSecretEntrypoint(params)
+			if err != nil {
+				return incomingObj, err
+			}
+
+			if _, err := h.secretRepo.CreateOrUpdateSecret(instanceDataSecret); err != nil {
+				return incomingObj, err
+			}
+		}
 	}
 
 	// construct associated registration CRs

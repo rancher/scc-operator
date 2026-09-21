@@ -12,6 +12,7 @@ const (
 	OfflineRequestSecretNamePrefix             = "offline-request-"
 	OfflineCertificateSecretNamePrefix         = "offline-certificate-"
 	RegistrationURLCertificateSecretNamePrefix = "registration-url-cert-"
+	RegistrationInstanceDataNamePrefix         = "registration-instance-data-"
 )
 
 func RegistrationName(namePartIn string) string {
@@ -41,4 +42,8 @@ func SccManagedByValue(operatorName string) string {
 
 func RegistrationURLCertificateSecretName(namePartIn string) string {
 	return fmt.Sprintf("%s%s", RegistrationURLCertificateSecretNamePrefix, namePartIn)
+}
+
+func RegistrationInstanceDataSecretName(namePartIn string) string {
+	return fmt.Sprintf("%s%s", RegistrationInstanceDataNamePrefix, namePartIn)
 }

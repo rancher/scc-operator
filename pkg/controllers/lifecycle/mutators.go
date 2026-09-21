@@ -90,3 +90,11 @@ func SecretAddRegURLCertFinalizer(secret *corev1.Secret) *corev1.Secret {
 func SecretRemoveRegURLCertFinalizer(secret *corev1.Secret) *corev1.Secret {
 	return runtimeRemoveFinalizer[*corev1.Secret](secret, consts.FinalizerSccRegistrationURLCert)
 }
+
+func SecretAddInstanceDataFinalizer(secret *corev1.Secret) *corev1.Secret {
+	return runtimeAddFinalizer[*corev1.Secret](secret, consts.FinalizerRMTInstanceData)
+}
+
+func SecretRemoveInstanceDataFinalizer(secret *corev1.Secret) *corev1.Secret {
+	return runtimeRemoveFinalizer[*corev1.Secret](secret, consts.FinalizerRMTInstanceData)
+}

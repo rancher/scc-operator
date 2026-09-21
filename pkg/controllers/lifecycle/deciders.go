@@ -71,3 +71,7 @@ func SecretHasRegCodeFinalizer(objIn *corev1.Secret) bool {
 func SecretHasRegURLCertFinalizer(objIn *corev1.Secret) bool {
 	return hasFinalizer(objIn, consts.FinalizerSccRegistrationURLCert)
 }
+
+func SecretHasInstanceDataFinalizer(objIn *corev1.Secret) bool {
+	return hasFinalizer(objIn, consts.FinalizerRMTInstanceData)
+}

@@ -82,7 +82,7 @@ func (h *handler) prepareSecretSalt(secret *corev1.Secret) (*corev1.Secret, erro
 }
 
 func getCurrentRegURL(secret *corev1.Secret) (regURL []byte) {
-	regURLBytes, ok := secret.Data[consts.RegistrationURL]
+	regURLBytes, ok := secret.Data[consts.SecretKeyRegistrationURL]
 	if ok {
 		return regURLBytes
 	}
@@ -97,9 +97,18 @@ func getCurrentRegURL(secret *corev1.Secret) (regURL []byte) {
 }
 
 func getRegURLCert(secret *corev1.Secret) ([]byte, bool) {
-	regCertBytes, ok := secret.Data[consts.RegistrationURLCert]
+	regCertBytes, ok := secret.Data[consts.SecretKeyRegistrationURLCert]
 	if ok {
 		return regCertBytes, ok
+	}
+
+	return []byte{}, ok
+}
+
+func getInstanceData(secret *corev1.Secret) ([]byte, bool) {
+	bytes, ok := secret.Data[consts.SecretKeyInstanceData]
+	if ok {
+		return bytes, ok
 	}
 
 	return []byte{}, ok
@@ -134,12 +143,14 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 	hasOfflineCert := certOk && len(offlineRegCertData) > 0
 
 	hasRegCertField := false
-	var regURLBytes, regCertBytes []byte
+	hasRmtInstanceData := false
+	var regURLBytes, regCertBytes, rmtInstanceDataBytes []byte
 	regURLString := ""
 	if regMode == v1.RegistrationModeOnline {
 		regURLBytes = getCurrentRegURL(secret)
 		regURLString = string(regURLBytes)
 		regCertBytes, hasRegCertField = getRegURLCert(secret)
+		rmtInstanceDataBytes, hasRmtInstanceData = getInstanceData(secret)
 	}
 
 	hasher := md5.New()
@@ -147,6 +158,7 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 	nameData = append(nameData, regCode...)
 	nameData = append(nameData, regURLBytes...)
 	data := append(nameData, offlineRegCertData...)
+	data = append(nameData, rmtInstanceDataBytes...)
 
 	// Generate a hash for the name data
 	if _, err := hasher.Write(nameData); err != nil {
@@ -185,24 +197,33 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 			Name:      consts.RegistrationURLCertificateSecretName(nameID),
 			Namespace: secret.Namespace,
 		},
+		hasInstanceData: hasRmtInstanceData && len(rmtInstanceDataBytes) > 0,
+		rmtInstanceData: &rmtInstanceDataBytes,
+		rmtInstanceDataSecretRef: &corev1.SecretReference{
+			Name:      consts.RegistrationInstanceDataSecretName(nameID),
+			Namespace: secret.Namespace,
+		},
 	}, nil
 }
 
 type RegistrationParams struct {
-	managedByName        string
-	regType              v1.RegistrationMode
-	nameID               string
-	contentHash          string
-	regCode              []byte
-	regCodeSecretRef     *corev1.SecretReference
-	regURL               string
-	regURLCertSet        bool // true when the secret includes regURLCert field
-	hasRegURLCertData    bool // true when regURLCertSet and regURLCertData is not empty
-	regURLCertData       *[]byte
-	regURLCertSecretRef  *corev1.SecretReference
-	hasOfflineCertData   bool
-	offlineCertData      *[]byte
-	offlineCertSecretRef *corev1.SecretReference
+	managedByName            string
+	regType                  v1.RegistrationMode
+	nameID                   string
+	contentHash              string
+	regCode                  []byte
+	regCodeSecretRef         *corev1.SecretReference
+	regURL                   string
+	regURLCertSet            bool // true when the secret includes regURLCert field
+	hasRegURLCertData        bool // true when regURLCertSet and regURLCertData is not empty
+	regURLCertData           *[]byte
+	regURLCertSecretRef      *corev1.SecretReference
+	hasOfflineCertData       bool
+	offlineCertData          *[]byte
+	offlineCertSecretRef     *corev1.SecretReference
+	hasInstanceData          bool // true rmtInstanceData is not empty
+	rmtInstanceData          *[]byte
+	rmtInstanceDataSecretRef *corev1.SecretReference
 }
 
 // Labels produces the labels to apply to related resources.
@@ -280,6 +301,10 @@ func paramsToRegSpec(params RegistrationParams) v1.RegistrationSpec {
 		if params.hasRegURLCertData {
 			regSpec.RegistrationRequest.RegistrationAPICertificateSecretRef = params.regURLCertSecretRef
 		}
+
+		if params.hasInstanceData {
+			regSpec.RegistrationRequest.RegistrationInstanceDataSecretRef = params.rmtInstanceDataSecretRef
+		}
 	}
 
 	return regSpec
@@ -320,6 +345,7 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 	return regcodeSecret, nil
 }
 
+// regURLCertFromSecretEntrypoint extracts and prepares the registration URL Cert data into a secret entrypoint secret fields
 func (h *handler) regURLCertFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
 	secretName := params.regURLCertSecretRef.Name
 
@@ -335,7 +361,7 @@ func (h *handler) regURLCertFromSecretEntrypoint(params RegistrationParams) (*co
 				Name:      secretName,
 			},
 			Data: map[string][]byte{
-				consts.RegistrationURLCert: *params.regURLCertData,
+				consts.SecretKeyRegistrationURLCert: *params.regURLCertData,
 			},
 		}
 	}
@@ -352,6 +378,41 @@ func (h *handler) regURLCertFromSecretEntrypoint(params RegistrationParams) (*co
 	}
 
 	return regURLCertSecret, nil
+}
+
+// regURLInstanceDataSecretEntrypoint extracts and prepares the registration "instance data" (used for RMT) into a secret entrypoint secret fields
+func (h *handler) regURLInstanceDataSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
+	secretName := params.rmtInstanceDataSecretRef.Name
+
+	instanceDataSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), secretName)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, err
+		}
+
+		instanceDataSecret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: h.options.SystemNamespace(),
+				Name:      secretName,
+			},
+			Data: map[string][]byte{
+				consts.SecretKeyInstanceData: *params.rmtInstanceData,
+			},
+		}
+	}
+
+	if instanceDataSecret.Labels == nil {
+		instanceDataSecret.Labels = map[string]string{}
+	}
+	defaultLabels := params.Labels()
+	defaultLabels[consts.LabelSccSecretRole] = string(consts.RegistrationInstanceDataRole)
+	maps.Copy(instanceDataSecret.Labels, defaultLabels)
+
+	if !lifecycle.SecretHasInstanceDataFinalizer(instanceDataSecret) {
+		instanceDataSecret = lifecycle.SecretAddInstanceDataFinalizer(instanceDataSecret)
+	}
+
+	return instanceDataSecret, nil
 }
 
 // offlineCertFromSecretEntrypoint helps to extract and prepare the Offline Cert secret for creation based on entrypoint secret

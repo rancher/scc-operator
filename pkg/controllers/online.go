@@ -648,6 +648,28 @@ func (s *sccOnlineMode) Deregister() error {
 		}
 	}
 
+	// Clean up instance data secret if it exists
+	instanceDataSecretRef := s.registration.Spec.RegistrationRequest.RegistrationInstanceDataSecretRef
+	if instanceDataSecretRef != nil {
+		instanceDataSecret, instanceDataErr := s.secretRepo.Get(instanceDataSecretRef.Namespace, instanceDataSecretRef.Name)
+		if instanceDataErr != nil && !apierrors.IsNotFound(instanceDataErr) {
+			return instanceDataErr
+		}
+		if instanceDataSecret != nil && lifecycle.SecretHasInstanceDataFinalizer(instanceDataSecret) {
+			updateInstanceDataSecret := instanceDataSecret.DeepCopy()
+			updateInstanceDataSecret = lifecycle.SecretRemoveInstanceDataFinalizer(updateInstanceDataSecret)
+
+			_, instanceDataErr = s.secretRepo.Controller.Update(updateInstanceDataSecret)
+			if instanceDataErr != nil {
+				return instanceDataErr
+			}
+		}
+
+		if err := s.secretRepo.Controller.Delete(instanceDataSecretRef.Namespace, instanceDataSecretRef.Name, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+
 	return nil
 }
 

@@ -42,9 +42,9 @@ func FetchRegistrationURLCertFrom(secretRepo *secretrepo.SecretRepository, refer
 	}
 	sccContextLogger().Debugf("Found certificate secret %s/%s", reference.Namespace, reference.Name)
 
-	certData, ok := certSecret.Data[consts.RegistrationURLCert]
+	certData, ok := certSecret.Data[consts.SecretKeyRegistrationURLCert]
 	if !ok {
-		sccContextLogger().Warnf("registration URL cert secret `%v` does not contain expected data `%s`", reference, consts.RegistrationURLCert)
+		sccContextLogger().Warnf("registration URL cert secret `%v` does not contain expected data `%s`", reference, consts.SecretKeyRegistrationURLCert)
 		return nil
 	}
 
