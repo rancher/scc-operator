@@ -530,11 +530,13 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 	}
 
 	// Non-entrypoint Secrets: ShouldManage already checked above
-	// Operator-created Secrets (credentials, regcode, offline) always have both labels:
+	// Operator-created Secrets (credentials, regcode, offline, regURLCert, instanceData) always have both labels:
 	//   app.kubernetes.io/managed-by: rancher-scc-operator (never Helm)
 	//   scc.cattle.io/managed-by: rancher-scc-operator_secret-broker
 	if lifecycle.SecretHasCredentialsFinalizer(incomingObj) ||
-		lifecycle.SecretHasRegCodeFinalizer(incomingObj) {
+		lifecycle.SecretHasRegCodeFinalizer(incomingObj) ||
+		lifecycle.SecretHasRegURLCertFinalizer(incomingObj) ||
+		lifecycle.SecretHasInstanceDataFinalizer(incomingObj) {
 		refs := incomingObj.GetOwnerReferences()
 		danglingRefs := 0
 		for _, ref := range refs {
@@ -573,6 +575,12 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 		}
 		if lifecycle.SecretHasRegCodeFinalizer(newSecret) {
 			newSecret = lifecycle.SecretRemoveRegCodeFinalizer(newSecret)
+		}
+		if lifecycle.SecretHasRegURLCertFinalizer(newSecret) {
+			newSecret = lifecycle.SecretRemoveRegURLCertFinalizer(newSecret)
+		}
+		if lifecycle.SecretHasInstanceDataFinalizer(newSecret) {
+			newSecret = lifecycle.SecretRemoveInstanceDataFinalizer(newSecret)
 		}
 		logrus.Info("Removing finalizer from secret", newSecret.Name, "in namespace", newSecret.Namespace)
 		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
