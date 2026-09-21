@@ -60,3 +60,82 @@ func TestRegistrationFromSecret(t *testing.T) {
 		assert.Less(t, len(label), 63)
 	}
 }
+
+func TestParamsToRegSpecWithInstanceData(t *testing.T) {
+	tests := []struct {
+		name     string
+		params   RegistrationParams
+		validate func(t *testing.T, regSpec v1.RegistrationSpec)
+	}{
+		{
+			name: "sets instance data secret ref when hasInstanceData is true",
+			params: RegistrationParams{
+				regType: v1.RegistrationModeOnline,
+				regURL:  "https://rmt.example.com",
+				regCodeSecretRef: &corev1.SecretReference{
+					Name:      "regcode-secret",
+					Namespace: "test-namespace",
+				},
+				hasInstanceData: true,
+				rmtInstanceDataSecretRef: &corev1.SecretReference{
+					Name:      "instance-data-secret",
+					Namespace: "test-namespace",
+				},
+			},
+			validate: func(t *testing.T, regSpec v1.RegistrationSpec) {
+				assert.NotNil(t, regSpec.RegistrationRequest.RegistrationInstanceDataSecretRef)
+				assert.Equal(t, "instance-data-secret", regSpec.RegistrationRequest.RegistrationInstanceDataSecretRef.Name)
+				assert.Equal(t, "test-namespace", regSpec.RegistrationRequest.RegistrationInstanceDataSecretRef.Namespace)
+			},
+		},
+		{
+			name: "does not set instance data secret ref when hasInstanceData is false",
+			params: RegistrationParams{
+				regType: v1.RegistrationModeOnline,
+				regURL:  "https://rmt.example.com",
+				regCodeSecretRef: &corev1.SecretReference{
+					Name:      "regcode-secret",
+					Namespace: "test-namespace",
+				},
+				hasInstanceData: false,
+			},
+			validate: func(t *testing.T, regSpec v1.RegistrationSpec) {
+				assert.Nil(t, regSpec.RegistrationRequest.RegistrationInstanceDataSecretRef)
+			},
+		},
+		{
+			name: "does not overwrite cert ref when setting instance data ref",
+			params: RegistrationParams{
+				regType: v1.RegistrationModeOnline,
+				regURL:  "https://rmt.example.com",
+				regCodeSecretRef: &corev1.SecretReference{
+					Name:      "regcode-secret",
+					Namespace: "test-namespace",
+				},
+				hasRegURLCertData: true,
+				regURLCertSecretRef: &corev1.SecretReference{
+					Name:      "cert-secret",
+					Namespace: "test-namespace",
+				},
+				hasInstanceData: true,
+				rmtInstanceDataSecretRef: &corev1.SecretReference{
+					Name:      "instance-data-secret",
+					Namespace: "test-namespace",
+				},
+			},
+			validate: func(t *testing.T, regSpec v1.RegistrationSpec) {
+				assert.NotNil(t, regSpec.RegistrationRequest.RegistrationAPICertificateSecretRef)
+				assert.Equal(t, "cert-secret", regSpec.RegistrationRequest.RegistrationAPICertificateSecretRef.Name)
+				assert.NotNil(t, regSpec.RegistrationRequest.RegistrationInstanceDataSecretRef)
+				assert.Equal(t, "instance-data-secret", regSpec.RegistrationRequest.RegistrationInstanceDataSecretRef.Name)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			regSpec := paramsToRegSpec(tt.params)
+			tt.validate(t, regSpec)
+		})
+	}
+}

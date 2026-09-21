@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
@@ -82,7 +83,7 @@ func (h *handler) prepareSecretSalt(secret *corev1.Secret) (*corev1.Secret, erro
 }
 
 func getCurrentRegURL(secret *corev1.Secret) (regURL []byte) {
-	regURLBytes, ok := secret.Data[consts.RegistrationURL]
+	regURLBytes, ok := secret.Data[consts.SecretKeyRegistrationURL]
 	if ok {
 		return regURLBytes
 	}
@@ -94,6 +95,42 @@ func getCurrentRegURL(secret *corev1.Secret) (regURL []byte) {
 		return []byte(consts.StagingSccURL)
 	}
 	return []byte{}
+}
+
+func getRegURLCert(secret *corev1.Secret) ([]byte, bool) {
+	regCertBytes, ok := secret.Data[consts.SecretKeyRegistrationURLCert]
+	if ok {
+		return regCertBytes, ok
+	}
+
+	return []byte{}, ok
+}
+
+func getInstanceData(secret *corev1.Secret) ([]byte, bool) {
+	bytes, ok := secret.Data[consts.SecretKeyInstanceData]
+	if ok {
+		return bytes, ok
+	}
+
+	return []byte{}, ok
+}
+
+// isRMTMode returns true if the registration is for RMT (not SCC)
+// RMT is detected by: custom registrationUrl (not SCC) AND custom registrationUrlCert
+func isRMTMode(regURL string, hasRegURLCert bool, regURLCertData []byte) bool {
+	if !hasRegURLCert || len(regURLCertData) == 0 {
+		// No custom cert, so not RMT
+		return false
+	}
+
+	// Check if the URL is a known SCC URL
+	if regURL == string(consts.ProdSccURL) || regURL == string(consts.StagingSccURL) {
+		// Known SCC URL, not RMT
+		return false
+	}
+
+	// Custom URL with custom cert = RMT mode
+	return regURL != ""
 }
 
 // extractRegistrationParamsFromSecret will extract secret data and prepare it into a RegistrationParams
@@ -115,21 +152,31 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 	extractParamsLog.Debugf("incoming %s/%s secret params mode: %s", secret.Namespace, secret.Name, string(regMode))
 
 	regCode, ok := secret.Data[consts.SecretKeyRegistrationCode]
-	if !ok || len(regCode) == 0 {
-		if regMode == v1.RegistrationModeOnline {
-			return RegistrationParams{}, fmt.Errorf("secret does not have data %s; this is required in online mode", consts.SecretKeyRegistrationCode)
-		}
-	}
+	hasRegCode := ok && len(regCode) > 0
 
 	offlineRegCertData, certOk := secret.Data[consts.SecretKeyOfflineRegCert]
 	hasOfflineCert := certOk && len(offlineRegCertData) > 0
 
-	// TODO: when RMT needs to be supported eventually we need to accept Reg URL and Reg Server Cert.
-	var regURLBytes []byte
+	hasRegCertField := false
+	hasRmtInstanceData := false
+	var regURLBytes, regCertBytes, rmtInstanceDataBytes []byte
 	regURLString := ""
 	if regMode == v1.RegistrationModeOnline {
 		regURLBytes = getCurrentRegURL(secret)
 		regURLString = string(regURLBytes)
+		regCertBytes, hasRegCertField = getRegURLCert(secret)
+		rmtInstanceDataBytes, hasRmtInstanceData = getInstanceData(secret)
+
+		// For online mode, validate regCode requirement based on RMT detection
+		// RMT mode = custom URL (not SCC) + custom cert
+		if !hasRegCode {
+			if !isRMTMode(regURLString, hasRegCertField, regCertBytes) {
+				// Not RMT mode, so regCode is required for standard SCC online mode
+				return RegistrationParams{}, fmt.Errorf("secret does not have data %s; this is required in online mode (unless using RMT with custom URL and cert)", consts.SecretKeyRegistrationCode)
+			}
+			// RMT mode detected (custom URL + custom cert) - regCode is optional
+			extractParamsLog.Debugf("RMT mode detected: custom registration URL (%s) with custom cert, registration code optional", regURLString)
+		}
 	}
 
 	hasher := md5.New()
@@ -137,6 +184,8 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 	nameData = append(nameData, regCode...)
 	nameData = append(nameData, regURLBytes...)
 	data := append(nameData, offlineRegCertData...)
+	data = append(data, regCertBytes...)
+	data = append(data, rmtInstanceDataBytes...)
 
 	// Generate a hash for the name data
 	if _, err := hasher.Write(nameData); err != nil {
@@ -167,21 +216,41 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 			Name:      consts.OfflineCertificateSecretName(nameID),
 			Namespace: secret.Namespace,
 		},
-		regURL: regURLString,
+		regURL:            regURLString,
+		regURLCertSet:     hasRegCertField,
+		hasRegURLCertData: hasRegCertField && len(regCertBytes) > 0,
+		regURLCertData:    &regCertBytes,
+		regURLCertSecretRef: &corev1.SecretReference{
+			Name:      consts.RegistrationURLCertificateSecretName(nameID),
+			Namespace: secret.Namespace,
+		},
+		hasInstanceData: hasRmtInstanceData && len(rmtInstanceDataBytes) > 0,
+		rmtInstanceData: &rmtInstanceDataBytes,
+		rmtInstanceDataSecretRef: &corev1.SecretReference{
+			Name:      consts.RegistrationInstanceDataSecretName(nameID),
+			Namespace: secret.Namespace,
+		},
 	}, nil
 }
 
 type RegistrationParams struct {
-	managedByName        string
-	regType              v1.RegistrationMode
-	nameID               string
-	contentHash          string
-	regCode              []byte
-	regCodeSecretRef     *corev1.SecretReference
-	regURL               string
-	hasOfflineCertData   bool
-	offlineCertData      *[]byte
-	offlineCertSecretRef *corev1.SecretReference
+	managedByName            string
+	regType                  v1.RegistrationMode
+	nameID                   string
+	contentHash              string
+	regCode                  []byte
+	regCodeSecretRef         *corev1.SecretReference
+	regURL                   string
+	regURLCertSet            bool // true when the secret includes regURLCert field
+	hasRegURLCertData        bool // true when regURLCertSet and regURLCertData is not empty
+	regURLCertData           *[]byte
+	regURLCertSecretRef      *corev1.SecretReference
+	hasOfflineCertData       bool
+	offlineCertData          *[]byte
+	offlineCertSecretRef     *corev1.SecretReference
+	hasInstanceData          bool // true rmtInstanceData is not empty
+	rmtInstanceData          *[]byte
+	rmtInstanceDataSecretRef *corev1.SecretReference
 }
 
 // Labels produces the labels to apply to related resources.
@@ -255,21 +324,31 @@ func paramsToRegSpec(params RegistrationParams) v1.RegistrationSpec {
 	// check if params has regURL and use, otherwise check if devmode and when true use staging Scc url
 	if params.regURL != "" {
 		regSpec.RegistrationRequest.RegistrationAPIUrl = &params.regURL
+
+		if params.hasRegURLCertData {
+			regSpec.RegistrationRequest.RegistrationAPICertificateSecretRef = params.regURLCertSecretRef
+		}
+
+		if params.hasInstanceData {
+			regSpec.RegistrationRequest.RegistrationInstanceDataSecretRef = params.rmtInstanceDataSecretRef
+		}
 	}
 
 	return regSpec
 }
 
-// regCodeFromSecretEntrypoint fetches the registration code provided by an entrypoint secret
+// regCodeFromSecretEntrypoint fetches (or prepares) the RegCode secret provided by an entrypoint secret
 func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
-	secretName := params.regCodeSecretRef.Name
+	regcodeSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), params.regCodeSecretRef.Name)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, err
+		}
 
-	regcodeSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), secretName)
-	if err != nil && apierrors.IsNotFound(err) {
 		regcodeSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: h.options.SystemNamespace(),
-				Name:      secretName,
+				Name:      params.regCodeSecretRef.Name,
 			},
 			Data: map[string][]byte{
 				consts.SecretKeyRegistrationCode: params.regCode,
@@ -289,6 +368,81 @@ func (h *handler) regCodeFromSecretEntrypoint(params RegistrationParams) (*corev
 	}
 
 	return regcodeSecret, nil
+}
+
+// regURLCertFromSecretEntrypoint extracts and prepares the registration URL Cert data into a secret entrypoint secret fields
+func (h *handler) regURLCertFromSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
+	regURLCertSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), params.regURLCertSecretRef.Name)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, err
+		}
+
+		regURLCertSecret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: h.options.SystemNamespace(),
+				Name:      params.regURLCertSecretRef.Name,
+			},
+		}
+	}
+
+	if regURLCertSecret.Labels == nil {
+		regURLCertSecret.Labels = map[string]string{}
+	}
+	defaultLabels := params.Labels()
+	defaultLabels[consts.LabelSccSecretRole] = string(consts.RegistrationServerCertRole)
+	maps.Copy(regURLCertSecret.Labels, defaultLabels)
+
+	if !lifecycle.SecretHasRegURLCertFinalizer(regURLCertSecret) {
+		regURLCertSecret = lifecycle.SecretAddRegURLCertFinalizer(regURLCertSecret)
+	}
+
+	expectedData := map[string][]byte{
+		consts.SecretKeyRegistrationURLCert: *params.regURLCertData,
+	}
+
+	if regURLCertSecret.Data == nil || !maps.EqualFunc(expectedData, regURLCertSecret.Data, bytes.Equal) {
+		regURLCertSecret.Data = expectedData
+	}
+
+	return regURLCertSecret, nil
+}
+
+// regURLInstanceDataSecretEntrypoint extracts and prepares the registration "instance data" (used for RMT) into a secret entrypoint secret fields
+func (h *handler) regURLInstanceDataSecretEntrypoint(params RegistrationParams) (*corev1.Secret, error) {
+	instanceDataSecret, err := h.secretRepo.Cache.Get(h.options.SystemNamespace(), params.rmtInstanceDataSecretRef.Name)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, err
+		}
+
+		instanceDataSecret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: h.options.SystemNamespace(),
+				Name:      params.rmtInstanceDataSecretRef.Name,
+			},
+		}
+	}
+
+	if instanceDataSecret.Labels == nil {
+		instanceDataSecret.Labels = map[string]string{}
+	}
+	defaultLabels := params.Labels()
+	defaultLabels[consts.LabelSccSecretRole] = string(consts.RegistrationInstanceDataRole)
+	maps.Copy(instanceDataSecret.Labels, defaultLabels)
+
+	if !lifecycle.SecretHasInstanceDataFinalizer(instanceDataSecret) {
+		instanceDataSecret = lifecycle.SecretAddInstanceDataFinalizer(instanceDataSecret)
+	}
+
+	expectedData := map[string][]byte{
+		consts.SecretKeyInstanceData: *params.rmtInstanceData,
+	}
+	if instanceDataSecret.Data == nil || !maps.EqualFunc(expectedData, instanceDataSecret.Data, bytes.Equal) {
+		instanceDataSecret.Data = expectedData
+	}
+
+	return instanceDataSecret, nil
 }
 
 // offlineCertFromSecretEntrypoint helps to extract and prepare the Offline Cert secret for creation based on entrypoint secret

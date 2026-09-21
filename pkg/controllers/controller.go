@@ -290,8 +290,7 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 		return incomingObj, nil
 	}
 
-	// If secret hash has changed make sure that we submit objects that correspond to that hash
-	// are cleaned up
+	// Upon secret hash changes ensure that objects which correspond to that hash are cleaned up
 	// TODO: make it so that changes to the incoming Salt (which changes the nameID) are correctly handled
 	// Note that change would affect both name and content hashes - however something seems to not.
 	if incomingNameHash != params.nameID {
@@ -349,6 +348,30 @@ func (h *handler) OnSecretChange(_ string, incomingObj *corev1.Secret) (*corev1.
 
 		if _, err := h.secretRepo.CreateOrUpdateSecret(regCodeSecret); err != nil {
 			return incomingObj, err
+		}
+
+		// TODO - maybe pull this out if RMT expects to support offline certs too?
+		if params.hasRegURLCertData {
+			regURLCertSecret, err := h.regURLCertFromSecretEntrypoint(params)
+			if err != nil {
+				return incomingObj, err
+			}
+
+			if _, err := h.secretRepo.CreateOrUpdateSecret(regURLCertSecret); err != nil {
+				return incomingObj, err
+			}
+		}
+
+		// Create instance data secret if present (for RMT registration)
+		if params.hasInstanceData {
+			instanceDataSecret, err := h.regURLInstanceDataSecretEntrypoint(params)
+			if err != nil {
+				return incomingObj, err
+			}
+
+			if _, err := h.secretRepo.CreateOrUpdateSecret(instanceDataSecret); err != nil {
+				return incomingObj, err
+			}
 		}
 	}
 
@@ -432,12 +455,16 @@ func (h *handler) cleanupRelatedSecretsByHash(contentHash string) error {
 
 	for _, secret := range secrets {
 		if lifecycle.SecretHasCredentialsFinalizer(secret) ||
-			lifecycle.SecretHasRegCodeFinalizer(secret) {
+			lifecycle.SecretHasRegCodeFinalizer(secret) ||
+			lifecycle.SecretHasRegURLCertFinalizer(secret) ||
+			lifecycle.SecretHasInstanceDataFinalizer(secret) {
 
 			var updateErr error
 			secretUpdated := secret.DeepCopy()
 			secretUpdated = lifecycle.SecretRemoveCredentialsFinalizer(secretUpdated)
 			secretUpdated = lifecycle.SecretRemoveRegCodeFinalizer(secretUpdated)
+			secretUpdated = lifecycle.SecretRemoveRegURLCertFinalizer(secretUpdated)
+			secretUpdated = lifecycle.SecretRemoveInstanceDataFinalizer(secretUpdated)
 			_, updateErr = h.secretRepo.RetryingPatchUpdate(secret, secretUpdated)
 			if updateErr != nil {
 				h.log.Errorf("failed to update secret %s/%s: %v", secret.Namespace, secret.Name, updateErr)
@@ -503,11 +530,13 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 	}
 
 	// Non-entrypoint Secrets: ShouldManage already checked above
-	// Operator-created Secrets (credentials, regcode, offline) always have both labels:
+	// Operator-created Secrets (credentials, regcode, offline, regURLCert, instanceData) always have both labels:
 	//   app.kubernetes.io/managed-by: rancher-scc-operator (never Helm)
 	//   scc.cattle.io/managed-by: rancher-scc-operator_secret-broker
 	if lifecycle.SecretHasCredentialsFinalizer(incomingObj) ||
-		lifecycle.SecretHasRegCodeFinalizer(incomingObj) {
+		lifecycle.SecretHasRegCodeFinalizer(incomingObj) ||
+		lifecycle.SecretHasRegURLCertFinalizer(incomingObj) ||
+		lifecycle.SecretHasInstanceDataFinalizer(incomingObj) {
 		refs := incomingObj.GetOwnerReferences()
 		danglingRefs := 0
 		for _, ref := range refs {
@@ -546,6 +575,12 @@ func (h *handler) OnSecretRemove(_ string, incomingObj *corev1.Secret) (*corev1.
 		}
 		if lifecycle.SecretHasRegCodeFinalizer(newSecret) {
 			newSecret = lifecycle.SecretRemoveRegCodeFinalizer(newSecret)
+		}
+		if lifecycle.SecretHasRegURLCertFinalizer(newSecret) {
+			newSecret = lifecycle.SecretRemoveRegURLCertFinalizer(newSecret)
+		}
+		if lifecycle.SecretHasInstanceDataFinalizer(newSecret) {
+			newSecret = lifecycle.SecretRemoveInstanceDataFinalizer(newSecret)
 		}
 		logrus.Info("Removing finalizer from secret", newSecret.Name, "in namespace", newSecret.Namespace)
 		if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {

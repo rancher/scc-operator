@@ -122,6 +122,11 @@ func (in *RegistrationRequest) DeepCopyInto(out *RegistrationRequest) {
 		*out = new(corev1.SecretReference)
 		**out = **in
 	}
+	if in.RegistrationInstanceDataSecretRef != nil {
+		in, out := &in.RegistrationInstanceDataSecretRef, &out.RegistrationInstanceDataSecretRef
+		*out = new(corev1.SecretReference)
+		**out = **in
+	}
 	return
 }
 
