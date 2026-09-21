@@ -376,7 +376,7 @@ func (h *handler) regURLCertFromSecretEntrypoint(params RegistrationParams) (*co
 		consts.SecretKeyRegistrationURLCert: *params.regURLCertData,
 	}
 
-	if regURLCertSecret.Data == nil || maps.EqualFunc(expectedData, regURLCertSecret.Data, bytes.Equal) {
+	if regURLCertSecret.Data == nil || !maps.EqualFunc(expectedData, regURLCertSecret.Data, bytes.Equal) {
 		regURLCertSecret.Data = expectedData
 	}
 
@@ -413,7 +413,7 @@ func (h *handler) regURLInstanceDataSecretEntrypoint(params RegistrationParams) 
 	expectedData := map[string][]byte{
 		consts.SecretKeyInstanceData: *params.rmtInstanceData,
 	}
-	if instanceDataSecret.Data == nil || maps.EqualFunc(expectedData, instanceDataSecret.Data, bytes.Equal) {
+	if instanceDataSecret.Data == nil || !maps.EqualFunc(expectedData, instanceDataSecret.Data, bytes.Equal) {
 		instanceDataSecret.Data = expectedData
 	}
 
