@@ -110,6 +110,12 @@ func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.
 	//	b. BAYG/RMT/etc based Registration and will not use a code
 	registrationCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
 
+	// Fetch instance data if provided (for RMT registration)
+	var instanceData []byte
+	if registrationObj.Spec.RegistrationRequest.RegistrationInstanceDataSecretRef != nil {
+		instanceData = suseconnect.FetchInstanceDataFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationInstanceDataSecretRef)
+	}
+
 	// Initiate connection to SCC & verify reg code is for Rancher
 	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
@@ -150,7 +156,7 @@ func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.
 
 	// Register this Rancher cluster to SCC
 	s.log.Debugf("calling SCC RegisterOrKeepAlive for registration %s", registrationObj.Name)
-	id, regErr := sccConnection.RegisterOrKeepAlive(registrationCode)
+	id, regErr := sccConnection.RegisterOrKeepAlive(registrationCode, instanceData)
 	if regErr != nil {
 		s.log.Debugf("SCC RegisterOrKeepAlive failed for registration %s: %v", registrationObj.Name, regErr)
 		regErr = enrichRegistrationError(regErr, registrationObj.Status.SubscriptionInfo)
@@ -512,6 +518,12 @@ func (s *sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 
 	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
+	// Fetch instance data if provided (for RMT registration)
+	var instanceData []byte
+	if registrationObj.Spec.RegistrationRequest.RegistrationInstanceDataSecretRef != nil {
+		instanceData = suseconnect.FetchInstanceDataFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationInstanceDataSecretRef)
+	}
+
 	// Check if Rancher version has changed and upgrade activation if needed
 	_, currentVersion, _ := s.rancherMetrics.GetProductIdentifier()
 	if s.needsVersionUpgrade(registrationObj, currentVersion) {
@@ -535,7 +547,7 @@ func (s *sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 
 	// Perform keepalive heartbeat with SCC
 	s.log.Debugf("calling SCC KeepAlive for registration %s", registrationObj.Name)
-	keepAliveErr := sccConnection.KeepAlive()
+	keepAliveErr := sccConnection.KeepAlive(instanceData)
 	if keepAliveErr != nil {
 		s.log.Debugf("SCC KeepAlive failed for registration %s: %v", registrationObj.Name, keepAliveErr)
 		return keepAliveErr

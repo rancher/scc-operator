@@ -63,3 +63,26 @@ func FetchRegistrationURLCertFrom(secretRepo *secretrepo.SecretRepository, refer
 
 	return cert
 }
+
+// FetchInstanceDataFrom fetches the instance data from a secret for RMT registration
+func FetchInstanceDataFrom(secretRepo *secretrepo.SecretRepository, reference *corev1.SecretReference) []byte {
+	if reference == nil {
+		return nil
+	}
+
+	sccContextLogger().Debugf("Fetching instance data from secret %s/%s", reference.Namespace, reference.Name)
+	instanceDataSecret, err := secretRepo.Cache.Get(reference.Namespace, reference.Name)
+	if err != nil {
+		sccContextLogger().Warnf("Failed to get instance data from secret %s/%s: %v", reference.Namespace, reference.Name, err)
+		return nil
+	}
+	sccContextLogger().Debugf("Found instance data secret %s/%s", reference.Namespace, reference.Name)
+
+	instanceData, ok := instanceDataSecret.Data[consts.SecretKeyInstanceData]
+	if !ok {
+		sccContextLogger().Warnf("instance data secret `%v` does not contain expected data `%s`", reference, consts.SecretKeyInstanceData)
+		return nil
+	}
+
+	return instanceData
+}

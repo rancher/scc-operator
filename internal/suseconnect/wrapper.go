@@ -96,8 +96,15 @@ const (
 	OfflineRegistrationSystemID   RegistrationSystemID = -3
 )
 
-func (sw *SccWrapper) SystemRegistration(regCode string) (RegistrationSystemID, error) {
-	id, regErr := registration.Register(sw.conn, regCode, sw.rancherURL, sw.rancherMetrics.ToSystemInformation(), registration.NoExtraData)
+func (sw *SccWrapper) SystemRegistration(regCode string, instanceData []byte) (RegistrationSystemID, error) {
+	extraData := registration.NoExtraData
+	if len(instanceData) > 0 {
+		extraData = registration.ExtraData{
+			"instance_data": string(instanceData),
+		}
+	}
+
+	id, regErr := registration.Register(sw.conn, regCode, sw.rancherURL, sw.rancherMetrics.ToSystemInformation(), extraData)
 	if regErr != nil {
 		return ErrorRegistrationSystemID, errors.Wrap(regErr, "Cannot register system to SCC")
 	}
@@ -110,14 +117,21 @@ func (sw *SccWrapper) PrepareOfflineRegistrationRequest() (*registration.Offline
 	return registration.BuildOfflineRequest(identifier, version, arch, sw.rancherMetrics.ToSystemInformation()), nil
 }
 
-func (sw *SccWrapper) KeepAlive() error {
+func (sw *SccWrapper) KeepAlive(instanceData []byte) error {
+	extraData := registration.NoExtraData
+	if len(instanceData) > 0 {
+		extraData = registration.ExtraData{
+			"instance_data": string(instanceData),
+		}
+	}
+
 	// 1 call Status
 	status, statusErr := registration.Status(
 		sw.conn,
 		sw.rancherURL,
 		sw.rancherMetrics.ToSystemInformation(),
 		registration.NoExtraData, // We don't use data profiles
-		registration.NoExtraData, // Nor do we use extra data yet
+		extraData,
 	)
 	if status != registration.Registered {
 		return fmt.Errorf("trying to send keepalive on a system that is not yet registered. register this system first: %v", statusErr)
@@ -126,12 +140,12 @@ func (sw *SccWrapper) KeepAlive() error {
 	return statusErr
 }
 
-func (sw *SccWrapper) RegisterOrKeepAlive(regCode string) (RegistrationSystemID, error) {
+func (sw *SccWrapper) RegisterOrKeepAlive(regCode string, instanceData []byte) (RegistrationSystemID, error) {
 	if *sw.registered {
-		return KeepAliveRegistrationSystemID, sw.KeepAlive()
+		return KeepAliveRegistrationSystemID, sw.KeepAlive(instanceData)
 	}
 
-	return sw.SystemRegistration(regCode)
+	return sw.SystemRegistration(regCode, instanceData)
 }
 
 func (sw *SccWrapper) Activate(regCode string) (*registration.Metadata, *registration.Product, error) {
