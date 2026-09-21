@@ -115,6 +115,24 @@ func getInstanceData(secret *corev1.Secret) ([]byte, bool) {
 	return []byte{}, ok
 }
 
+// isRMTMode returns true if the registration is for RMT (not SCC)
+// RMT is detected by: custom registrationUrl (not SCC) AND custom registrationUrlCert
+func isRMTMode(regURL string, hasRegURLCert bool, regURLCertData []byte) bool {
+	if !hasRegURLCert || len(regURLCertData) == 0 {
+		// No custom cert, so not RMT
+		return false
+	}
+
+	// Check if the URL is a known SCC URL
+	if regURL == string(consts.ProdSccURL) || regURL == string(consts.StagingSccURL) {
+		// Known SCC URL, not RMT
+		return false
+	}
+
+	// Custom URL with custom cert = RMT mode
+	return regURL != ""
+}
+
 // extractRegistrationParamsFromSecret will extract secret data and prepare it into a RegistrationParams
 func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName string) (RegistrationParams, error) {
 	extractParamsLog := logging.NewComponentLogger("params-extractor")
@@ -134,11 +152,7 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 	extractParamsLog.Debugf("incoming %s/%s secret params mode: %s", secret.Namespace, secret.Name, string(regMode))
 
 	regCode, ok := secret.Data[consts.SecretKeyRegistrationCode]
-	if !ok || len(regCode) == 0 {
-		if regMode == v1.RegistrationModeOnline {
-			return RegistrationParams{}, fmt.Errorf("secret does not have data %s; this is required in online mode", consts.SecretKeyRegistrationCode)
-		}
-	}
+	hasRegCode := ok && len(regCode) > 0
 
 	offlineRegCertData, certOk := secret.Data[consts.SecretKeyOfflineRegCert]
 	hasOfflineCert := certOk && len(offlineRegCertData) > 0
@@ -152,6 +166,17 @@ func extractRegistrationParamsFromSecret(secret *corev1.Secret, managedByName st
 		regURLString = string(regURLBytes)
 		regCertBytes, hasRegCertField = getRegURLCert(secret)
 		rmtInstanceDataBytes, hasRmtInstanceData = getInstanceData(secret)
+
+		// For online mode, validate regCode requirement based on RMT detection
+		// RMT mode = custom URL (not SCC) + custom cert
+		if !hasRegCode {
+			if !isRMTMode(regURLString, hasRegCertField, regCertBytes) {
+				// Not RMT mode, so regCode is required for standard SCC online mode
+				return RegistrationParams{}, fmt.Errorf("secret does not have data %s; this is required in online mode (unless using RMT with custom URL and cert)", consts.SecretKeyRegistrationCode)
+			}
+			// RMT mode detected (custom URL + custom cert) - regCode is optional
+			extractParamsLog.Debugf("RMT mode detected: custom registration URL (%s) with custom cert, registration code optional", regURLString)
+		}
 	}
 
 	hasher := md5.New()
