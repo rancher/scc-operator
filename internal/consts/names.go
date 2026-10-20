@@ -4,13 +4,15 @@ import "fmt"
 
 // Secret names and name prefixes
 const (
-	ResourceSCCEntrypointSecretName      = "scc-registration"
-	SCCMetricsOutputSecretName           = "rancher-scc-metrics"
-	RancherMetricsSecretRequestName      = SCCMetricsOutputSecretName
-	SCCSystemCredentialsSecretNamePrefix = "scc-system-credentials-"
-	RegistrationCodeSecretNamePrefix     = "registration-code-"
-	OfflineRequestSecretNamePrefix       = "offline-request-"
-	OfflineCertificateSecretNamePrefix   = "offline-certificate-"
+	ResourceSCCEntrypointSecretName            = "scc-registration"
+	SCCMetricsOutputSecretName                 = "rancher-scc-metrics"
+	RancherMetricsSecretRequestName            = SCCMetricsOutputSecretName
+	SCCSystemCredentialsSecretNamePrefix       = "scc-system-credentials-"
+	RegistrationCodeSecretNamePrefix           = "registration-code-"
+	OfflineRequestSecretNamePrefix             = "offline-request-"
+	OfflineCertificateSecretNamePrefix         = "offline-certificate-"
+	RegistrationURLCertificateSecretNamePrefix = "registration-url-cert-"
+	RegistrationInstanceDataNamePrefix         = "registration-instance-data-"
 )
 
 func RegistrationName(namePartIn string) string {
@@ -36,4 +38,12 @@ func OfflineCertificateSecretName(namePartIn string) string {
 // SccManagedByValue constructs the SCC managed-by label value in the format "<operator>_secret-broker"
 func SccManagedByValue(operatorName string) string {
 	return fmt.Sprintf("%s_%s", operatorName, ManagedByValueSecretBroker)
+}
+
+func RegistrationURLCertificateSecretName(namePartIn string) string {
+	return fmt.Sprintf("%s%s", RegistrationURLCertificateSecretNamePrefix, namePartIn)
+}
+
+func RegistrationInstanceDataSecretName(namePartIn string) string {
+	return fmt.Sprintf("%s%s", RegistrationInstanceDataNamePrefix, namePartIn)
 }

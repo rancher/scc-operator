@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -57,11 +58,17 @@ func (s *sccOnlineMode) prepareSCCOnlineConnection(
 	rancherMetrics telemetry.MetricsWrapper,
 	registrationURL string,
 ) suseconnect.SccWrapper {
+	// Fetch the registration URL certificate if provided
+	var cert *x509.Certificate
+	if s.registration.Spec.RegistrationRequest.RegistrationAPICertificateSecretRef != nil {
+		cert = suseconnect.FetchRegistrationURLCertFrom(s.secretRepo, s.registration.Spec.RegistrationRequest.RegistrationAPICertificateSecretRef)
+	}
+
 	return suseconnect.OnlineRancherConnection(
 		suseconnect.OnlineConnectionParams{
 			RancherURL:      s.rancherURL,
 			RegistrationURL: registrationURL,
-			Options:         suseconnect.DefaultConnectionOptions(s.options.OperatorName, s.options.OperatorMetadata.Version),
+			Options:         suseconnect.DefaultConnectionOptions(s.options.OperatorName, s.options.OperatorMetadata.Version, cert),
 		},
 		s.sccCredentials.SccCredentials(),
 		rancherMetrics,
@@ -103,6 +110,12 @@ func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.
 	//	b. BAYG/RMT/etc based Registration and will not use a code
 	registrationCode := suseconnect.FetchSccRegistrationCodeFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationCodeSecretRef)
 
+	// Fetch instance data if provided (for RMT registration)
+	var instanceData []byte
+	if registrationObj.Spec.RegistrationRequest.RegistrationInstanceDataSecretRef != nil {
+		instanceData = suseconnect.FetchInstanceDataFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationInstanceDataSecretRef)
+	}
+
 	// Initiate connection to SCC & verify reg code is for Rancher
 	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
@@ -143,7 +156,7 @@ func (s *sccOnlineMode) Register(registrationObj *v1.Registration) (suseconnect.
 
 	// Register this Rancher cluster to SCC
 	s.log.Debugf("calling SCC RegisterOrKeepAlive for registration %s", registrationObj.Name)
-	id, regErr := sccConnection.RegisterOrKeepAlive(registrationCode)
+	id, regErr := sccConnection.RegisterOrKeepAlive(registrationCode, instanceData)
 	if regErr != nil {
 		s.log.Debugf("SCC RegisterOrKeepAlive failed for registration %s: %v", registrationObj.Name, regErr)
 		regErr = enrichRegistrationError(regErr, registrationObj.Status.SubscriptionInfo)
@@ -505,6 +518,12 @@ func (s *sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 
 	sccConnection := s.prepareSCCOnlineConnection(s.rancherMetrics, suseconnect.PrepareSccURL(registrationObj))
 
+	// Fetch instance data if provided (for RMT registration)
+	var instanceData []byte
+	if registrationObj.Spec.RegistrationRequest.RegistrationInstanceDataSecretRef != nil {
+		instanceData = suseconnect.FetchInstanceDataFrom(s.secretRepo, registrationObj.Spec.RegistrationRequest.RegistrationInstanceDataSecretRef)
+	}
+
 	// Check if Rancher version has changed and upgrade activation if needed
 	_, currentVersion, _ := s.rancherMetrics.GetProductIdentifier()
 	if s.needsVersionUpgrade(registrationObj, currentVersion) {
@@ -528,7 +547,7 @@ func (s *sccOnlineMode) Keepalive(registrationObj *v1.Registration) error {
 
 	// Perform keepalive heartbeat with SCC
 	s.log.Debugf("calling SCC KeepAlive for registration %s", registrationObj.Name)
-	keepAliveErr := sccConnection.KeepAlive()
+	keepAliveErr := sccConnection.KeepAlive(instanceData)
 	if keepAliveErr != nil {
 		s.log.Debugf("SCC KeepAlive failed for registration %s: %v", registrationObj.Name, keepAliveErr)
 		return keepAliveErr
@@ -603,7 +622,7 @@ func (s *sccOnlineMode) Deregister() error {
 		s.log.Debugf("failed to get registration code secret %s/%s during cleanup: %v", regCodeSecretRef.Namespace, regCodeSecretRef.Name, regCodeErr)
 		return regCodeErr
 	}
-	if lifecycle.SecretHasRegCodeFinalizer(regCodeSecret) {
+	if regCodeSecret != nil && lifecycle.SecretHasRegCodeFinalizer(regCodeSecret) {
 		updateRegCodeSecret := regCodeSecret.DeepCopy()
 		updateRegCodeSecret = lifecycle.SecretRemoveRegCodeFinalizer(updateRegCodeSecret)
 
@@ -614,9 +633,55 @@ func (s *sccOnlineMode) Deregister() error {
 		}
 	}
 
-	if err := s.secretRepo.Controller.Delete(regCodeSecretRef.Namespace, regCodeSecretRef.Name, &metav1.DeleteOptions{}); err != nil {
+	if err := s.secretRepo.Controller.Delete(regCodeSecretRef.Namespace, regCodeSecretRef.Name, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
 		s.log.Debugf("failed to delete registration code secret %s/%s: %v", regCodeSecretRef.Namespace, regCodeSecretRef.Name, err)
 		return err
+	}
+
+	// Clean up registration URL certificate secret if it exists
+	regURLCertSecretRef := s.registration.Spec.RegistrationRequest.RegistrationAPICertificateSecretRef
+	if regURLCertSecretRef != nil {
+		regURLCertSecret, regURLCertErr := s.secretRepo.Get(regURLCertSecretRef.Namespace, regURLCertSecretRef.Name)
+		if regURLCertErr != nil && !apierrors.IsNotFound(regURLCertErr) {
+			return regURLCertErr
+		}
+		if regURLCertSecret != nil && lifecycle.SecretHasRegURLCertFinalizer(regURLCertSecret) {
+			updateRegURLCertSecret := regURLCertSecret.DeepCopy()
+			updateRegURLCertSecret = lifecycle.SecretRemoveRegURLCertFinalizer(updateRegURLCertSecret)
+
+			_, regURLCertErr = s.secretRepo.Controller.Update(updateRegURLCertSecret)
+			if regURLCertErr != nil {
+				return regURLCertErr
+			}
+
+			// Only delete if the operator owns it (confirmed by presence of the finalizer)
+			if err := s.secretRepo.Controller.Delete(regURLCertSecretRef.Namespace, regURLCertSecretRef.Name, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
+
+	// Clean up instance data secret if it exists
+	instanceDataSecretRef := s.registration.Spec.RegistrationRequest.RegistrationInstanceDataSecretRef
+	if instanceDataSecretRef != nil {
+		instanceDataSecret, instanceDataErr := s.secretRepo.Get(instanceDataSecretRef.Namespace, instanceDataSecretRef.Name)
+		if instanceDataErr != nil && !apierrors.IsNotFound(instanceDataErr) {
+			return instanceDataErr
+		}
+		if instanceDataSecret != nil && lifecycle.SecretHasInstanceDataFinalizer(instanceDataSecret) {
+			updateInstanceDataSecret := instanceDataSecret.DeepCopy()
+			updateInstanceDataSecret = lifecycle.SecretRemoveInstanceDataFinalizer(updateInstanceDataSecret)
+
+			_, instanceDataErr = s.secretRepo.Controller.Update(updateInstanceDataSecret)
+			if instanceDataErr != nil {
+				return instanceDataErr
+			}
+
+			// Only delete if the operator owns it (confirmed by presence of the finalizer)
+			if err := s.secretRepo.Controller.Delete(instanceDataSecretRef.Namespace, instanceDataSecretRef.Name, &metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+				return err
+			}
+		}
 	}
 
 	return nil
