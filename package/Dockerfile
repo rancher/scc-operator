@@ -1,4 +1,4 @@
-ARG GO_IMAGE=rancher/hardened-build-base:v1.26.9b2
+ARG GO_IMAGE=registry.suse.com/bci/golang:1.26
 ARG FINAL_IMAGE=registry.suse.com/bci/bci-nano:latest
 FROM ${GO_IMAGE} AS builder
 
