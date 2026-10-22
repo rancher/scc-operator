@@ -1,5 +1,6 @@
 ARG GO_IMAGE=registry.suse.com/bci/golang:1.26
-ARG FINAL_IMAGE=registry.suse.com/bci/bci-nano:latest
+ARG BCI_VERSION=16.0
+ARG FINAL_IMAGE=registry.suse.com/bci/bci-nano:${BCI_VERSION}
 FROM ${GO_IMAGE} AS builder
 
 ARG TAG=''
@@ -15,7 +16,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     ./scripts/build
 
-FROM registry.suse.com/bci/bci-base:latest AS user-setup
+FROM registry.suse.com/bci/bci-base:${BCI_VERSION} AS user-setup
 RUN useradd -u 1000 -U -m -s /sbin/nologin operator
 
 FROM ${FINAL_IMAGE} AS final
