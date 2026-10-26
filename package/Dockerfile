@@ -1,4 +1,4 @@
-ARG GO_IMAGE=registry.suse.com/bci/golang:1.26
+ARG GO_IMAGE=registry.suse.com/bci/golang:1.26.10
 ARG BCI_VERSION=16.0
 ARG FINAL_IMAGE=registry.suse.com/bci/bci-nano:${BCI_VERSION}
 FROM ${GO_IMAGE} AS builder
