@@ -3,9 +3,14 @@ ARG BCI_VERSION=16.0
 ARG FINAL_IMAGE=registry.suse.com/bci/bci-nano:${BCI_VERSION}
 
 FROM registry.suse.com/bci/bci-base:${BCI_VERSION} AS zypper
-RUN mkdir /chroot
+RUN mkdir -p /chroot/bin /chroot/lib64 /chroot/sbin && \
+    cp /bin/bash /chroot/bin/bash && \
+    ln -s bash /chroot/bin/sh && \
+    cp -a /lib64/. /chroot/lib64/ && \
+    cp /sbin/ldconfig /chroot/sbin/ldconfig
 RUN zypper -n refresh
 RUN zypper -n --installroot /chroot install --no-recommends git grep
+RUN rm -f /chroot/bin/bash /chroot/bin/sh
 RUN zypper --installroot /chroot clean -a
 RUN rm -rf /chroot/var/cache/zypp/* /chroot/var/log/zypp/* /chroot/etc/zypp/ /chroot/run/zypp.pid
 
