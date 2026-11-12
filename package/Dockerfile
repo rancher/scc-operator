@@ -1,22 +1,7 @@
-ARG GO_IMAGE=registry.suse.com/rancher/appco-go:1.26.11
+ARG GO_IMAGE=rancher/hardened-build-base:v1.26.11b1
 ARG BCI_VERSION=16.0
 ARG FINAL_IMAGE=registry.suse.com/bci/bci-nano:${BCI_VERSION}
-
-FROM registry.suse.com/bci/bci-base:${BCI_VERSION} AS zypper
-RUN mkdir /chroot
-RUN zypper -n refresh
-RUN zypper -n --installroot /chroot install --no-recommends git grep
-RUN zypper --installroot /chroot clean -a
-RUN rm -rf /chroot/var/cache/zypp/* /chroot/var/log/zypp/* /chroot/etc/zypp/ /chroot/run/zypp.pid
-
 FROM ${GO_IMAGE} AS builder
-# This doesn't work. Please check:
-# https://superuser.com/questions/1828813/docker-error-failed-to-solve-cannot-copy-to-non-directory-when-copying-to
-# COPY --from=zypper /chroot /
-COPY --from=zypper /chroot/bin /bin
-COPY --from=zypper /chroot/lib /lib
-COPY --from=zypper /chroot/lib64 /lib64
-COPY --from=zypper /chroot/usr /usr
 
 ARG TAG=''
 ARG REPO=''
