@@ -19,6 +19,7 @@ DRY_RUN="${DRY_RUN:-false}"
 # This ensures branches with the latest fixes are processed first
 DEFAULT_RANCHER_BRANCHES=(
   "main"
+  "release/v2.16"
   "release/v2.15"
   "release/v2.14"
   "release/v2.13"
