@@ -2,17 +2,24 @@ ARG GO_IMAGE=registry.suse.com/rancher/appco-go:1.26.11
 ARG BCI_VERSION=16.0
 ARG FINAL_IMAGE=registry.suse.com/bci/bci-nano:${BCI_VERSION}
 
-FROM registry.suse.com/bci/bci-base:${BCI_VERSION} AS zypper
+FROM --platform=$BUILDPLATFORM rancher/mirrored-tonistiigi-xx:1.6.1 AS xx
+
+FROM --platform=$BUILDPLATFORM registry.suse.com/bci/bci-base:${BCI_VERSION} AS zypper
 RUN mkdir /chroot
+COPY --from=xx / /chroot
+ARG TARGETPLATFORM
 RUN zypper -n refresh
-RUN zypper -n --installroot /chroot install --no-recommends git grep
+RUN zypper -n --installroot /chroot install --no-recommends git grep util-linux file
 RUN zypper --installroot /chroot clean -a
 RUN rm -rf /chroot/var/cache/zypp/* /chroot/var/log/zypp/* /chroot/etc/zypp/ /chroot/run/zypp.pid
 
-FROM ${GO_IMAGE} AS builder
-# This doesn't work. Please check:
-# https://superuser.com/questions/1828813/docker-error-failed-to-solve-cannot-copy-to-non-directory-when-copying-to
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS builder
+ARG TARGETPLATFORM
+ARG TARGETARCH
+# This doesn't work.
 # COPY --from=zypper /chroot /
+# Please check: https://superuser.com/questions/1828813/docker-error-failed-to-solve-cannot-copy-to-non-directory-when-copying-to
+COPY --from=xx / /
 COPY --from=zypper /chroot/bin /bin
 COPY --from=zypper /chroot/lib /lib
 COPY --from=zypper /chroot/lib64 /lib64
@@ -29,7 +36,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    ./scripts/build
+    GOARCH=${TARGETARCH} ARCH=${TARGETARCH} ./scripts/build
+
+RUN xx-verify /usr/src/app/bin/scc-operator
 
 FROM registry.suse.com/bci/bci-base:${BCI_VERSION} AS user-setup
 RUN useradd -u 1000 -U -m -s /sbin/nologin operator
