@@ -66,6 +66,7 @@ jobs:
           TAG: ${{ inputs.tag }}
           GH_TOKEN: ${{ steps.generate_token.outputs.token }}
           GERO_BOT_USER: "${{ steps.generate_token.outputs.app-slug }}[bot]"
+          GERO_CONFIG: ${{ runner.temp }}/gero.yaml
         run: |
           gero init --search "$GITHUB_WORKSPACE"
           gero ci:ship scc-operator "$TAG"
