@@ -1,0 +1,8 @@
+tools:
+  - name: gero
+    mode: release-checksums
+    source: rancher/orbs-automation
+    version: latest
+    release:
+      download_template: "gero_{os}_{arch}.{ext}"
+      extract: "gero"
