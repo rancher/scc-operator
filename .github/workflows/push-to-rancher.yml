@@ -59,6 +59,8 @@ jobs:
           persist-credentials: true
 
       - uses: rancherlabs/dep-fetch/actions/sync-deps@v0.3.1
+        with:
+          config: scc-operator/.bin-deps.yaml
 
       - name: Push updates to rancher/rancher
         if: github.repository == 'rancher/scc-operator'
