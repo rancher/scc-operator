@@ -38,7 +38,7 @@ require (
 	github.com/rancher/lasso v0.2.9
 	github.com/rancher/wrangler/v3 v3.7.1
 	github.com/sirupsen/logrus v1.10.2
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/mock v0.6.0
 	k8s.io/api v0.37.2
