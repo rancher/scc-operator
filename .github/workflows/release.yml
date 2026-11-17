@@ -68,6 +68,7 @@ jobs:
     steps:
       - name : Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: rancherlabs/dep-fetch/actions/sync-deps@v0.3.1
 
       - name: "Read Secrets"
         if: github.repository == 'rancher/scc-operator'
@@ -101,7 +102,7 @@ jobs:
 
       - name: Check SemVer Characteristics
         id: semver_check
-        run: bash ./.github/scripts/check-semver "${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+        uses: rancher/orbs-automation/actions/classify-tag@v0.0.5
 
       - name: "Read prime prod secrets"
         if: ${{github.repository == 'rancher/scc-operator' && steps.semver_check.outputs.HAS_PRERELEASE == 'false'}}
@@ -136,10 +137,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: rancherlabs/dep-fetch/actions/sync-deps@v0.3.1
 
       - name: Check SemVer Characteristics
         id: semver_check
-        run: bash ./.github/scripts/check-semver "${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+        uses: rancher/orbs-automation/actions/classify-tag@v0.0.5
 
       - name: Fully publish release (retry until visible)
         env:
