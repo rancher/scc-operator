@@ -31,7 +31,7 @@ jobs:
 
       - name: Set Branch Tag and Other Variables
         id: set-vars
-        uses: rancher/orbs-automation/actions/build-tags@v0.0.5
+        uses: rancher/orbs-automation/actions/build-tags@v0.0.9
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
